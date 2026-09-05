@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+
+<div class="py-12 bg-surface-base">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div>
+            <h1 class="text-2xl font-bold font-serif text-content-primary">Transaction History</h1>
+            <p class="text-xs text-content-secondary mt-1">Complete account statement and audit ledger.</p>
+        </div>
+
+        <div class="bg-surface-raised border border-surface-border rounded-xl p-6 shadow-xl">
+            <% if (transactions.length === 0) { %>
+                <div class="py-8 text-center text-content-tertiary text-sm">No transactions found.</div>
+            <% } else { %>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold">
+                            <tr>
+                                <th class="pb-3">Reference</th>
+                                <th class="pb-3">Type</th>
+                                <th class="pb-3">Amount</th>
+                                <th class="pb-3">Method</th>
+                                <th class="pb-3">Status</th>
+                                <th class="pb-3">Description</th>
+                                <th class="pb-3">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-surface-border">
+                            <% transactions.forEach(tx => { %>
+                                <tr>
+                                    <td class="py-3 font-mono text-content-secondary"><%= tx.reference || 'TX-' + tx.id %></td>
+                                    <td class="py-3 uppercase font-semibold text-content-primary"><%= tx.type %></td>
+                                    <td class="py-3 font-bold <%= tx.type === 'deposit' || tx.type === 'bonus' ? 'text-gain' : 'text-loss' %>">
+                                        <%= tx.type === 'deposit' || tx.type === 'bonus' ? '+' : '-' %>$<%= Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                    </td>
+                                    <td class="py-3 text-content-secondary"><%= tx.method || 'System' %></td>
+                                    <td class="py-3">
+                                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold <%= tx.status === 'completed' ? 'bg-gain/10 text-gain border border-gain/30' : (tx.status === 'pending' ? 'bg-warning/10 text-warning border border-warning/30' : 'bg-loss/10 text-loss border border-loss/30') %>">
+                                            <%= tx.status %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3 text-content-secondary max-w-xs truncate"><%= tx.description || 'Standard Transaction' %></td>
+                                    <td class="py-3 text-content-tertiary"><%= tx.created_at %></td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

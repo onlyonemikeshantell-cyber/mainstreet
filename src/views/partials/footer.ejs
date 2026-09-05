@@ -1,0 +1,200 @@
+    </main>
+
+    <!-- Institutional Platinum Light Footer -->
+    <footer class="bg-white border-t border-surface-border mt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+                <!-- Brand Bio -->
+                <div class="lg:col-span-2 space-y-4">
+                    <a href="/" class="inline-block">
+                        <img src="/storage/app/public/photos/SLfEn83lBAqk2U2WwdHJPMComgTWIXz2W6sWsvIj.png" alt="TradexEdge" class="h-10 w-auto" />
+                    </a>
+                    <p class="text-xs text-content-secondary leading-relaxed max-w-sm">
+                        TradexEdge is a premier global multi-asset brokerage and institutional copy-trading ecosystem providing ultra-low latency execution across Cryptocurrencies, Forex, Global Indices, and Commodities.
+                    </p>
+                    <div class="flex items-center space-x-3 pt-2">
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-gain/10 border border-gain/20 text-[10px] font-bold text-gain">
+                            <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
+                            <span>Direct STP Liquidity Bridge Active</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Products -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-content-primary font-mono">Markets & Products</h4>
+                    <ul class="space-y-2 text-xs text-content-secondary font-medium">
+                        <li><a href="/markets" class="hover:text-primary transition">Crypto Derivatives</a></li>
+                        <li><a href="/markets" class="hover:text-primary transition">Forex Currency Pairs</a></li>
+                        <li><a href="/markets" class="hover:text-primary transition">Precious Metals & Gold</a></li>
+                        <li><a href="/markets" class="hover:text-primary transition">Wall Street Indices</a></li>
+                        <li><a href="/copy-trading" class="hover:text-primary transition">PAMM Copy Trading</a></li>
+                    </ul>
+                </div>
+
+                <!-- Platform -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-content-primary font-mono">Trading Technology</h4>
+                    <ul class="space-y-2 text-xs text-content-secondary font-medium">
+                        <li><a href="/webtrade" class="hover:text-primary transition">WebTrader Pro Suite</a></li>
+                        <li><a href="/copy-trading" class="hover:text-primary transition">Master Leaderboard</a></li>
+                        <li><a href="/security" class="hover:text-primary transition">Tier-4 Cold Custody</a></li>
+                        <li><a href="/about" class="hover:text-primary transition">Execution Latency Stats</a></li>
+                        <li><a href="/contact" class="hover:text-primary transition">API Liquidity Feeds</a></li>
+                    </ul>
+                </div>
+
+                <!-- Governance & Legal -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-content-primary font-mono">Governance & Legal</h4>
+                    <ul class="space-y-2 text-xs text-content-secondary font-medium">
+                        <li><a href="/legal-docs" class="hover:text-primary transition">Terms of Service</a></li>
+                        <li><a href="/legal-docs" class="hover:text-primary transition">Privacy & Cookies Policy</a></li>
+                        <li><a href="/legal-docs" class="hover:text-primary transition">AML / KYC Compliance</a></li>
+                        <li><a href="/legal-docs" class="hover:text-primary transition">Risk Disclosure Notice</a></li>
+                        <li><a href="/contact" class="hover:text-primary transition">24/7 Client Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Risk Disclaimer & Copyright -->
+            <div class="mt-12 pt-8 border-t border-surface-border space-y-4">
+                <p class="text-[11px] text-content-tertiary leading-relaxed">
+                    <strong>High Risk Investment Warning:</strong> Trading Contracts for Difference (CFDs), foreign exchange, and digital assets carries a high level of risk and may not be suitable for all investors. The high degree of leverage can work against you as well as for you. Past performance of any trading strategy or copy trader is not indicative of future results.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-content-secondary gap-4">
+                    <p>&copy; <%= new Date().getFullYear() %> TradexEdge Group Inc. All rights reserved. Registered & Regulated Prime Liquidity Provider.</p>
+                    <div class="flex items-center space-x-4 text-[11px]">
+                        <a href="/legal-docs" class="hover:underline">Legal</a>
+                        <span>&bull;</span>
+                        <a href="/security" class="hover:underline">Security</a>
+                        <span>&bull;</span>
+                        <a href="/contact" class="hover:underline">Contact</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- ============================================================================== -->
+    <!-- REAL-TIME FLOATING LIVE SUPPORT CHAT WIDGET                                    -->
+    <!-- ============================================================================== -->
+    <script>
+    function tradexLiveSupportChat() {
+        return {
+            chatOpen: false,
+            messageText: '',
+            messages: [],
+            loading: false,
+            pollInterval: null,
+            initChat() {
+                this.fetchMessages();
+                this.pollInterval = setInterval(() => {
+                    if (this.chatOpen) this.fetchMessages();
+                }, 3000);
+            },
+            fetchMessages() {
+                <% if (user) { %>
+                    fetch('/api/chat/messages')
+                        .then(res => res.json())
+                        .then(data => {
+                            this.messages = data.messages || [];
+                            this.$nextTick(() => {
+                                const box = document.getElementById('chat-scroll-box');
+                                if (box) box.scrollTop = box.scrollHeight;
+                            });
+                        }).catch(e => {});
+                <% } %>
+            },
+            sendMessage() {
+                if (!this.messageText.trim()) return;
+                <% if (!user) { %>
+                    window.location.href = '/login';
+                    return;
+                <% } %>
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                fetch('/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: this.messageText, _token: token })
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        this.messageText = '';
+                        this.fetchMessages();
+                    }
+                });
+            }
+        };
+    }
+    </script>
+
+    <div x-data="tradexLiveSupportChat()" x-init="initChat()" class="fixed bottom-5 right-5 z-50">
+
+        <!-- Chat Bubble Trigger Button -->
+        <button @click="chatOpen = !chatOpen" class="w-14 h-14 rounded-full bg-primary hover:bg-primary-dark text-white shadow-2xl flex items-center justify-center transition transform hover:scale-105 border-2 border-white">
+            <span x-show="!chatOpen" class="text-2xl">💬</span>
+            <span x-show="chatOpen" class="text-2xl font-bold" x-cloak>&times;</span>
+        </button>
+
+        <!-- Floating Chat Modal Box -->
+        <div x-show="chatOpen" class="absolute bottom-16 right-0 w-80 sm:w-96 glass-card rounded-3xl shadow-2xl border border-surface-border overflow-hidden flex flex-col h-[480px]" x-cloak>
+            
+            <!-- Chat Header -->
+            <div class="p-4 bg-primary text-white flex items-center justify-between shadow-md">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">🎧</div>
+                    <div>
+                        <h4 class="font-bold text-xs font-serif">TradeXEdge Support Desk</h4>
+                        <p class="text-[10px] text-emerald-200 flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>Live Support Agent Active</span>
+                        </p>
+                    </div>
+                </div>
+                <button @click="chatOpen = false" class="text-white hover:text-slate-200 text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- Messages List Box -->
+            <div id="chat-scroll-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-surface-base text-xs">
+                <% if (!user) { %>
+                    <div class="text-center py-10 space-y-3">
+                        <p class="text-content-secondary">Please sign in to start a live support conversation.</p>
+                        <a href="/login" class="inline-block px-4 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow">Sign In to Chat</a>
+                    </div>
+                <% } else { %>
+                    <div class="flex items-start space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] flex-shrink-0">T</div>
+                        <div class="p-3 bg-white rounded-2xl border border-surface-border shadow-sm max-w-[80%] text-content-primary">
+                            <p>Hello <%= user.name %>! Welcome to TradexEdge 24/7 institutional live support. How can we assist your trading today?</p>
+                            <span class="text-[9px] text-content-tertiary block mt-1">Official Desk</span>
+                        </div>
+                    </div>
+
+                    <template x-for="msg in messages" :key="msg.id">
+                        <div class="flex items-start space-x-2" :class="msg.sender_role === 'user' ? 'justify-end' : 'justify-start'">
+                            <div class="p-3 rounded-2xl text-xs max-w-[80%] shadow-sm"
+                                 :class="msg.sender_role === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-white text-content-primary border border-surface-border rounded-bl-none'">
+                                <p x-text="msg.message"></p>
+                                <span class="text-[9px] block mt-1 opacity-70" x-text="msg.sender_role === 'user' ? 'You' : 'Support Desk'"></span>
+                            </div>
+                        </div>
+                    </template>
+                <% } %>
+            </div>
+
+            <!-- Chat Input Box -->
+            <% if (user) { %>
+                <form @submit.prevent="sendMessage()" class="p-3 bg-white border-t border-surface-border flex items-center space-x-2">
+                    <input type="text" x-model="messageText" placeholder="Type message..." class="flex-1 bg-surface-overlay border border-surface-border rounded-xl px-3 py-2 text-xs text-content-primary outline-none focus:border-primary" />
+                    <button type="submit" class="p-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold transition">
+                        <svg class="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    </button>
+                </form>
+            <% } %>
+
+        </div>
+    </div>
+
+</body>
+</html>

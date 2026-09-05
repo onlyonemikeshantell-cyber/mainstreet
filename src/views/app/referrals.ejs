@@ -1,0 +1,124 @@
+<%- include('../partials/header') %>
+
+<section class="py-10 bg-surface-base text-content-primary font-sans" x-data="{
+    copied: false,
+    copyLink() {
+        const input = document.getElementById('ref-link-input');
+        input.select();
+        document.execCommand('copy');
+        this.copied = true;
+        setTimeout(() => this.copied = false, 2500);
+    }
+}">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-6">
+            <div class="space-y-1">
+                <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">
+                    <span>🤝 INSTITUTIONAL PARTNERSHIP PROGRAM</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-content-primary">Introducing Broker & Affiliate Hub</h1>
+                <p class="text-xs text-content-secondary">Earn continuous 5.0% tier-1 commissions on every deposit made by your referred traders.</p>
+            </div>
+
+            <div>
+                <a href="/dashboard" class="px-5 py-2.5 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary font-bold text-xs shadow-sm transition">
+                    &larr; Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- KPI Overview Strip -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 font-mono">
+            <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-1">
+                <span class="text-xs text-content-tertiary uppercase">Total Commission Earned</span>
+                <p class="text-3xl font-extrabold text-gain font-serif">$<%= Number(typeof totalCommission !== 'undefined' ? totalCommission : 0).toLocaleString(undefined, {minimumFractionDigits: 2}) %></p>
+                <span class="text-[10px] text-gain font-bold">✓ Instant Balance Credit</span>
+            </div>
+
+            <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-1">
+                <span class="text-xs text-content-tertiary uppercase">Direct Referees</span>
+                <p class="text-3xl font-extrabold text-primary font-serif"><%= (typeof referralList !== 'undefined' && referralList) ? referralList.length : 0 %> Traders</p>
+                <span class="text-[10px] text-content-secondary">Active Tier-1 Network</span>
+            </div>
+
+            <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-1">
+                <span class="text-xs text-content-tertiary uppercase">Commission Rate</span>
+                <p class="text-3xl font-extrabold text-[#D4A038] font-serif">5.00%</p>
+                <span class="text-[10px] text-content-secondary">Per Completed Deposit</span>
+            </div>
+
+            <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-1">
+                <span class="text-xs text-content-tertiary uppercase">Affiliate Tier</span>
+                <p class="text-3xl font-extrabold text-content-primary font-serif">Executive IB</p>
+                <span class="text-[10px] text-primary font-bold">★ Priority Payouts</span>
+            </div>
+        </div>
+
+        <!-- Referral Link Box -->
+        <div class="glass-card rounded-3xl p-8 border border-surface-border shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-base font-bold font-serif text-content-primary">Your Exclusive Referral Link</h3>
+                    <p class="text-xs text-content-secondary">Share this invitation link to onboard traders directly under your brokerage network.</p>
+                </div>
+                <span x-show="copied" class="px-3 py-1 bg-gain/15 border border-gain/30 text-gain text-xs font-bold rounded-xl font-mono" x-cloak>✓ Copied to clipboard!</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input id="ref-link-input" 
+                       type="text" 
+                       readonly 
+                       value="http://localhost:3333/register?ref=TRADER<%= user.id %>" 
+                       class="w-full bg-surface-overlay border border-surface-border rounded-2xl px-4 py-3 text-sm font-mono font-bold text-content-primary outline-none select-all" />
+                <button type="button" 
+                        @click="copyLink()" 
+                        class="px-6 py-3 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition whitespace-nowrap flex items-center space-x-1.5">
+                    <span>📋 Copy Link</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Referees Table -->
+        <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4">
+            <h3 class="text-sm font-bold font-serif text-content-primary">Referred Client Ledger</h3>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                        <tr>
+                            <th class="pb-3">Client ID</th>
+                            <th class="pb-3">Name</th>
+                            <th class="pb-3">Email</th>
+                            <th class="pb-3">Joined Date</th>
+                            <th class="pb-3 text-right">Commission Earned</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <% if (typeof referralList !== 'undefined' && referralList && referralList.length > 0) { %>
+                            <% referralList.forEach(ref => { %>
+                                <tr>
+                                    <td class="py-3 text-content-secondary">#USR-<%= ref.referee_id %></td>
+                                    <td class="py-3 font-bold text-content-primary"><%= ref.referee_name %></td>
+                                    <td class="py-3 text-content-secondary"><%= ref.referee_email %></td>
+                                    <td class="py-3 text-content-tertiary"><%= new Date(ref.joined_date || ref.created_at).toLocaleDateString() %></td>
+                                    <td class="py-3 text-right font-bold text-gain">+$<%= Number(ref.commission_earned).toFixed(2) %> USD</td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-content-tertiary text-xs">
+                                    No referred traders registered yet. Share your referral link above to start earning commissions!
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<%- include('../partials/footer') %>

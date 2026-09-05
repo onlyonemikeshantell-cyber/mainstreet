@@ -1,0 +1,1278 @@
+<%- include('../partials/header') %>
+
+<script>
+function webTraderApp() {
+    return {
+        sessionMode: 'crypto', // 'crypto' | 'traditional'
+        orderMode: 'market', // 'market' | 'limit'
+        limitPrice: 64820.50,
+        chartInterval: '15', // '1', '5', '15', '60', '240', 'D', 'W'
+        activePositionsTab: 'open', // 'open' | 'pending'
+        usedMargin: 0,
+        freeMargin: <%= Number(user.equity || user.balance) %>,
+        marginLevelPercent: 9999,
+        cryptoSubFilter: 'all', // 'all' | 'top' | 'ai' | 'defi' | 'meme'
+        tradSubFilter: 'all', // 'all' | 'forex' | 'commodities' | 'indices'
+        searchMkt: '',
+        allMarkets: <%- JSON.stringify(markets || []) %>,
+
+        setSessionMode(mode) {
+            this.sessionMode = mode;
+            this.cryptoSubFilter = 'all';
+            this.tradSubFilter = 'all';
+            this.searchMkt = '';
+            if (mode === 'crypto' && !this.isCryptoActive) {
+                this.selectSymbol('BTC/USDT', 0.1);
+            } else if (mode === 'traditional' && this.isCryptoActive) {
+                this.selectSymbol('EUR/USD', 0.0);
+            }
+        },
+
+        get filteredMarketList() {
+            return this.allMarkets.filter(m => {
+                // 1. Filter by Active Session Category (from header snapshot)
+                if (this.sessionMode === 'crypto') {
+                    if (m.category !== 'crypto') return false;
+                    const sym = m.symbol;
+                    if (this.cryptoSubFilter === 'top' && !['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'AVAX/USDT', 'DOGE/USDT', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'ai' && !['TAO/USDT', 'RENDER/USDT', 'NEAR/USDT', 'FET/USDT'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'defi' && !['LINK/USDT', 'UNI/USDT', 'AAVE/USDT', 'ARB/USDT', 'OP/USDT', 'MATIC/USDT'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'meme' && !['PEPE/USDT', 'SHIB/USDT', 'DOGE/USDT'].includes(sym)) return false;
+                } else {
+                    // Traditional Markets Session
+                    if (m.category === 'crypto') return false; // Exclude 24/7 raw crypto
+                    if (this.tradSubFilter === 'crypto' && m.category !== 'traditional_crypto') return false;
+                    if (this.tradSubFilter === 'forex' && m.category !== 'forex') return false;
+                    if (this.tradSubFilter === 'commodities' && m.category !== 'commodities') return false;
+                    if (this.tradSubFilter === 'indices' && m.category !== 'indices') return false;
+                    if (this.tradSubFilter === 'stocks' && m.category !== 'stocks') return false;
+                    if (this.tradSubFilter === 'etf' && m.category !== 'etf') return false;
+                }
+
+                // 2. Filter by Search Query
+                if (this.searchMkt) {
+                    const q = this.searchMkt.toLowerCase();
+                    return m.symbol.toLowerCase().includes(q) || m.name.toLowerCase().includes(q);
+                }
+                return true;
+            });
+        },
+        activeSymbol: 'BTC/USDT',
+        activeTvSymbol: 'BITSTAMP:BTCUSD',
+        activeSpread: 1.2,
+        orderType: 'BUY',
+        lotSize: 0.10,
+        cryptoLeverage: 50,
+        get isCryptoActive() {
+            return this.activeSymbol.includes('/USDT') || this.activeSymbol.includes('BTC') || this.activeSymbol.includes('ETH') || this.activeSymbol.includes('SOL') || this.activeSymbol.includes('BNB') || this.activeSymbol.includes('TAO') || this.activeSymbol.includes('RENDER') || this.activeSymbol.includes('ARB') || this.activeSymbol.includes('OP') || this.activeSymbol.includes('SUI') || this.activeSymbol.includes('PEPE');
+        },
+        get estimatedLiquidationPrice() {
+            const p = (this.orderType === 'BUY') ? this.askPrice : this.bidPrice;
+            const lev = this.cryptoLeverage || 50;
+            if (this.orderType === 'BUY') {
+                const liq = p * (1 - (1 / lev) + 0.005);
+                return Math.max(0, liq).toFixed(p < 5 ? 4 : 2);
+            } else {
+                const liq = p * (1 + (1 / lev) - 0.005);
+                return liq.toFixed(p < 5 ? 4 : 2);
+            }
+        },
+        get orderNotionalValue() {
+            const p = (this.orderType === 'BUY') ? this.askPrice : this.bidPrice;
+            return (p * this.lotSize).toFixed(2);
+        },
+        get requiredCryptoMargin() {
+            const p = (this.orderType === 'BUY') ? this.askPrice : this.bidPrice;
+            const lev = this.cryptoLeverage || 50;
+            return ((p * this.lotSize) / lev).toFixed(2);
+        },
+        takeProfit: '',
+        stopLoss: '',
+        bidPrice: 64820.50,
+        askPrice: 64821.70,
+        liveBalance: <%= Number(user.balance) %>,
+        liveEquity: <%= Number(user.equity || user.balance) %>,
+        livePnL: 0,
+        positions: <%- JSON.stringify(openTrades || []) %>,
+        pendingOrders: [],
+        executionSuccessMsg: '',
+        executionErrorMsg: '',
+        calendarModal: false,
+        signalsDrawer: false,
+        economicEvents: [],
+        quantSignals: [],
+        bullSentiment: 68,
+        bearSentiment: 32,
+        oneClickMode: true,
+        sessionMode: 'crypto', // 'crypto' | 'traditional'
+        cryptoData: null,
+        serverPing: 22,
+        utcTime: '',
+        
+        // Session Analytics
+        sessionTodayPnL: 0,
+        sessionTradesCount: <%= openTrades.length %>,
+        sessionWinRate: 100,
+        sessionVolume: 0.50,
+
+        rates: {
+            'BTC/USDT': { price: 64820.50, high: 65450.00, low: 63980.00 },
+            'ETH/USDT': { price: 3540.20, high: 3610.00, low: 3490.00 },
+            'SOL/USDT': { price: 148.60, high: 154.00, low: 142.50 },
+            'BNB/USDT': { price: 582.40, high: 595.00, low: 574.00 },
+            'XRP/USDT': { price: 0.5840, high: 0.6120, low: 0.5680 },
+            'ADA/USDT': { price: 0.3850, high: 0.4020, low: 0.3720 },
+            'AVAX/USDT': { price: 26.80, high: 28.40, low: 25.50 },
+            'DOGE/USDT': { price: 0.1080, high: 0.1140, low: 0.1020 },
+            'TAO/USDT': { price: 348.50, high: 365.00, low: 335.00 },
+            'RENDER/USDT': { price: 6.85, high: 7.20, low: 6.50 },
+            'NEAR/USDT': { price: 4.25, high: 4.50, low: 4.05 },
+            'FET/USDT': { price: 1.35, high: 1.48, low: 1.28 },
+            'LINK/USDT': { price: 11.85, high: 12.40, low: 11.20 },
+            'UNI/USDT': { price: 7.60, high: 8.10, low: 7.30 },
+            'AAVE/USDT': { price: 142.50, high: 150.00, low: 136.00 },
+            'ARB/USDT': { price: 0.5420, high: 0.5750, low: 0.5200 },
+            'OP/USDT': { price: 1.4500, high: 1.5500, low: 1.3800 },
+            'MATIC/USDT': { price: 0.4250, high: 0.4500, low: 0.4080 },
+            'SUI/USDT': { price: 0.9450, high: 1.0200, low: 0.8900 },
+            'APT/USDT': { price: 6.75, high: 7.15, low: 6.40 },
+            'TON/USDT': { price: 5.65, high: 5.90, low: 5.45 },
+            'PEPE/USDT': { price: 0.0000088, high: 0.0000094, low: 0.0000082 },
+            'SHIB/USDT': { price: 0.0000145, high: 0.0000155, low: 0.0000138 },
+            'LTC/USDT': { price: 65.40, high: 67.80, low: 63.90 },
+            'IBIT': { price: 36.85, high: 37.90, low: 36.10 },
+            'ETHA': { price: 28.40, high: 29.50, low: 27.80 },
+            'FBTC': { price: 62.10, high: 63.80, low: 61.20 },
+            'GBTC': { price: 54.75, high: 56.20, low: 53.90 },
+            'BTC-FUT': { price: 65120.00, high: 65800.00, low: 64200.00 },
+            'ETH-FUT': { price: 3565.00, high: 3640.00, low: 3510.00 },
+            'MSTR': { price: 142.80, high: 151.00, low: 138.50 },
+            'COIN': { price: 218.60, high: 226.00, low: 212.00 },
+            'MARA': { price: 18.90, high: 20.40, low: 17.80 },
+            'RIOT': { price: 10.45, high: 11.20, low: 9.90 },
+            'BTC/EUR': { price: 59720.00, high: 60400.00, low: 59100.00 },
+            'BTC/GBP': { price: 50100.00, high: 50800.00, low: 49600.00 },
+            'ETH/EUR': { price: 3260.00, high: 3340.00, low: 3210.00 },
+            'BTC/USD': { price: 64820.50, high: 65450.00, low: 63980.00 },
+            'ETH/USD': { price: 3540.20, high: 3610.00, low: 3490.00 },
+            'SOL/USD': { price: 148.60, high: 154.00, low: 142.50 },
+            'BNB/USD': { price: 582.40, high: 595.00, low: 574.00 },
+            'XRP/USD': { price: 0.5840, high: 0.6120, low: 0.5680 },
+            'ADA/USD': { price: 0.3850, high: 0.4020, low: 0.3720 },
+            'AVAX/USD': { price: 26.80, high: 28.40, low: 25.50 },
+            'DOGE/USD': { price: 0.1080, high: 0.1140, low: 0.1020 },
+            'DOT/USD': { price: 4.65, high: 4.88, low: 4.45 },
+            'LINK/USD': { price: 11.85, high: 12.40, low: 11.20 },
+            'NEAR/USD': { price: 4.25, high: 4.50, low: 4.05 },
+            'SUI/USD': { price: 0.9450, high: 1.0200, low: 0.8900 },
+            'LTC/USD': { price: 65.40, high: 67.80, low: 63.90 },
+            'MATIC/USD': { price: 0.4250, high: 0.4500, low: 0.4080 },
+            'EUR/USD': { price: 1.0854, high: 1.0890, low: 1.0820 },
+            'GBP/USD': { price: 1.2940, high: 1.2985, low: 1.2890 },
+            'USD/JPY': { price: 155.80, high: 156.40, low: 155.10 },
+            'USD/CHF': { price: 0.8920, high: 0.8965, low: 0.8880 },
+            'AUD/USD': { price: 0.6680, high: 0.6720, low: 0.6640 },
+            'USD/CAD': { price: 1.3680, high: 1.3725, low: 1.3630 },
+            'NZD/USD': { price: 0.6080, high: 0.6120, low: 0.6030 },
+            'EUR/GBP': { price: 0.8385, high: 0.8420, low: 0.8350 },
+            'EUR/JPY': { price: 169.10, high: 169.80, low: 168.40 },
+            'GBP/JPY': { price: 201.60, high: 202.50, low: 200.80 },
+            'USD/SGD': { price: 1.3480, high: 1.3520, low: 1.3440 },
+            'XAU/USD': { price: 2418.50, high: 2435.00, low: 2402.00 },
+            'XAG/USD': { price: 31.25, high: 32.10, low: 30.80 },
+            'USOIL': { price: 78.40, high: 79.80, low: 77.20 },
+            'UKOIL': { price: 82.60, high: 84.10, low: 81.40 },
+            'NATGAS': { price: 2.15, high: 2.28, low: 2.05 },
+            'XPT/USD': { price: 985.00, high: 998.00, low: 972.00 },
+            'US30': { price: 39850.00, high: 40120.00, low: 39600.00 },
+            'NAS100': { price: 18650.20, high: 18800.00, low: 18450.00 },
+            'SPX500': { price: 5480.00, high: 5520.00, low: 5440.00 },
+            'GER40': { price: 18320.00, high: 18450.00, low: 18200.00 },
+            'UK100': { price: 8240.00, high: 8290.00, low: 8180.00 },
+            'JPN225': { price: 38400.00, high: 38800.00, low: 38100.00 },
+            'NVDA': { price: 128.50, high: 132.00, low: 125.80 },
+            'AAPL': { price: 224.20, high: 227.50, low: 221.80 },
+            'MSFT': { price: 418.50, high: 422.00, low: 415.20 },
+            'NVDA': { price: 128.50, high: 132.00, low: 125.80 },
+            'TSLA': { price: 218.40, high: 225.00, low: 212.50 },
+            'AMZN': { price: 178.60, high: 181.20, low: 176.40 },
+            'GOOGL': { price: 164.80, high: 167.00, low: 163.10 },
+            'META': { price: 512.30, high: 518.00, low: 506.50 },
+            'AMD': { price: 152.40, high: 156.00, low: 149.80 },
+            'NFLX': { price: 684.20, high: 692.00, low: 677.00 },
+            'PLTR': { price: 31.80, high: 33.20, low: 30.50 },
+            'JPM': { price: 214.50, high: 217.00, low: 212.20 },
+            'V': { price: 268.90, high: 271.50, low: 266.80 },
+            'BRK.B': { price: 448.20, high: 452.00, low: 445.00 },
+            'LLY': { price: 942.50, high: 955.00, low: 932.00 },
+            'DIS': { price: 92.40, high: 94.00, low: 90.80 },
+            'BABA': { price: 82.50, high: 84.50, low: 80.80 },
+            'TSM': { price: 168.40, high: 172.00, low: 165.20 },
+            'UBER': { price: 72.80, high: 74.50, low: 71.20 },
+            'TSLA': { price: 218.40, high: 225.00, low: 212.50 }
+        },
+
+        initTrader() {
+            this.fetchEventsAndSignals();
+            this.fetchCryptoSession();
+            setInterval(() => this.fetchCryptoSession(), 2000);
+            this.syncPrices();
+            this.updateClocks();
+            this.pollPrices();
+            setInterval(() => this.updateClocks(), 1000);
+            setInterval(() => this.pollPrices(), 2000);
+            setInterval(() => this.syncServerState(), 3000);
+            this.calculatePnL();
+            this.$nextTick(() => {
+                this.mountChart();
+            });
+        },
+
+        setChartTimeframe(interval) {
+            this.chartInterval = interval;
+            this.mountChart();
+        },
+
+        // Web Audio Synthesizer for Institutional Acoustic Feedback
+        playChime(type) {
+            if (!this.soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                if (type === 'fill') {
+                    // Two-tone institutional execution bell
+                    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                    osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.5);
+                } else if (type === 'error') {
+                    // Low warning buzz
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.35);
+                }
+            } catch(e) {}
+        },
+
+        mountChart() {
+            const container = document.getElementById('tv_chart_container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.setAttribute('allowtransparency', 'true');
+            iframe.setAttribute('scrolling', 'no');
+            
+            // Encode symbol properly for TradingView widgetembed with active timeframe
+            const sym = encodeURIComponent(this.activeTvSymbol || 'BITSTAMP:BTCUSD');
+            const interval = encodeURIComponent(this.chartInterval || '15');
+            iframe.src = `https://s.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=light&style=1&timezone=Etc%2FUTC&locale=en`;
+            container.appendChild(iframe);
+        },
+
+        updateClocks() {
+            const now = new Date();
+            const utcHours = now.getUTCHours();
+            const utcMins = String(now.getUTCMinutes()).padStart(2, '0');
+            const utcSecs = String(now.getUTCSeconds()).padStart(2, '0');
+            this.utcTime = `${String(utcHours).padStart(2, '0')}:${utcMins}:${utcSecs} UTC`;
+            
+            // Random realistic jitter for live STP ping (18ms - 28ms)
+            this.serverPing = Math.floor(Math.random() * 8) + 20;
+        },
+
+        // Global Market Session Status (Sydney, Tokyo, London, New York)
+        isSessionOpen(session) {
+            const h = new Date().getUTCHours();
+            if (session === 'sydney') return (h >= 22 || h < 7);
+            if (session === 'tokyo') return (h >= 0 && h < 9);
+            if (session === 'london') return (h >= 8 && h < 17);
+            if (session === 'newyork') return (h >= 13 && h < 22);
+            return false;
+        },
+
+        get activeOverlap() {
+            const h = new Date().getUTCHours();
+            if (h >= 13 && h < 17) return '⚡ London / New York Overlap (Peak Volatility)';
+            if (h >= 8 && h < 9) return '⚡ Tokyo / London Overlap (High Liquidity)';
+            if (this.isSessionOpen('newyork')) return '🇺🇸 New York Session Active';
+            if (this.isSessionOpen('london')) return '🇬🇧 London Session Active';
+            if (this.isSessionOpen('tokyo')) return '🇯🇵 Tokyo Session Active';
+            return '🇦🇺 Sydney Session Active';
+        },
+
+        get sessionDayRangePercent() {
+            const cur = this.rates[this.activeSymbol] || { price: 64820.50, high: 65450.00, low: 63980.00 };
+            const range = (cur.high - cur.low) || 1;
+            const pct = ((cur.price - cur.low) / range) * 100;
+            return Math.min(100, Math.max(0, pct)).toFixed(1);
+        },
+
+        pollPrices() {
+            fetch('/api/market/prices')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.success && data.prices) {
+                        const p = data.prices;
+                        // Synchronize every available market rate
+                        Object.keys(p).forEach(k => {
+                            const quote = p[k];
+                            if (quote && quote.price) {
+                                if (!this.rates[k]) {
+                                    this.rates[k] = { price: quote.price, high: +(quote.price * 1.015).toFixed(2), low: +(quote.price * 0.985).toFixed(2) };
+                                } else {
+                                    this.rates[k].price = quote.price;
+                                }
+                            }
+                        });
+                        this.syncPrices();
+                        this.calculatePnL();
+                    }
+                }).catch(function(e) {});
+        },
+
+        selectSymbol(symbol, spread) {
+            this.activeSymbol = symbol;
+            this.activeSpread = spread || 1.2;
+            
+            // Universal TradingView Symbol Resolver (Supports USDT, USD, Forex, Metals, Equities)
+            let tv = 'BITSTAMP:BTCUSD';
+            const clean = symbol.replace('/', '').toUpperCase();
+
+            // 1. Crypto Pairs
+            if (symbol.startsWith('BTC')) tv = 'BITSTAMP:BTCUSD';
+            else if (symbol.startsWith('ETH')) tv = 'BITSTAMP:ETHUSD';
+            else if (symbol.startsWith('SOL')) tv = 'BINANCE:SOLUSDT';
+            else if (symbol.startsWith('BNB')) tv = 'BINANCE:BNBUSDT';
+            else if (symbol.startsWith('XRP')) tv = 'BINANCE:XRPUSDT';
+            else if (symbol.startsWith('ADA')) tv = 'BINANCE:ADAUSDT';
+            else if (symbol.startsWith('AVAX')) tv = 'BINANCE:AVAXUSDT';
+            else if (symbol.startsWith('DOGE')) tv = 'BINANCE:DOGEUSDT';
+            else if (symbol.startsWith('TAO')) tv = 'BINANCE:TAOUSDT';
+            else if (symbol.startsWith('RENDER')) tv = 'BINANCE:RENDERUSDT';
+            else if (symbol.startsWith('NEAR')) tv = 'BINANCE:NEARUSDT';
+            else if (symbol.startsWith('FET')) tv = 'BINANCE:FETUSDT';
+            else if (symbol.startsWith('LINK')) tv = 'BINANCE:LINKUSDT';
+            else if (symbol.startsWith('UNI')) tv = 'BINANCE:UNIUSDT';
+            else if (symbol.startsWith('AAVE')) tv = 'BINANCE:AAVEUSDT';
+            else if (symbol.startsWith('ARB')) tv = 'BINANCE:ARBUSDT';
+            else if (symbol.startsWith('OP')) tv = 'BINANCE:OPUSDT';
+            else if (symbol.startsWith('MATIC')) tv = 'BINANCE:MATICUSDT';
+            else if (symbol.startsWith('SUI')) tv = 'BINANCE:SUIUSDT';
+            else if (symbol.startsWith('APT')) tv = 'BINANCE:APTUSDT';
+            else if (symbol.startsWith('TON')) tv = 'OKX:TONUSDT';
+            else if (symbol.startsWith('PEPE')) tv = 'BINANCE:PEPEUSDT';
+            else if (symbol.startsWith('SHIB')) tv = 'BINANCE:SHIBUSDT';
+            else if (symbol.startsWith('LTC')) tv = 'BINANCE:LTCUSDT';
+
+            // 2. Forex Currencies
+            else if (symbol === 'EUR/USD') tv = 'FX:EURUSD';
+            else if (symbol === 'GBP/USD') tv = 'FX:GBPUSD';
+            else if (symbol === 'USD/JPY') tv = 'FX:USDJPY';
+            else if (symbol === 'USD/CHF') tv = 'FX:USDCHF';
+            else if (symbol === 'AUD/USD') tv = 'FX:AUDUSD';
+            else if (symbol === 'USD/CAD') tv = 'FX:USDCAD';
+
+            // 3. Commodities & Metals
+            else if (symbol === 'XAU/USD') tv = 'OANDA:XAUUSD';
+            else if (symbol === 'XAG/USD') tv = 'OANDA:XAGUSD';
+            else if (symbol === 'USOIL') tv = 'TVC:USOIL';
+
+            // 4. Indices & Tech Equities
+            else if (symbol === 'US30') tv = 'CAPITALCOM:US30';
+            else if (symbol === 'NAS100') tv = 'CAPITALCOM:US100';
+            else if (symbol === 'SPX500') tv = 'CAPITALCOM:US500';
+            else if (symbol === 'NVDA') tv = 'NASDAQ:NVDA';
+            else if (symbol === 'AAPL') tv = 'NASDAQ:AAPL';
+            else if (symbol === 'TSLA') tv = 'NASDAQ:TSLA';
+            // 6. Global Stocks & Equities
+            else if (symbol === 'AAPL') tv = 'NASDAQ:AAPL';
+            else if (symbol === 'MSFT') tv = 'NASDAQ:MSFT';
+            else if (symbol === 'NVDA') tv = 'NASDAQ:NVDA';
+            else if (symbol === 'TSLA') tv = 'NASDAQ:TSLA';
+            else if (symbol === 'AMZN') tv = 'NASDAQ:AMZN';
+            else if (symbol === 'GOOGL') tv = 'NASDAQ:GOOGL';
+            else if (symbol === 'META') tv = 'NASDAQ:META';
+            else if (symbol === 'AMD') tv = 'NASDAQ:AMD';
+            else if (symbol === 'NFLX') tv = 'NASDAQ:NFLX';
+            else if (symbol === 'PLTR') tv = 'NASDAQ:PLTR';
+            else if (symbol === 'JPM') tv = 'NYSE:JPM';
+            else if (symbol === 'V') tv = 'NYSE:V';
+            else if (symbol === 'BRK.B') tv = 'NYSE:BRK.B';
+            else if (symbol === 'LLY') tv = 'NYSE:LLY';
+            else if (symbol === 'DIS') tv = 'NYSE:DIS';
+            else if (symbol === 'BABA') tv = 'NYSE:BABA';
+            else if (symbol === 'TSM') tv = 'NYSE:TSM';
+            else if (symbol === 'UBER') tv = 'NYSE:UBER';
+
+            // 5. Traditional Crypto ETFs, Equities & Futures
+            else if (symbol === 'IBIT') tv = 'NASDAQ:IBIT';
+            else if (symbol === 'ETHA') tv = 'NASDAQ:ETHA';
+            else if (symbol === 'FBTC') tv = 'CBOE:FBTC';
+            else if (symbol === 'GBTC') tv = 'AMEX:GBTC';
+            else if (symbol === 'BTC-FUT') tv = 'CME:BTC1!';
+            else if (symbol === 'ETH-FUT') tv = 'CME:ETH1!';
+            else if (symbol === 'MSTR') tv = 'NASDAQ:MSTR';
+            else if (symbol === 'COIN') tv = 'NASDAQ:COIN';
+            else if (symbol === 'MARA') tv = 'NASDAQ:MARA';
+            else if (symbol === 'RIOT') tv = 'NASDAQ:RIOT';
+            else if (symbol === 'BTC/EUR') tv = 'BITSTAMP:BTCEUR';
+            else if (symbol === 'BTC/GBP') tv = 'BITSTAMP:BTCGBP';
+            else if (symbol === 'ETH/EUR') tv = 'BITSTAMP:ETHEUR';
+
+            this.activeTvSymbol = tv;
+            this.syncPrices();
+            this.mountChart();
+        },
+
+        syncPrices() {
+            const current = (this.rates[this.activeSymbol] && this.rates[this.activeSymbol].price) ? this.rates[this.activeSymbol].price : 64820.50;
+            const spreadDelta = (this.activeSpread * 0.1);
+            this.bidPrice = current;
+            if (this.orderMode === 'market') this.limitPrice = current;
+            this.askPrice = +(current + spreadDelta).toFixed(this.activeSymbol.includes('USD') && !this.activeSymbol.includes('BTC') && !this.activeSymbol.includes('ETH') && !this.activeSymbol.includes('SOL') && !this.activeSymbol.includes('BNB') && !this.activeSymbol.includes('XAU') ? 4 : 2);
+        },
+
+        getPrice(symbol) {
+            const p = (this.rates[symbol] && this.rates[symbol].price) ? this.rates[symbol].price : (symbol.includes('BTC') ? 64820.50 : 1.0854);
+            return (p >= 10 ? '$' + Number(p).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : Number(p).toFixed(4));
+        },
+
+        fetchEventsAndSignals() {
+            fetch('/api/economic-calendar').then(r => r.json()).then(d => { if (d.success) this.economicEvents = d.events || []; }).catch(e => {});
+            fetch('/api/signals').then(r => r.json()).then(d => { if (d.success) this.quantSignals = d.signals || []; }).catch(e => {});
+        },
+
+        fetchCryptoSession() {
+            fetch('/api/crypto/session-data')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.session) {
+                        this.cryptoData = d.session;
+                    }
+                }).catch(e => {});
+        },
+
+        calculatePnL() {
+            let total = 0;
+            this.positions.forEach(pos => {
+                const symQuote = (this.rates[pos.symbol] && this.rates[pos.symbol].price) ? this.rates[pos.symbol].price : pos.open_price;
+                const diff = (pos.type === 'BUY') ? (symQuote - pos.open_price) : (pos.open_price - symQuote);
+                const multiplier = (pos.symbol.includes('EUR') || pos.symbol.includes('GBP') || pos.symbol.includes('AUD')) && !pos.symbol.includes('BTC') ? 100000 : 1;
+                const pnl = +(diff * pos.lot_size * multiplier).toFixed(2);
+                pos.profit_loss = pnl;
+                pos.current_price = symQuote;
+                total += pnl;
+            });
+            this.livePnL = +total.toFixed(2);
+            this.liveEquity = +(this.liveBalance + total).toFixed(2);
+        },
+
+        async executeTrade() {
+            this.executionSuccessMsg = '';
+            this.executionErrorMsg = '';
+            const price = (this.orderType === 'BUY') ? this.askPrice : this.bidPrice;
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '<%= csrfToken %>';
+            const isLimit = (this.orderMode === 'limit');
+            const targetPrice = isLimit ? parseFloat(this.limitPrice) : price;
+
+            try {
+                const res = await fetch('/api/trade/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        _token: token,
+                        symbol: this.activeSymbol,
+                        type: this.orderType,
+                        lot_size: this.lotSize,
+                        open_price: price,
+                        order_execution: this.orderMode,
+                        trigger_price: targetPrice,
+                        take_profit: this.takeProfit || null,
+                        stop_loss: this.stopLoss || null
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.playChime('fill');
+                    if (isLimit) {
+                        this.executionSuccessMsg = `✓ Limit Order #${data.tradeId} placed: ${this.orderType} ${this.lotSize} ${this.activeSymbol} @ $${targetPrice.toLocaleString()}`;
+                        this.activePositionsTab = 'pending';
+                    } else {
+                        this.executionSuccessMsg = `✓ Filled #${data.tradeId}: ${this.orderType} ${this.lotSize} ${this.activeSymbol} @ $${price.toLocaleString()}`;
+                        this.activePositionsTab = 'open';
+                    }
+                    this.syncServerState();
+                    setTimeout(() => { this.executionSuccessMsg = ''; }, 5000);
+                } else {
+                    this.playChime('error');
+                    this.executionErrorMsg = 'Execution failed: ' + ((data && data.error) ? data.error : 'Unknown error');
+                }
+            } catch (err) {
+                this.playChime('error');
+                this.executionErrorMsg = 'Network error during execution.';
+            }
+        },
+
+        async closeAllPositions(filterType) {
+            if (!confirm(`Are you sure you want to close ${filterType ? filterType.toUpperCase() : 'ALL'} open positions immediately at market?`)) return;
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '<%= csrfToken %>';
+            try {
+                const res = await fetch('/api/trade/close-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ _token: token, filter: filterType })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.playChime('fill');
+                    this.syncServerState();
+                    this.executionSuccessMsg = `✓ Bulk execution: ${data.count} position(s) closed. Net Realized: ${data.totalRealizedPnL >= 0 ? '+' : ''}$${Number(data.totalRealizedPnL).toFixed(2)}`;
+                    setTimeout(() => { this.executionSuccessMsg = ''; }, 5000);
+                }
+            } catch(e) {}
+        },
+
+        async cancelPendingOrder(id) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '<%= csrfToken %>';
+            try {
+                const res = await fetch('/api/trade/cancel-pending', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ _token: token, trade_id: id })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.syncServerState();
+                    this.executionSuccessMsg = `✓ Pending Order #${id} cancelled.`;
+                    setTimeout(() => { this.executionSuccessMsg = ''; }, 4000);
+                }
+            } catch(e) {}
+        },
+
+        async closeTrade(id) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '<%= csrfToken %>';
+            try {
+                const res = await fetch('/api/trade/close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        _token: token,
+                        trade_id: id,
+                        close_price: this.bidPrice
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.positions = this.positions.filter(p => p.id !== id);
+                    this.syncServerState();
+                }
+            } catch (err) {}
+        },
+
+        async syncServerState() {
+            try {
+                const res = await fetch('/api/user/sync');
+                const data = await res.json();
+                if (data) {
+                    this.liveBalance = Number(data.balance);
+                    this.liveEquity = Number(data.equity);
+                    this.livePnL = Number(data.totalPnL);
+                    this.positions = data.openTrades || [];
+                    this.pendingOrders = data.pendingOrders || [];
+                    this.usedMargin = Number(data.usedMargin || 0);
+                    this.freeMargin = Number(data.freeMargin || data.equity);
+                    this.marginLevelPercent = Number(data.marginLevelPercent || 9999);
+                    if (data.sessionMetrics) {
+                        this.sessionTodayPnL = data.sessionMetrics.todayPnL;
+                        this.sessionTradesCount = data.sessionMetrics.tradesCount;
+                        this.sessionWinRate = data.sessionMetrics.winRate;
+                        this.sessionVolume = data.sessionMetrics.volume;
+                    }
+                }
+            } catch (err) {}
+        }
+    };
+}
+</script>
+
+<div x-data="webTraderApp()" x-init="initTrader()" class="bg-surface-base min-h-[calc(100vh-4rem)] flex flex-col font-sans">
+    
+    <!-- ============================================================================== -->
+    <!-- 1. GLOBAL MARKET SESSIONS HEADER RIBBON                                        -->
+    <!-- ============================================================================== -->
+    <div class="bg-surface-raised border-b border-surface-border px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs font-mono shadow-sm">
+        
+        <!-- Left: Global Clocks & Session Overlap -->
+        <div class="flex flex-wrap items-center gap-3 sm:gap-6">
+            
+            <!-- Equinix Bridge & Ping -->
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
+                <span class="font-bold text-content-primary">STP-NY4</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-gain/10 text-gain font-bold" x-text="serverPing + 'ms'"></span>
+            </div>
+
+            <div class="h-4 w-px bg-surface-border hidden sm:block"></div>
+
+            <!-- Global Sessions Indicators -->
+            <div class="flex items-center space-x-3 text-[11px]">
+                <!-- Sydney -->
+                <div class="flex items-center space-x-1.5" :title="'Sydney (22:00 - 07:00 GMT)'">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('sydney') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span :class="isSessionOpen('sydney') ? 'font-bold text-content-primary' : 'text-content-tertiary'">SYD</span>
+                </div>
+
+                <!-- Tokyo -->
+                <div class="flex items-center space-x-1.5" :title="'Tokyo (00:00 - 09:00 GMT)'">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('tokyo') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span :class="isSessionOpen('tokyo') ? 'font-bold text-content-primary' : 'text-content-tertiary'">TYO</span>
+                </div>
+
+                <!-- London -->
+                <div class="flex items-center space-x-1.5" :title="'London (08:00 - 17:00 GMT)'">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('london') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span :class="isSessionOpen('london') ? 'font-bold text-content-primary' : 'text-content-tertiary'">LON</span>
+                </div>
+
+                <!-- New York -->
+                <div class="flex items-center space-x-1.5" :title="'New York (13:00 - 22:00 GMT)'">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('newyork') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span :class="isSessionOpen('newyork') ? 'font-bold text-content-primary' : 'text-content-tertiary'">NYC</span>
+                </div>
+            </div>
+
+            <!-- Overlap Pill -->
+            <span class="hidden md:inline-block px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold" x-text="activeOverlap"></span>
+        </div>
+
+        <!-- Quick Tools: Economic Calendar, AI Signals & Sound Toggle -->
+            <div class="flex items-center space-x-2">
+                <button type="button" @click="soundEnabled = !soundEnabled; localStorage.setItem('wt_sound_enabled', soundEnabled)" 
+                        :class="soundEnabled ? 'bg-primary/10 text-primary border-primary/30' : 'bg-surface-overlay text-content-tertiary border-surface-border'"
+                        class="px-2.5 py-1 rounded-lg border font-bold text-[11px] transition flex items-center space-x-1"
+                        :title="soundEnabled ? 'Acoustic execution sound ON' : 'Acoustic sound muted'">
+                    <span x-text="soundEnabled ? '🔊 Sound' : '🔇 Muted'"></span>
+                </button>
+                <button type="button" @click="signalsDrawer = true" class="px-2.5 py-1 rounded-lg bg-gain/10 hover:bg-gain/20 text-gain border border-gain/30 font-bold text-[11px] transition flex items-center space-x-1">
+                    <span>🎯 AI Signals</span>
+                </button>
+                <button type="button" @click="calendarModal = true" class="px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 font-bold text-[11px] transition flex items-center space-x-1">
+                    <span>📅 Calendar</span>
+                </button>
+            </div>
+
+        <!-- Right: UTC Clock & Account Balance Strip -->
+        <div class="flex items-center space-x-5 text-xs">
+            <span class="text-content-secondary font-bold" x-text="utcTime"></span>
+            
+            <div class="hidden lg:flex items-center space-x-4">
+                <div>
+                    <span class="text-content-secondary">Balance:</span>
+                    <strong class="text-content-primary" x-text="'$' + liveBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
+                </div>
+                <div>
+                    <span class="text-content-secondary">Equity:</span>
+                    <strong class="text-primary" x-text="'$' + liveEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
+                </div>
+                <div>
+                    <span class="text-content-secondary">Floating P&L:</span>
+                    <strong :class="livePnL >= 0 ? 'text-gain' : 'text-loss'" x-text="(livePnL >= 0 ? '+' : '') + '$' + livePnL.toFixed(2)"></strong>
+                </div>
+                <div>
+                    <span class="text-content-secondary">Free Margin:</span>
+                    <strong class="text-content-primary" x-text="'$' + freeMargin.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-content-secondary">Margin Level:</span>
+                    <span class="px-2 py-0.5 rounded-full font-bold text-[10px]" :class="marginLevelPercent > 200 ? 'bg-gain/15 text-gain' : (marginLevelPercent >= 100 ? 'bg-warning/15 text-warning' : 'bg-loss/15 text-loss animate-pulse')" x-text="marginLevelPercent > 5000 ? '>999%' : marginLevelPercent.toFixed(1) + '%'"></span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- ============================================================================== -->
+    <!-- CRYPTO 24/7 SESSION & ON-CHAIN INTELLIGENCE BANNER                             -->
+    <!-- ============================================================================== -->
+    <div class="bg-surface-raised border-b border-surface-border px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        
+        <!-- Left: Session Mode Switcher & Liquidity Waves -->
+        <div class="flex flex-wrap items-center gap-3">
+            
+            <!-- Switcher Tabs (Aligned with Snapshots) -->
+            <div class="flex items-center p-1 bg-surface-overlay rounded-2xl border border-surface-border shadow-inner">
+                <button type="button" 
+                        @click="setSessionMode('crypto')" 
+                        :class="sessionMode === 'crypto' ? 'bg-primary text-white shadow-md font-extrabold' : 'text-content-secondary hover:text-content-primary'" 
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono tracking-wider transition flex items-center space-x-1.5">
+                    <span>🪙 CRYPTO 24/7 SESSION</span>
+                </button>
+                <button type="button" 
+                        @click="setSessionMode('traditional')" 
+                        :class="sessionMode === 'traditional' ? 'bg-primary text-white shadow-md font-extrabold' : 'text-content-secondary hover:text-content-primary'" 
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono tracking-wider transition flex items-center space-x-1.5">
+                    <span>🌐 TRADITIONAL MARKETS</span>
+                </button>
+            </div>
+
+            <!-- Crypto Liquidity Waves (When Crypto Mode Active) -->
+            <template x-if="sessionMode === 'crypto' && cryptoData">
+                <div class="flex items-center space-x-2 text-[10px]">
+                    <span class="text-content-tertiary">Waves:</span>
+                    <span class="px-2 py-0.5 rounded font-bold" :class="cryptoData.phases.apac.isOpen ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-surface-overlay text-content-tertiary'">APAC</span>
+                    <span class="px-2 py-0.5 rounded font-bold" :class="cryptoData.phases.eu.isOpen ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-surface-overlay text-content-tertiary'">EU</span>
+                    <span class="px-2 py-0.5 rounded font-bold" :class="cryptoData.phases.us.isOpen ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-surface-overlay text-content-tertiary'">US/CME</span>
+                    <span class="px-2 py-0.5 rounded font-bold" :class="cryptoData.phases.pacific.isOpen ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-surface-overlay text-content-tertiary'">GLOBAL</span>
+                </div>
+            </template>
+        </div>
+
+        <!-- Right: On-Chain Intelligence Metrics (Fear & Greed, Gas, Funding) -->
+        <template x-if="sessionMode === 'crypto' && cryptoData">
+            <div class="flex flex-wrap items-center gap-4 text-[11px]">
+                
+                <!-- Fear & Greed -->
+                <div class="flex items-center space-x-1.5" title="Crypto Market Sentiment">
+                    <span class="text-content-tertiary">Sentiment:</span>
+                    <span class="px-2 py-0.5 rounded-full bg-gain/15 text-gain font-bold font-mono" x-text="cryptoData.onChain.fearAndGreedScore + ' (' + cryptoData.onChain.fearAndGreedSentiment + ')'"></span>
+                </div>
+
+                <!-- BTC Dominance -->
+                <div class="hidden sm:flex items-center space-x-1.5" title="Bitcoin Market Dominance">
+                    <span class="text-content-tertiary">BTC.D:</span>
+                    <strong class="text-primary" x-text="cryptoData.onChain.btcDominance"></strong>
+                </div>
+
+                <!-- ETH Gas -->
+                <div class="hidden md:flex items-center space-x-1.5" title="Ethereum Mainnet Base Fee">
+                    <span class="text-content-tertiary">Gas:</span>
+                    <span class="text-gain font-bold" x-text="cryptoData.onChain.ethGasGwei + ' Gwei'"></span>
+                </div>
+
+                <!-- Funding Countdown -->
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-content-tertiary">Funding:</span>
+                    <span class="text-primary font-bold" x-text="cryptoData.onChain.fundingRate"></span>
+                    <span class="text-content-tertiary text-[10px]" x-text="'(' + cryptoData.onChain.fundingCountdown + ')'"></span>
+                </div>
+
+            </div>
+        </template>
+
+    </div>
+
+    <!-- 2. DAILY SESSION PERFORMANCE JOURNAL (MT5/cTrader Style)                       -->
+    <!-- ============================================================================== -->
+    <div class="bg-surface-raised/80 border-b border-surface-border px-4 py-2 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+        <div class="flex items-center space-x-2">
+            <span class="text-content-tertiary">Session P&L:</span>
+            <strong :class="sessionTodayPnL >= 0 ? 'text-gain' : 'text-loss'" x-text="(sessionTodayPnL >= 0 ? '+' : '') + '$' + Number(sessionTodayPnL).toFixed(2)"></strong>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="text-content-tertiary">Win Rate:</span>
+            <strong class="text-primary" x-text="sessionWinRate + '%'"></strong>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="text-content-tertiary">Session Trades:</span>
+            <strong class="text-content-primary" x-text="sessionTradesCount + ' Orders'"></strong>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="text-content-tertiary">Session Traded Volume:</span>
+            <strong class="text-[#D4A038]" x-text="sessionVolume + ' Lots'"></strong>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- 3. MAIN TRADING TERMINAL WORKSTATION                                           -->
+    <!-- ============================================================================== -->
+    <div class="flex-grow grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        
+        <!-- Left: Market Watch Column (2 cols) - Aligned to Active Session -->
+        <div class="lg:col-span-2 bg-surface-raised border-r border-surface-border flex flex-col h-full overflow-y-auto max-h-[780px]">
+            
+            <!-- Market Watch Header Ribbon -->
+            <div class="p-3 border-b border-surface-border bg-surface-base/50 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <span x-text="sessionMode === 'crypto' ? '🪙' : '🌐'"></span>
+                        <span class="text-xs font-bold uppercase text-content-primary" x-text="sessionMode === 'crypto' ? 'Crypto Markets' : 'Traditional Markets'"></span>
+                    </div>
+                    <span class="text-[10px] text-content-secondary font-mono px-2 py-0.5 rounded bg-surface-overlay border border-surface-border font-bold" x-text="filteredMarketList.length + ' Pairs'"></span>
+                </div>
+
+                <!-- Sub-Category Filter Pills aligned to Active Session -->
+                <!-- Crypto Session Sub-Pills -->
+                <template x-if="sessionMode === 'crypto'">
+                    <div class="grid grid-cols-5 gap-1 text-[8.5px] font-mono font-bold text-center">
+                        <button type="button" @click="cryptoSubFilter = 'all'" :class="cryptoSubFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">ALL</button>
+                        <button type="button" @click="cryptoSubFilter = 'top'" :class="cryptoSubFilter === 'top' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">TOP</button>
+                        <button type="button" @click="cryptoSubFilter = 'ai'" :class="cryptoSubFilter === 'ai' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">AI</button>
+                        <button type="button" @click="cryptoSubFilter = 'defi'" :class="cryptoSubFilter === 'defi' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">DEFI</button>
+                        <button type="button" @click="cryptoSubFilter = 'meme'" :class="cryptoSubFilter === 'meme' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">MEME</button>
+                    </div>
+                </template>
+
+                <!-- Traditional Markets Sub-Pills (Includes Crypto ETFs/Stocks) -->
+                <template x-if="sessionMode === 'traditional'">
+                    <div class="grid grid-cols-7 gap-1 text-[8px] font-mono font-bold text-center">
+                        <button type="button" @click="tradSubFilter = 'all'" :class="tradSubFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">ALL</button>
+                        <button type="button" @click="tradSubFilter = 'etf'" :class="tradSubFilter === 'etf' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">ETFS</button>
+                        <button type="button" @click="tradSubFilter = 'stocks'" :class="tradSubFilter === 'stocks' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">STOCKS</button>
+                        <button type="button" @click="tradSubFilter = 'crypto'" :class="tradSubFilter === 'crypto' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">CRYPTO</button>
+                        <button type="button" @click="tradSubFilter = 'forex'" :class="tradSubFilter === 'forex' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">FX</button>
+                        <button type="button" @click="tradSubFilter = 'commodities'" :class="tradSubFilter === 'commodities' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">METALS</button>
+                        <button type="button" @click="tradSubFilter = 'indices'" :class="tradSubFilter === 'indices' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">INDEX</button>
+                    </div>
+                </template>
+
+                <!-- Search Input -->
+                <div class="relative">
+                    <input type="text" x-model="searchMkt" :placeholder="sessionMode === 'crypto' ? 'Search crypto (BTC, SOL, TAO...)' : 'Search assets (EUR, XAU, US30...)'" class="w-full bg-surface-overlay border border-surface-border focus:border-primary text-content-primary text-[11px] rounded-lg pl-6 pr-2 py-1 outline-none font-mono" />
+                    <span class="absolute left-2 top-1 text-[10px] text-content-tertiary">🔍</span>
+                </div>
+            </div>
+
+            <!-- Instrument List -->
+            <div class="divide-y divide-surface-border overflow-y-auto">
+                <template x-for="m in filteredMarketList" :key="m.symbol">
+                    <button type="button" 
+                            @click="selectSymbol(m.symbol, m.spread)"
+                            :class="activeSymbol === m.symbol ? 'bg-primary/10 border-l-4 border-primary' : 'hover:bg-surface-overlay'"
+                            class="w-full text-left p-2.5 transition flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="font-bold text-xs text-content-primary block" x-text="m.symbol"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                            </div>
+                            <span class="text-[10px] text-content-tertiary capitalize truncate max-w-[100px] block" x-text="m.name"></span>
+                        </div>
+                        <div class="text-right font-mono text-xs">
+                            <span class="text-gain font-semibold block" x-text="getPrice(m.symbol)"></span>
+                            <span class="text-[10px] text-content-tertiary" x-text="m.spread + ' pips'"></span>
+                        </div>
+                    </button>
+                </template>
+                <template x-if="filteredMarketList.length === 0">
+                    <div class="p-5 text-center text-content-tertiary text-xs">
+                        No instruments matching active session filter.
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Middle: Interactive Pro Chart Area (7 cols) -->
+        <div class="lg:col-span-7 bg-surface-base flex flex-col min-h-[480px] lg:h-auto border-r border-surface-border relative">
+            
+            <!-- Institutional Timeframe & Day Range Toolbar -->
+            <div class="bg-surface-raised px-3 py-2 border-b border-surface-border flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono text-content-secondary">
+                
+                <!-- Quick Timeframe Bar -->
+                <div class="flex items-center space-x-1 bg-surface-overlay p-0.5 rounded-xl border border-surface-border">
+                    <button type="button" @click="setChartTimeframe('1')" :class="chartInterval === '1' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">1m</button>
+                    <button type="button" @click="setChartTimeframe('5')" :class="chartInterval === '5' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">5m</button>
+                    <button type="button" @click="setChartTimeframe('15')" :class="chartInterval === '15' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">15m</button>
+                    <button type="button" @click="setChartTimeframe('60')" :class="chartInterval === '60' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">1H</button>
+                    <button type="button" @click="setChartTimeframe('240')" :class="chartInterval === '240' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">4H</button>
+                    <button type="button" @click="setChartTimeframe('D')" :class="chartInterval === 'D' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">1D</button>
+                    <button type="button" @click="setChartTimeframe('W')" :class="chartInterval === 'W' ? 'bg-primary text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="px-2 py-0.5 rounded-lg text-[10px] transition">1W</button>
+                </div>
+
+                <!-- Session Day High / Day Low Range Bar -->
+                <div class="flex items-center space-x-2">
+                    <span>24h Range:</span>
+                    <span class="text-loss font-bold" x-text="'L: $' + Number(rates[activeSymbol]?.low || 63980).toLocaleString()"></span>
+                    <div class="w-20 sm:w-28 h-1.5 bg-surface-border rounded-full relative overflow-hidden">
+                        <div class="h-full bg-primary rounded-full transition-all duration-300" :style="'width: ' + sessionDayRangePercent + '%'"></div>
+                    </div>
+                    <span class="text-gain font-bold" x-text="'H: $' + Number(rates[activeSymbol]?.high || 65450).toLocaleString()"></span>
+                </div>
+            </div>
+
+            <!-- Pro TradingView Interactive Chart Container with Auto-Mount -->
+            <div id="tv_chart_container" class="w-full h-full min-h-[540px] flex-grow bg-surface-raised relative">
+                <!-- Loading State / Fallback -->
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-surface-base/80 z-0">
+                    <div class="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-2"></div>
+                    <span class="text-xs font-mono text-content-secondary">Connecting to STP Liquidity Feed...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Order Ticket & Execution Desk (3 cols) -->
+        <div class="lg:col-span-3 bg-surface-raised p-5 flex flex-col justify-between space-y-6 overflow-y-auto">
+            <div class="space-y-4">
+                <div class="border-b border-surface-border pb-3 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-sm font-serif text-content-primary">Order Execution Ticket</h2>
+                        <span class="text-[10px] text-content-secondary font-mono">1:100 Leverage STP</span>
+                    </div>
+                    <span class="text-xs font-mono text-primary font-bold px-2.5 py-0.5 rounded-full bg-primary/10" x-text="activeSymbol"></span>
+                </div>
+
+                <!-- Order Mode Tabs: Market vs Limit -->
+                <div class="grid grid-cols-2 gap-1.5 p-1 bg-surface-overlay rounded-xl border border-surface-border text-xs font-bold font-mono">
+                    <button type="button" @click="orderMode = 'market'" :class="orderMode === 'market' ? 'bg-primary text-white shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="py-1.5 rounded-lg transition">
+                        ⚡ Market Order
+                    </button>
+                    <button type="button" @click="orderMode = 'limit'" :class="orderMode === 'limit' ? 'bg-primary text-white shadow-sm' : 'text-content-secondary hover:text-content-primary'" class="py-1.5 rounded-lg transition">
+                        ⏳ Limit Order
+                    </button>
+                </div>
+
+                <!-- Limit Trigger Price Input (When Limit Mode Active) -->
+                <div x-show="orderMode === 'limit'" class="space-y-1 text-xs p-3 bg-primary/5 rounded-xl border border-primary/20">
+                    <label class="flex items-center justify-between uppercase font-semibold text-primary font-mono text-[11px]">
+                        <span>Target Trigger Price ($)</span>
+                        <span class="text-content-tertiary">Entry Trigger</span>
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" @click="limitPrice = +(parseFloat(limitPrice) * 0.995).toFixed(activeSymbol.includes('USD') && !activeSymbol.includes('BTC') ? 4 : 2)" class="bg-surface-overlay hover:bg-surface-border text-content-primary px-2.5 py-1.5 rounded-lg font-bold font-mono text-xs">-0.5%</button>
+                        <input type="number" step="any" x-model="limitPrice" class="w-full text-center bg-white border border-primary/40 focus:border-primary text-content-primary rounded-lg py-1.5 font-mono font-bold outline-none text-xs" />
+                        <button type="button" @click="limitPrice = +(parseFloat(limitPrice) * 1.005).toFixed(activeSymbol.includes('USD') && !activeSymbol.includes('BTC') ? 4 : 2)" class="bg-surface-overlay hover:bg-surface-border text-content-primary px-2.5 py-1.5 rounded-lg font-bold font-mono text-xs">+0.5%</button>
+                    </div>
+                </div>
+
+                <!-- Execution Alert Badges -->
+                <div x-show="executionSuccessMsg" class="p-3 bg-gain/15 border border-gain/30 text-gain rounded-xl text-xs font-mono font-bold" x-text="executionSuccessMsg" x-cloak></div>
+                <div x-show="executionErrorMsg" class="p-3 bg-loss/15 border border-loss/30 text-loss rounded-xl text-xs font-mono font-bold" x-text="executionErrorMsg" x-cloak></div>
+
+                <!-- Buy / Sell Mode Tabs -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" 
+                            @click="orderType = 'BUY'" 
+                            :class="orderType === 'BUY' ? 'bg-gain text-white shadow-lg shadow-gain/20' : 'bg-surface-overlay text-gain border border-gain/30'"
+                            class="py-3 rounded-xl font-bold text-xs uppercase transition flex flex-col items-center">
+                        <span>BUY / LONG</span>
+                        <span class="text-[11px] font-mono" x-text="'$' + askPrice.toFixed(2)"></span>
+                    </button>
+
+                    <button type="button" 
+                            @click="orderType = 'SELL'" 
+                            :class="orderType === 'SELL' ? 'bg-loss text-white shadow-lg shadow-loss/20' : 'bg-surface-overlay text-loss border border-loss/30'"
+                            class="py-3 rounded-xl font-bold text-xs uppercase transition flex flex-col items-center">
+                        <span>SELL / SHORT</span>
+                        <span class="text-[11px] font-mono" x-text="'$' + bidPrice.toFixed(2)"></span>
+                    </button>
+                </div>
+
+                <!-- Lot Size Volume Control -->
+                <div class="space-y-1 text-xs">
+                    <label class="block uppercase font-semibold text-content-secondary">Volume (Standard Lots)</label>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" @click="lotSize = Math.max(0.01, (parseFloat(lotSize) - 0.1).toFixed(2))" class="bg-surface-overlay hover:bg-surface-border text-content-primary px-3 py-2 rounded-lg font-bold">-</button>
+                        <input type="number" step="0.01" min="0.01" max="50" x-model="lotSize" class="w-full text-center bg-surface-overlay border border-surface-border focus:border-primary text-content-primary rounded-lg py-2 font-mono font-bold outline-none" />
+                        <button type="button" @click="lotSize = (parseFloat(lotSize) + 0.1).toFixed(2)" class="bg-surface-overlay hover:bg-surface-border text-content-primary px-3 py-2 rounded-lg font-bold">+</button>
+                    </div>
+                </div>
+
+                <!-- Take Profit & Stop Loss Risk Parameters -->
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block uppercase font-semibold text-gain mb-1">Take Profit ($)</label>
+                        <input type="number" step="any" x-model="takeProfit" placeholder="Optional" class="w-full bg-surface-overlay border border-gain/40 focus:border-gain text-content-primary rounded-lg px-2.5 py-2 font-mono outline-none" />
+                    </div>
+                    <div>
+                        <label class="block uppercase font-semibold text-loss mb-1">Stop Loss ($)</label>
+                        <input type="number" step="any" x-model="stopLoss" placeholder="Optional" class="w-full bg-surface-overlay border border-loss/40 focus:border-loss text-content-primary rounded-lg px-2.5 py-2 font-mono outline-none" />
+                    </div>
+                </div>
+
+                <!-- Crypto Leverage Selector (When Crypto Asset Active) -->
+                <div x-show="isCryptoActive" class="space-y-1.5 p-3 bg-surface-overlay rounded-xl border border-primary/20 text-xs">
+                    <div class="flex justify-between font-mono text-[11px]">
+                        <span class="text-content-secondary uppercase font-bold">Perpetual Leverage</span>
+                        <span class="text-primary font-extrabold" x-text="cryptoLeverage + 'x Cross'"></span>
+                    </div>
+                    <div class="grid grid-cols-5 gap-1 font-mono text-center text-[10px] font-bold">
+                        <button type="button" @click="cryptoLeverage = 5" :class="cryptoLeverage === 5 ? 'bg-primary text-white' : 'bg-surface-raised text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">5x</button>
+                        <button type="button" @click="cryptoLeverage = 10" :class="cryptoLeverage === 10 ? 'bg-primary text-white' : 'bg-surface-raised text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">10x</button>
+                        <button type="button" @click="cryptoLeverage = 20" :class="cryptoLeverage === 20 ? 'bg-primary text-white' : 'bg-surface-raised text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">20x</button>
+                        <button type="button" @click="cryptoLeverage = 50" :class="cryptoLeverage === 50 ? 'bg-primary text-white' : 'bg-surface-raised text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">50x</button>
+                        <button type="button" @click="cryptoLeverage = 100" :class="cryptoLeverage === 100 ? 'bg-primary text-white' : 'bg-surface-raised text-content-secondary hover:text-content-primary border border-surface-border'" class="py-1 rounded-lg transition">100x</button>
+                    </div>
+                </div>
+
+                <!-- Margin & Liquidation Calculation Preview -->
+                <div class="bg-surface-base p-3 rounded-xl border border-surface-border space-y-1.5 text-[11px] font-mono text-content-secondary">
+                    <div class="flex justify-between">
+                        <span>Position Notional:</span>
+                        <strong class="text-content-primary" x-text="'$' + orderNotionalValue + ' USDT'"></strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Required Margin:</span>
+                        <strong class="text-gain" x-text="'$' + (isCryptoActive ? requiredCryptoMargin : (lotSize * 100).toFixed(2)) + ' USDT'"></strong>
+                    </div>
+                    <template x-if="isCryptoActive">
+                        <div class="flex justify-between text-loss font-bold pt-1 border-t border-surface-border/50">
+                            <span>Est. Liquidation Price:</span>
+                            <span x-text="'$' + estimatedLiquidationPrice"></span>
+                        </div>
+                    </template>
+                    <div class="flex justify-between pt-0.5">
+                        <span>Settlement Engine:</span>
+                        <span class="text-primary font-bold">STP-NY4 Crypto Bridge</span>
+                    </div>
+                </div>
+
+                <!-- Execute Button -->
+                <button type="button" 
+                        @click="executeTrade()"
+                        :class="orderType === 'BUY' ? 'bg-gain hover:bg-gain/90 text-white shadow-gain/20' : 'bg-loss hover:bg-loss/90 text-white shadow-loss/20'"
+                        class="w-full font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-xl flex items-center justify-center space-x-2">
+                    <span x-text="orderMode === 'limit' ? 'Place ' + orderType + ' Limit Order &rarr;' : 'Execute ' + orderType + ' Market Order &rarr;'"></span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- 4. BOTTOM: ACTIVE OPEN POSITIONS & PENDING ORDERS TABLE                        -->
+    <!-- ============================================================================== -->
+    <div class="bg-surface-raised border-t border-surface-border p-4 space-y-3">
+        
+        <!-- Table Header & Bulk Controls Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-border pb-3">
+            
+            <!-- Navigation Tabs: Open Positions vs Pending Orders -->
+            <div class="flex items-center space-x-2">
+                <button type="button" @click="activePositionsTab = 'open'" :class="activePositionsTab === 'open' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition">
+                    <span>⚡ Open Positions</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activePositionsTab === 'open' ? 'bg-white/20' : 'bg-surface-base'" x-text="positions.length"></span>
+                </button>
+
+                <button type="button" @click="activePositionsTab = 'pending'" :class="activePositionsTab === 'pending' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition">
+                    <span>⏳ Pending Orders</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activePositionsTab === 'pending' ? 'bg-white/20' : 'bg-surface-base'" x-text="pendingOrders.length"></span>
+                </button>
+            </div>
+
+            <!-- Bulk Action Buttons (MT5 Style Emergency Liquidation Controls) -->
+            <template x-if="activePositionsTab === 'open' && positions.length > 0">
+                <div class="flex items-center space-x-2">
+                    <button type="button" @click="closeAllPositions('profitable')" class="px-2.5 py-1 rounded-lg bg-gain/10 hover:bg-gain text-gain hover:text-white border border-gain/30 text-[10px] font-bold transition">
+                        ✓ Close Profitable
+                    </button>
+                    <button type="button" @click="closeAllPositions('losing')" class="px-2.5 py-1 rounded-lg bg-loss/10 hover:bg-loss text-loss hover:text-white border border-loss/30 text-[10px] font-bold transition">
+                        &times; Close Losing
+                    </button>
+                    <button type="button" @click="closeAllPositions('all')" class="px-3 py-1 rounded-lg bg-loss text-white hover:bg-loss-dark shadow-sm text-[10px] font-bold transition flex items-center space-x-1">
+                        <span>⚡ Close All Positions</span>
+                    </button>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="activePositionsTab === 'open'" class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                    <tr>
+                        <th class="pb-2">Order ID</th>
+                        <th class="pb-2">Symbol</th>
+                        <th class="pb-2">Type</th>
+                        <th class="pb-2">Lots</th>
+                        <th class="pb-2">Entry Price</th>
+                        <th class="pb-2">Live Price</th>
+                        <th class="pb-2">Unrealized P&L ($)</th>
+                        <th class="pb-2 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                    <template x-for="pos in positions" :key="pos.id">
+                        <tr>
+                            <td class="py-2.5 text-content-secondary" x-text="'#TRD-' + pos.id"></td>
+                            <td class="py-2.5 font-bold text-content-primary" x-text="pos.symbol"></td>
+                            <td class="py-2.5 font-bold" :class="pos.type === 'BUY' ? 'text-gain' : 'text-loss'" x-text="pos.type"></td>
+                            <td class="py-2.5 text-content-secondary" x-text="pos.lot_size"></td>
+                            <td class="py-2.5 text-content-secondary" x-text="'$' + Number(pos.open_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5 font-bold text-content-primary" x-text="'$' + Number(pos.current_price || pos.open_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5 font-bold text-sm" :class="pos.profit_loss >= 0 ? 'text-gain' : 'text-loss'" x-text="(pos.profit_loss >= 0 ? '+' : '') + '$' + Number(pos.profit_loss).toFixed(2)"></td>
+                            <td class="py-2.5 text-right">
+                                <button type="button" @click="closeTrade(pos.id)" class="bg-loss/15 hover:bg-loss text-loss hover:text-white border border-loss/30 text-[10px] font-bold px-3 py-1 rounded-xl transition">
+                                    Close Position
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="positions.length === 0">
+                        <tr>
+                            <td colspan="8" class="py-6 text-center text-content-tertiary text-xs">No active positions open. Use the order ticket above to execute trades.</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pending Limit Orders Table (When Tab = 'pending') -->
+        <div x-show="activePositionsTab === 'pending'" class="overflow-x-auto" x-cloak>
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                    <tr>
+                        <th class="pb-2">Order ID</th>
+                        <th class="pb-2">Symbol</th>
+                        <th class="pb-2">Order Type</th>
+                        <th class="pb-2">Volume</th>
+                        <th class="pb-2">Target Trigger Price</th>
+                        <th class="pb-2">Current Market Price</th>
+                        <th class="pb-2">Status</th>
+                        <th class="pb-2 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                    <template x-for="pnd in pendingOrders" :key="pnd.id">
+                        <tr>
+                            <td class="py-2.5 text-content-secondary" x-text="'#LMT-' + pnd.id"></td>
+                            <td class="py-2.5 font-bold text-content-primary" x-text="pnd.symbol"></td>
+                            <td class="py-2.5 font-bold" :class="pnd.type === 'BUY' ? 'text-gain' : 'text-loss'" x-text="pnd.type + ' LIMIT'"></td>
+                            <td class="py-2.5 text-content-secondary" x-text="pnd.lot_size + ' Lots'"></td>
+                            <td class="py-2.5 font-bold text-primary" x-text="'$' + Number(pnd.open_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5 text-content-primary font-semibold" x-text="'$' + Number(rates[pnd.symbol]?.price || pnd.current_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warning/15 text-warning border border-warning/30">
+                                    PENDING TRIGGER
+                                </span>
+                            </td>
+                            <td class="py-2.5 text-right">
+                                <button type="button" @click="cancelPendingOrder(pnd.id)" class="bg-surface-overlay hover:bg-loss hover:text-white border border-surface-border text-content-secondary text-[10px] font-bold px-3 py-1 rounded-xl transition">
+                                    Cancel Order
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="pendingOrders.length === 0">
+                        <tr>
+                            <td colspan="8" class="py-6 text-center text-content-tertiary text-xs">No pending limit orders. Switch to 'Limit Order' mode on the ticket to place pending triggers.</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ============================================================================== -->
+    <!-- ECONOMIC CALENDAR MODAL                                                        -->
+    <!-- ============================================================================== -->
+    <div x-show="calendarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📅</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Global Economic Calendar</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">High-Impact Central Bank & Macroeconomic Releases</span>
+                    </div>
+                </div>
+                <button type="button" @click="calendarModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                        <tr>
+                            <th class="pb-2">Time (GMT)</th>
+                            <th class="pb-2">Country</th>
+                            <th class="pb-2">Event</th>
+                            <th class="pb-2">Impact</th>
+                            <th class="pb-2">Forecast</th>
+                            <th class="pb-2">Previous</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <template x-for="ev in economicEvents" :key="ev.id">
+                            <tr>
+                                <td class="py-2.5 text-primary font-bold" x-text="ev.event_time"></td>
+                                <td class="py-2.5 text-content-primary font-sans" x-text="ev.flag + ' ' + ev.country"></td>
+                                <td class="py-2.5 font-bold text-content-primary" x-text="ev.title"></td>
+                                <td class="py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold" 
+                                          :class="ev.impact === 'HIGH' ? 'bg-loss/15 text-loss' : 'bg-primary/15 text-primary'" 
+                                          x-text="ev.impact"></span>
+                                </td>
+                                <td class="py-2.5 text-content-secondary" x-text="ev.forecast"></td>
+                                <td class="py-2.5 text-content-tertiary" x-text="ev.previous"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- AI QUANT SIGNALS & MARKET SENTIMENT DRAWER                                     -->
+    <!-- ============================================================================== -->
+    <div x-show="signalsDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🎯</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">AI Quant Signals & Sentiment</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">Real-Time Institutional Algorithmic Setups</span>
+                    </div>
+                </div>
+                <button type="button" @click="signalsDrawer = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Bull / Bear Sentiment Ratio -->
+            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                <div class="flex justify-between text-xs font-bold font-mono">
+                    <span class="text-gain">🟢 Buyers: <span x-text="bullSentiment + '%'"></span></span>
+                    <span class="text-loss">🔴 Sellers: <span x-text="bearSentiment + '%'"></span></span>
+                </div>
+                <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
+                    <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
+                </div>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+            </div>
+
+            <!-- Signal Cards Grid -->
+            <div class="space-y-3 font-mono text-xs">
+                <template x-for="sig in quantSignals" :key="sig.id">
+                    <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 hover:border-primary transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-sm text-content-primary" x-text="sig.symbol"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="sig.type === 'BUY' ? 'bg-gain text-white' : 'bg-loss text-white'" x-text="sig.type + ' (' + sig.timeframe + ')'"></span>
+                            </div>
+                            <span class="text-primary font-bold text-[11px]" x-text="'Confidence: ' + sig.confidence_score + '%'"></span>
+                        </div>
+
+                        <p class="text-xs text-content-secondary font-sans" x-text="sig.rationale"></p>
+
+                        <div class="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-surface-border text-[11px] text-center">
+                            <div>
+                                <span class="text-content-tertiary block text-[9px] uppercase">Entry</span>
+                                <strong class="text-content-primary" x-text="'$' + Number(sig.entry_price).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-gain block text-[9px] uppercase">Take Profit</span>
+                                <strong class="text-gain font-bold" x-text="'$' + Number(sig.take_profit).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-loss block text-[9px] uppercase">Stop Loss</span>
+                                <strong class="text-loss font-bold" x-text="'$' + Number(sig.stop_loss).toLocaleString()"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+<%- include('../partials/footer') %>

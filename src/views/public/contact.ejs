@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+
+<section class="py-16 bg-gradient-to-b from-white to-surface-base border-b border-surface-border">
+    <div class="max-w-4xl mx-auto px-4 text-center space-y-4">
+        <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">24/7 SUPPORT DESK</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-content-primary font-serif">Contact Our Client Desk</h1>
+        <p class="text-sm text-content-secondary max-w-xl mx-auto">Our institutional multilingual support engineers are available 24 hours a day, 7 days a week.</p>
+    </div>
+</section>
+
+<section class="py-16 bg-surface-base">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10">
+        
+        <!-- Contact Form in Crisp White Glass Card -->
+        <div class="lg:col-span-7 glass-card rounded-3xl p-8 shadow-xl border border-surface-border space-y-6">
+            <h3 class="text-lg font-bold text-content-primary font-serif">Send Us a Direct Message</h3>
+            <form action="/contact" method="POST" class="space-y-4 text-xs font-mono">
+                <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1">Your Full Name *</label>
+                        <input type="text" name="name" required placeholder="John Doe" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-3.5 py-2.5 outline-none focus:border-primary shadow-sm" />
+                    </div>
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1">Email Address *</label>
+                        <input type="email" name="email" required placeholder="john@example.com" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-3.5 py-2.5 outline-none focus:border-primary shadow-sm" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1">Subject *</label>
+                    <input type="text" name="subject" required placeholder="Account Inquiry, Liquidity, etc." class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-3.5 py-2.5 outline-none focus:border-primary shadow-sm" />
+                </div>
+
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1">Message Description *</label>
+                    <textarea name="message" rows="4" required placeholder="How can our support team assist your trading today?" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-3.5 py-2.5 outline-none focus:border-primary shadow-sm"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md shadow-primary/20 transition font-sans">
+                    Submit Support Ticket &rarr;
+                </button>
+            </form>
+        </div>
+
+        <!-- Info Card -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4">
+                <h4 class="text-sm font-bold text-content-primary font-serif">Global Headquarters</h4>
+                <p class="text-xs text-content-secondary leading-relaxed">
+                    TradexEdge Custody & Prime Brokerage Inc.<br />
+                    100 Wall Street, 24th Floor<br />
+                    New York, NY 10005, United States
+                </p>
+                <div class="pt-2 border-t border-surface-border space-y-2 text-xs font-mono">
+                    <p class="text-content-secondary"><strong class="text-content-primary">Email:</strong> support@tradexedge.com</p>
+                    <p class="text-content-secondary"><strong class="text-content-primary">Phone:</strong> +1 (800) 892-3401</p>
+                    <p class="text-content-secondary"><strong class="text-content-primary">Hours:</strong> 24/7/365 Live Desks</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<%- include('../partials/footer') %>

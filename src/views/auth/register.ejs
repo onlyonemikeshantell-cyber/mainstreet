@@ -1,0 +1,701 @@
+<%- include('../partials/header') %>
+
+<section class="min-h-[90vh] flex items-center justify-center py-12 px-4 sm:px-6 bg-surface-base" x-data="registerWizard()">
+    <div class="max-w-2xl w-full glass-card rounded-3xl p-6 sm:p-10 shadow-2xl border border-surface-border space-y-6">
+        
+        <!-- Header & Progress Stepper -->
+        <div class="text-center space-y-3">
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">
+                <span>🛡️ INSTITUTIONAL COMPLIANCE ONBOARDING</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-content-primary font-serif">Open Verified Live Account</h1>
+            <p class="text-xs text-content-secondary max-w-md mx-auto">Regulated multi-asset trading requires identity verification and biometric liveness checks.</p>
+
+            <!-- Step Indicator -->
+            <div class="grid grid-cols-3 gap-2 pt-3 font-mono text-xs max-w-md mx-auto">
+                <div class="flex flex-col items-center space-y-1">
+                    <div :class="step >= 1 ? 'bg-primary text-white shadow-md' : 'bg-surface-overlay text-content-tertiary'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition">1</div>
+                    <span :class="step === 1 ? 'text-primary font-bold' : 'text-content-secondary'" class="text-[11px]">Credentials</span>
+                </div>
+                <div class="flex flex-col items-center space-y-1">
+                    <div :class="step >= 2 ? 'bg-primary text-white shadow-md' : 'bg-surface-overlay text-content-tertiary'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition">2</div>
+                    <span :class="step === 2 ? 'text-primary font-bold' : 'text-content-secondary'" class="text-[11px]">ID Card (F & B)</span>
+                </div>
+                <div class="flex flex-col items-center space-y-1">
+                    <div :class="step >= 3 ? 'bg-primary text-white shadow-md' : 'bg-surface-overlay text-content-tertiary'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition">3</div>
+                    <span :class="step === 3 ? 'text-primary font-bold' : 'text-content-secondary'" class="text-[11px]">Biometric Video</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Form -->
+        <form action="/register" method="POST" @submit="handleSubmit($event)" class="space-y-6 text-xs font-mono">
+            <input type="hidden" name="_token" value="<%= csrfToken %>" />
+
+            <!-- Hidden Inputs for KYC Uploads -->
+            <input type="hidden" name="doc_type" :value="docType" />
+            <input type="hidden" name="doc_number" :value="docNumber" />
+            <input type="hidden" name="front_image" :value="frontImage" />
+            <input type="hidden" name="back_image" :value="backImage" />
+            <input type="hidden" name="video_data" :value="videoData" />
+
+            <!-- ============================================================== -->
+            <!-- STEP 1: ACCOUNT ESSENTIALS & PROFILE                          -->
+            <!-- ============================================================== -->
+            <div x-show="step === 1" class="space-y-4">
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Full Legal Name *</label>
+                    <input type="text" name="name" x-model="name" required placeholder="e.g. Alexander Vance" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Email Address *</label>
+                        <input type="email" name="email" x-model="email" required placeholder="alex@example.com" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
+                    </div>
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Phone Number *</label>
+                        <input type="tel" name="phone" x-model="phone" required placeholder="+1 (555) 019-2834" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div x-data="{ showPass: false }">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Password *</label>
+                            <button type="button" @click="showPass = !showPass" class="text-[10px] text-content-tertiary hover:text-primary transition" title="Spy Password">
+                                <span x-text="showPass ? '🙈 Hide' : '👁️ Spy'"></span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required minlength="6" placeholder="Min 6 chars" class="w-full bg-white border border-surface-border text-content-primary rounded-xl pl-4 pr-10 py-3 outline-none focus:border-primary shadow-sm text-sm" />
+                            <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-primary transition p-1" title="Toggle password visibility (Spy password)">
+                                <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <svg x-show="showPass" class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                            </button>
+                        </div>
+                        <!-- Live Password Strength Meter -->
+                        <div class="mt-1.5 flex items-center space-x-1.5" x-show="password.length > 0">
+                            <div class="h-1 flex-1 rounded-full overflow-hidden bg-slate-200">
+                                <div class="h-full transition-all duration-300" :class="passwordStrength.color" :style="'width: ' + passwordStrength.width"></div>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold" :class="passwordStrength.textColor" x-text="passwordStrength.label"></span>
+                        </div>
+                    </div>
+                    <div x-data="{ showConfirm: false }">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Confirm Password *</label>
+                            <button type="button" @click="showConfirm = !showConfirm" class="text-[10px] text-content-tertiary hover:text-primary transition" title="Spy Password">
+                                <span x-text="showConfirm ? '🙈 Hide' : '👁️ Spy'"></span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showConfirm ? 'text' : 'password'" name="confirm_password" x-model="confirmPassword" required minlength="6" placeholder="Repeat password" class="w-full bg-white border border-surface-border text-content-primary rounded-xl pl-4 pr-10 py-3 outline-none focus:border-primary shadow-sm text-sm" />
+                            <button type="button" @click="showConfirm = !showConfirm" class="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-primary transition p-1" title="Toggle password visibility (Spy password)">
+                                <svg x-show="!showConfirm" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <svg x-show="showConfirm" class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                                                <!-- SEARCHABLE COUNTRY COMBOBOX WITH REAL-TIME FILTER -->
+                <div class="relative" @click.outside="countryDropdownOpen = false" @keydown.escape="countryDropdownOpen = false">
+                    <input type="hidden" name="country" :value="country" />
+                    
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Country of Residence *</label>
+                        <span class="text-[10px] text-primary font-mono font-bold flex items-center space-x-1">
+                            <span>🔍 Searchable (212 Countries)</span>
+                        </span>
+                    </div>
+
+                    <!-- Trigger Display Box -->
+                    <div @click="countryDropdownOpen = !countryDropdownOpen; $nextTick(() => { if (countryDropdownOpen && $refs.countrySearchInput) $refs.countrySearchInput.focus(); })"
+                         class="w-full bg-white border border-surface-border hover:border-primary text-content-primary rounded-xl px-4 py-3 shadow-sm font-sans text-sm cursor-pointer flex items-center justify-between transition group">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-base">🌐</span>
+                            <span class="font-bold text-content-primary" x-text="country"></span>
+                        </div>
+                        <div class="flex items-center space-x-1.5 text-content-tertiary group-hover:text-primary">
+                            <span class="text-xs font-mono font-bold">Search &amp; Select</span>
+                            <svg class="w-4 h-4 transition transform duration-200" :class="countryDropdownOpen ? 'rotate-180 text-primary' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown Search Panel -->
+                    <div x-show="countryDropdownOpen"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-2 scale-95"
+                         class="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-surface-border shadow-2xl overflow-hidden"
+                         x-cloak>
+                        
+                        <!-- Search Input Field -->
+                        <div class="p-3 border-b border-surface-border bg-slate-50 flex items-center space-x-2.5">
+                            <span class="text-base">🔎</span>
+                            <input type="text"
+                                   x-ref="countrySearchInput"
+                                   x-model="countrySearch"
+                                   placeholder="Type country name (e.g. United States, France, Japan)..."
+                                   class="w-full bg-transparent outline-none text-xs font-sans font-bold text-content-primary placeholder:text-content-tertiary" />
+                            <button type="button" x-show="countrySearch" @click="countrySearch = ''; $refs.countrySearchInput.focus()" class="text-content-tertiary hover:text-content-primary text-xs px-1.5 py-0.5 rounded bg-surface-overlay font-bold">&times;</button>
+                        </div>
+
+                        <!-- Result Counter Bar -->
+                        <div class="px-3 py-1.5 bg-surface-overlay/70 border-b border-surface-border text-[10px] font-mono text-content-tertiary flex justify-between items-center">
+                            <span x-text="filteredCountries.length + ' matching nations'"></span>
+                            <span class="text-[9px]">Click to choose</span>
+                        </div>
+
+                        <!-- Scrollable Filtered List -->
+                        <div class="max-h-60 overflow-y-auto divide-y divide-surface-border/50 py-1 font-sans text-xs">
+                            <template x-for="c in filteredCountries" :key="c">
+                                <div @click="selectCountry(c)"
+                                     :class="country === c ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-slate-50 text-content-primary'"
+                                     class="px-4 py-2.5 flex items-center justify-between cursor-pointer transition">
+                                    <span x-text="c"></span>
+                                    <span x-show="country === c" class="text-primary font-bold text-xs">✓</span>
+                                </div>
+                            </template>
+
+                            <!-- Empty Search Feedback -->
+                            <div x-show="filteredCountries.length === 0" class="p-6 text-center text-xs text-content-tertiary font-sans">
+                                <p>No country found matching "<span class="font-bold text-content-secondary" x-text="countrySearch"></span>"</p>
+                                <button type="button" @click="countrySearch = ''" class="mt-2 text-primary font-bold underline text-[11px]">Clear search filter</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div x-show="step1Error" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-sans font-bold" x-text="step1Error"></div>
+
+                <button type="button" @click="goToStep2()" class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2">
+                    <span>Continue to ID Verification (Step 2/3)</span>
+                    <span>&rarr;</span>
+                </button>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- STEP 2: ID CARD FRONT & BACK UPLOAD / CAMERA CAPTURE           -->
+            <!-- ============================================================== -->
+            <div x-show="step === 2" class="space-y-5" x-cloak>
+                <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border flex items-start justify-between gap-3 text-xs font-sans">
+                    <div class="flex items-start space-x-3">
+                        <span class="text-xl">🪪</span>
+                        <div>
+                            <strong class="text-content-primary block font-bold">Government Identification Document</strong>
+                            <span class="text-content-secondary">Provide clear photos of the front and back of your government ID card or passport.</span>
+                        </div>
+                    </div>
+                    <!-- Quick Demo Sample Filler for Testing Convenience -->
+                    <button type="button" @click="fillSampleKycDocuments()" class="shrink-0 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/30 text-[10px] font-bold font-mono transition">
+                        ⚡ Quick Sample ID
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">ID Document Type *</label>
+                        <select x-model="docType" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-sans text-xs">
+                            <option value="National ID Card">National ID Card</option>
+                            <option value="Driver's License">Driver's License</option>
+                            <option value="International Passport">International Passport</option>
+                            <option value="Residence Permit">Residence Permit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Document / ID Number *</label>
+                        <input type="text" x-model="docNumber" placeholder="e.g. ID-89410928" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-xs" />
+                    </div>
+                </div>
+
+                <!-- DUAL ID UPLOAD / CAMERA GRIDS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- ID FRONT CARD -->
+                    <div class="border-2 border-dashed rounded-2xl p-4 text-center space-y-3 transition" :class="frontImage ? 'border-gain bg-gain/5' : 'border-surface-border bg-white'">
+                        <div class="flex items-center justify-between text-[11px] font-sans font-bold">
+                            <span class="text-content-primary">1. Front of ID Card *</span>
+                            <span x-show="frontImage" class="text-gain flex items-center space-x-1">
+                                <span>✓ Attached</span>
+                            </span>
+                        </div>
+
+                        <!-- Preview Area -->
+                        <template x-if="frontImage">
+                            <div class="relative rounded-xl overflow-hidden border border-surface-border shadow-sm max-h-36">
+                                <img :src="frontImage" class="w-full h-36 object-cover" />
+                                <button type="button" @click="frontImage = ''" class="absolute top-2 right-2 bg-loss text-white text-[10px] font-bold px-2 py-1 rounded shadow hover:bg-loss-dark">Change</button>
+                            </div>
+                        </template>
+
+                        <template x-if="!frontImage">
+                            <div class="space-y-2 py-4">
+                                <div class="w-12 h-12 rounded-2xl bg-surface-overlay flex items-center justify-center mx-auto text-2xl">📸</div>
+                                <p class="text-[11px] text-content-secondary font-sans">Upload front picture or use camera</p>
+                                <div class="flex items-center justify-center gap-2">
+                                    <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border text-[11px] font-bold transition">
+                                        <span>📁 Browse</span>
+                                        <input type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, 'front')" />
+                                    </label>
+                                    <button type="button" @click="openCameraModal('front')" class="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[11px] font-bold transition">
+                                        📷 Camera
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- ID BACK CARD -->
+                    <div class="border-2 border-dashed rounded-2xl p-4 text-center space-y-3 transition" :class="backImage ? 'border-gain bg-gain/5' : 'border-surface-border bg-white'">
+                        <div class="flex items-center justify-between text-[11px] font-sans font-bold">
+                            <span class="text-content-primary">2. Back of ID Card *</span>
+                            <span x-show="backImage" class="text-gain flex items-center space-x-1">
+                                <span>✓ Attached</span>
+                            </span>
+                        </div>
+
+                        <!-- Preview Area -->
+                        <template x-if="backImage">
+                            <div class="relative rounded-xl overflow-hidden border border-surface-border shadow-sm max-h-36">
+                                <img :src="backImage" class="w-full h-36 object-cover" />
+                                <button type="button" @click="backImage = ''" class="absolute top-2 right-2 bg-loss text-white text-[10px] font-bold px-2 py-1 rounded shadow hover:bg-loss-dark">Change</button>
+                            </div>
+                        </template>
+
+                        <template x-if="!backImage">
+                            <div class="space-y-2 py-4">
+                                <div class="w-12 h-12 rounded-2xl bg-surface-overlay flex items-center justify-center mx-auto text-2xl">🪪</div>
+                                <p class="text-[11px] text-content-secondary font-sans">Upload back picture or use camera</p>
+                                <div class="flex items-center justify-center gap-2">
+                                    <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border text-[11px] font-bold transition">
+                                        <span>📁 Browse</span>
+                                        <input type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, 'back')" />
+                                    </label>
+                                    <button type="button" @click="openCameraModal('back')" class="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[11px] font-bold transition">
+                                        📷 Camera
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+
+                <div x-show="step2Error" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-sans font-bold" x-text="step2Error"></div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" @click="step = 1" class="px-4 py-2.5 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary font-bold text-xs font-sans">
+                        &larr; Back
+                    </button>
+                    <button type="button" @click="goToStep3()" class="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition font-sans flex items-center space-x-2">
+                        <span>Continue to Video Verification (Step 3/3)</span>
+                        <span>&rarr;</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- STEP 3: BIOMETRIC VIDEO VERIFICATION (LIVENESS RECORDING)      -->
+            <!-- ============================================================== -->
+            <div x-show="step === 3" class="space-y-5" x-cloak>
+                <div class="p-4 bg-primary/10 rounded-2xl border border-primary/30 flex items-start space-x-3 text-xs font-sans">
+                    <span class="text-lg">🎥</span>
+                    <div>
+                        <strong class="text-primary block font-bold">Mandatory Biometric Video Verification</strong>
+                        <span class="text-content-secondary">Record a quick 5-second video holding your ID card, looking into the camera, and stating your name. This ensures automated compliance against fraud.</span>
+                    </div>
+                </div>
+
+                <!-- Video Recording Station -->
+                <div class="border-2 border-surface-border rounded-3xl p-5 bg-white space-y-4 text-center">
+                    
+                    <!-- Video Playback Preview if Recorded -->
+                    <template x-if="videoData">
+                        <div class="space-y-3">
+                            <div class="relative max-w-sm mx-auto rounded-2xl overflow-hidden border border-surface-border shadow-md bg-black">
+                                <video :src="videoData" controls class="w-full h-56 object-cover"></video>
+                                <div class="absolute top-2 left-2 bg-gain/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                    <span>✓ Verified Clip Ready</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-center">
+                                <button type="button" @click="videoData = ''" class="px-4 py-2 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary font-bold text-xs font-sans transition">
+                                    🔄 Retake Verification Video
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Live Recording Interface -->
+                    <template x-if="!videoData">
+                        <div class="space-y-3">
+                            <div class="relative max-w-sm mx-auto rounded-2xl overflow-hidden border-2 border-primary/40 shadow-inner bg-black min-h-[220px] flex items-center justify-center">
+                                <video id="kycVideoPreview" autoplay muted playsinline class="w-full h-56 object-cover" x-show="isCameraStreaming"></video>
+                                
+                                <div x-show="!isCameraStreaming" class="p-6 text-center text-white/80 space-y-2">
+                                    <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto text-2xl">📹</div>
+                                    <p class="text-xs font-sans">Click below to activate your camera and record your 5s verification clip.</p>
+                                </div>
+
+                                <!-- Countdown Overlay -->
+                                <div x-show="isRecording" class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white">
+                                    <span class="w-4 h-4 rounded-full bg-loss animate-ping mb-2"></span>
+                                    <span class="text-2xl font-bold font-mono" x-text="recordingSecondsLeft + 's'"></span>
+                                    <span class="text-[11px] font-sans mt-1">Recording liveness check...</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-center gap-3 font-sans">
+                                <template x-if="!isCameraStreaming">
+                                    <button type="button" @click="startCameraStream()" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition">
+                                        ⚡ Enable Camera
+                                    </button>
+                                </template>
+
+                                <template x-if="isCameraStreaming && !isRecording">
+                                    <button type="button" @click="startRecording()" class="px-6 py-2.5 rounded-xl bg-loss hover:bg-loss-dark text-white font-bold text-xs shadow-lg shadow-loss/30 transition flex items-center space-x-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                                        <span>Start 5s Recording</span>
+                                    </button>
+                                </template>
+
+                                <!-- File Upload Alternative Fallback -->
+                                <label class="cursor-pointer px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary border border-surface-border text-xs font-bold transition">
+                                    <span>📁 Upload Video File</span>
+                                    <input type="file" accept="video/*" class="hidden" @change="handleVideoUpload($event)" />
+                                </label>
+                            </div>
+                        </div>
+                    </template>
+
+                </div>
+
+                <div x-show="step3Error" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-sans font-bold" x-text="step3Error"></div>
+
+                <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary font-sans">
+                    By submitting your application, you certify that all uploaded identity documents belong to you and agree to TradexEdge's KYC/AML Verification Charter.
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" @click="step = 2" class="px-4 py-2.5 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary font-bold text-xs font-sans">
+                        &larr; Back
+                    </button>
+                    <button type="submit" :disabled="isSubmitting" class="px-8 py-3.5 rounded-xl bg-gain hover:bg-gain/90 text-surface-base font-bold text-xs shadow-xl shadow-gain/20 transition transform hover:-translate-y-0.5 font-sans flex items-center space-x-2 disabled:opacity-50">
+                        <span x-text="isSubmitting ? 'Securing Documents...' : 'Complete Sign-Up & Submit KYC &rarr;'"></span>
+                    </button>
+                </div>
+            </div>
+
+        </form>
+
+        <!-- Footer Links -->
+        <div class="text-center pt-4 border-t border-surface-border text-xs text-content-secondary font-sans">
+            <p>Already have an account? <a href="/login" class="text-primary font-bold hover:underline">Sign In</a></p>
+        </div>
+
+    </div>
+
+    <!-- Live Snapshot Capture Modal (For Front/Back ID photo) -->
+    <div x-show="cameraModalOpen" class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 text-center">
+            <div class="flex justify-between items-center border-b border-surface-border pb-3">
+                <h3 class="font-bold text-sm font-serif text-content-primary" x-text="'Capture ' + (activeCaptureTarget === 'front' ? 'Front' : 'Back') + ' of ID Card'"></h3>
+                <button type="button" @click="closeCameraModal()" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
+            </div>
+            
+            <div class="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                <video id="kycSnapVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                <div class="absolute inset-4 border-2 border-white/60 border-dashed rounded-xl pointer-events-none"></div>
+            </div>
+
+            <p class="text-[11px] text-content-secondary font-sans">Align your ID card inside the frame and ensure text is clearly legible.</p>
+
+            <div class="flex justify-center gap-3 font-sans">
+                <button type="button" @click="closeCameraModal()" class="px-4 py-2 rounded-xl bg-surface-overlay text-content-secondary font-bold text-xs">Cancel</button>
+                <button type="button" @click="captureIdPhoto()" class="px-6 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow-md">📷 Take Photo</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+function registerWizard() {
+    return {
+        step: 1,
+        get passwordStrength() {
+            const p = this.password || '';
+            if (p.length < 6) return { width: '25%', color: 'bg-loss', textColor: 'text-loss', label: 'Too Weak' };
+            let score = 0;
+            if (p.length >= 8) score++;
+            if (/[A-Z]/.test(p)) score++;
+            if (/[0-9]/.test(p)) score++;
+            if (/[^A-Za-z0-9]/.test(p)) score++;
+            if (score <= 1) return { width: '50%', color: 'bg-amber-500', textColor: 'text-amber-600', label: 'Fair' };
+            if (score === 2) return { width: '75%', color: 'bg-sky-500', textColor: 'text-sky-600', label: 'Good' };
+            return { width: '100%', color: 'bg-gain', textColor: 'text-gain', label: 'Institutional Grade' };
+        },
+
+        fillSampleKycDocuments() {
+            // Generate clean high-res synthetic canvas for front and back ID
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 380;
+            const ctx = canvas.getContext('2d');
+            
+            // Front ID Card Sample
+            ctx.fillStyle = '#0F172A';
+            ctx.fillRect(0, 0, 600, 380);
+            ctx.fillStyle = '#0284C7';
+            ctx.fillRect(0, 0, 600, 45);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillText('OFFICIAL IDENTITY CARD (VERIFIED SAMPLE)', 25, 30);
+            ctx.fillStyle = '#38BDF8';
+            ctx.font = '16px monospace';
+            ctx.fillText('NAME: ' + (this.name || 'ALEXANDER VANCE'), 25, 100);
+            ctx.fillText('DOB: 14 MAY 1988', 25, 135);
+            ctx.fillText('DOC NO: TXE-' + Math.floor(100000 + Math.random() * 900000), 25, 170);
+            ctx.fillText('NATIONALITY: ' + (this.country || 'UNITED STATES'), 25, 205);
+            ctx.fillStyle = '#10B981';
+            ctx.fillText('✓ SECURITY CHIP ENCRYPTED', 25, 270);
+            this.frontImage = canvas.toDataURL('image/jpeg');
+
+            // Back ID Card Sample
+            ctx.fillStyle = '#1E293B';
+            ctx.fillRect(0, 0, 600, 380);
+            ctx.fillStyle = '#0284C7';
+            ctx.fillRect(0, 0, 600, 45);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 18px monospace';
+            ctx.fillText('BARCODE & BIOMETRIC ENCODING', 25, 30);
+            ctx.fillStyle = '#94A3B8';
+            ctx.fillText('<<<<TXE19880514M9999999USA<<<<<<<<<<<<<<<', 25, 320);
+            ctx.fillText('VANCE<<ALEXANDER<<<<<<<<<<<<<<<<<<<<<<<<<', 25, 350);
+            this.backImage = canvas.toDataURL('image/jpeg');
+
+            this.docNumber = 'ID-' + Math.floor(10000000 + Math.random() * 90000000);
+
+            // Also provide verified video placeholder data
+            this.videoData = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwEAAAAAAAHTEU2bdLpnu4tTq4QVSalmU6yBoU27iZJ1fWqjpkq1qKm1srW4uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/';
+        },
+        name: '',
+        email: '',
+        phone: '',
+        country: 'United States',
+        countrySearch: '',
+        countryDropdownOpen: false,
+        allCountries: ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Aruba", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Cayman Islands", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cura\u00e7ao", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Gibraltar", "Greece", "Greenland", "Grenada", "Guam", "Guatemala", "Guernsey", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Isle of Man", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jersey", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Sint Maarten", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Virgin Islands (British)", "Virgin Islands (U.S.)", "Yemen", "Zambia", "Zimbabwe"],
+        get filteredCountries() {
+            if (!this.countrySearch || !this.countrySearch.trim()) {
+                return this.allCountries;
+            }
+            const q = this.countrySearch.trim().toLowerCase();
+            return this.allCountries.filter(c => c.toLowerCase().includes(q));
+        },
+        selectCountry(c) {
+            this.country = c;
+            this.countrySearch = '';
+            this.countryDropdownOpen = false;
+        },
+        password: '',
+        confirmPassword: '',
+        step1Error: '',
+
+        docType: 'National ID Card',
+        docNumber: '',
+        frontImage: '',
+        backImage: '',
+        step2Error: '',
+
+        videoData: '',
+        step3Error: '',
+        isCameraStreaming: false,
+        isRecording: false,
+        recordingSecondsLeft: 5,
+        mediaStream: null,
+        mediaRecorder: null,
+        recordedChunks: [],
+
+        cameraModalOpen: false,
+        activeCaptureTarget: 'front',
+        snapStream: null,
+        isSubmitting: false,
+
+        goToStep2() {
+            this.step1Error = '';
+            if (!this.name.trim() || !this.email.trim() || !this.phone.trim() || !this.password) {
+                this.step1Error = 'Please fill out all personal credentials.';
+                return;
+            }
+            if (this.password !== this.confirmPassword) {
+                this.step1Error = 'Passwords do not match.';
+                return;
+            }
+            if (this.password.length < 6) {
+                this.step1Error = 'Password must be at least 6 characters.';
+                return;
+            }
+            this.step = 2;
+        },
+
+        goToStep3() {
+            this.step2Error = '';
+            if (!this.docNumber.trim()) {
+                this.step2Error = 'Please enter your ID document number.';
+                return;
+            }
+            if (!this.frontImage) {
+                this.step2Error = 'Front picture of your ID card is required.';
+                return;
+            }
+            if (!this.backImage) {
+                this.step2Error = 'Back picture of your ID card is required.';
+                return;
+            }
+            this.step = 3;
+        },
+
+        handleImageUpload(event, target) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (target === 'front') this.frontImage = e.target.result;
+                if (target === 'back') this.backImage = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
+        async openCameraModal(target) {
+            this.activeCaptureTarget = target;
+            this.cameraModalOpen = true;
+            try {
+                this.snapStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const videoElem = document.getElementById('kycSnapVideo');
+                if (videoElem) videoElem.srcObject = this.snapStream;
+            } catch (err) {
+                alert('Could not access camera. Please upload an image file instead.');
+                this.cameraModalOpen = false;
+            }
+        },
+
+        captureIdPhoto() {
+            const videoElem = document.getElementById('kycSnapVideo');
+            if (!videoElem) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElem.videoWidth || 640;
+            canvas.height = videoElem.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            if (this.activeCaptureTarget === 'front') this.frontImage = dataUrl;
+            if (this.activeCaptureTarget === 'back') this.backImage = dataUrl;
+            this.closeCameraModal();
+        },
+
+        closeCameraModal() {
+            if (this.snapStream) {
+                this.snapStream.getTracks().forEach(track => track.stop());
+                this.snapStream = null;
+            }
+            this.cameraModalOpen = false;
+        },
+
+        async startCameraStream() {
+            try {
+                this.mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const preview = document.getElementById('kycVideoPreview');
+                if (preview) preview.srcObject = this.mediaStream;
+                this.isCameraStreaming = true;
+            } catch (err) {
+                alert('Webcam/Microphone access was denied. Please upload a short verification video file directly using the browse button.');
+            }
+        },
+
+        startRecording() {
+            if (!this.mediaStream) return;
+            this.recordedChunks = [];
+            
+            let options = { mimeType: 'video/webm;codecs=vp8,opus' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm' };
+            }
+
+            try {
+                this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
+            } catch(e) {
+                this.mediaRecorder = new MediaRecorder(this.mediaStream);
+            }
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) this.recordedChunks.push(event.data);
+            };
+
+            this.mediaRecorder.onstop = () => {
+                const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    this.videoData = reader.result;
+                    if (this.mediaStream) {
+                        this.mediaStream.getTracks().forEach(t => t.stop());
+                        this.mediaStream = null;
+                    }
+                    this.isCameraStreaming = false;
+                    this.isRecording = false;
+                };
+                reader.readAsDataURL(blob);
+            };
+
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.recordingSecondsLeft = 5;
+
+            const timer = setInterval(() => {
+                this.recordingSecondsLeft--;
+                if (this.recordingSecondsLeft <= 0) {
+                    clearInterval(timer);
+                    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                        this.mediaRecorder.stop();
+                    }
+                }
+            }, 1000);
+        },
+
+        handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.videoData = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
+        handleSubmit(event) {
+            this.step3Error = '';
+            if (!this.frontImage || !this.backImage) {
+                event.preventDefault();
+                this.step = 2;
+                this.step2Error = 'Both front and back of your ID card are mandatory.';
+                return;
+            }
+            if (!this.videoData) {
+                event.preventDefault();
+                this.step3Error = 'Biometric video verification recording is mandatory.';
+                return;
+            }
+            this.isSubmitting = true;
+        }
+    };
+}
+</script>
+
+<%- include('../partials/footer') %>

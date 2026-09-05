@@ -1,0 +1,437 @@
+<%- include('../partials/header') %>
+
+<% 
+const insts = (typeof instruments !== 'undefined' && Array.isArray(instruments)) ? instruments : []; 
+%>
+
+<script>
+function marketsMatrixApp() {
+    return {
+        search: '',
+        category: 'all',
+        sortBy: 'symbol',
+        sortAsc: true,
+        markets: <%- JSON.stringify(insts.map(i => {
+            let basePrice = 68650.00;
+            if (i.symbol.includes('ETH')) basePrice = 3645.00;
+            else if (i.symbol.includes('SOL')) basePrice = 156.20;
+            else if (i.symbol.includes('BNB')) basePrice = 612.80;
+            else if (i.symbol.includes('XRP')) basePrice = 0.5840;
+            else if (i.symbol.includes('ADA')) basePrice = 0.3850;
+            else if (i.symbol.includes('AVAX')) basePrice = 26.80;
+            else if (i.symbol.includes('DOGE')) basePrice = 0.1080;
+            else if (i.symbol.includes('TAO')) basePrice = 348.50;
+            else if (i.symbol.includes('RENDER')) basePrice = 6.85;
+            else if (i.symbol.includes('NEAR')) basePrice = 4.25;
+            else if (i.symbol.includes('FET')) basePrice = 1.35;
+            else if (i.symbol.includes('LINK')) basePrice = 11.85;
+            else if (i.symbol.includes('UNI')) basePrice = 7.60;
+            else if (i.symbol.includes('AAVE')) basePrice = 142.50;
+            else if (i.symbol.includes('ARB')) basePrice = 0.5420;
+            else if (i.symbol.includes('OP')) basePrice = 1.4500;
+            else if (i.symbol.includes('MATIC')) basePrice = 0.4250;
+            else if (i.symbol.includes('SUI')) basePrice = 0.9450;
+            else if (i.symbol.includes('APT')) basePrice = 6.75;
+            else if (i.symbol.includes('TON')) basePrice = 5.65;
+            else if (i.symbol.includes('PEPE')) basePrice = 0.0000088;
+            else if (i.symbol.includes('SHIB')) basePrice = 0.0000145;
+            else if (i.symbol.includes('LTC')) basePrice = 65.40;
+            else if (i.symbol === 'EUR/USD') basePrice = 1.0854;
+            else if (i.symbol === 'GBP/USD') basePrice = 1.2940;
+            else if (i.symbol === 'USD/JPY') basePrice = 155.80;
+            else if (i.symbol === 'USD/CHF') basePrice = 0.8920;
+            else if (i.symbol === 'AUD/USD') basePrice = 0.6680;
+            else if (i.symbol === 'USD/CAD') basePrice = 1.3680;
+            else if (i.symbol === 'NZD/USD') basePrice = 0.6120;
+            else if (i.symbol === 'EUR/GBP') basePrice = 0.8450;
+            else if (i.symbol === 'EUR/JPY') basePrice = 168.40;
+            else if (i.symbol === 'GBP/JPY') basePrice = 199.20;
+            else if (i.symbol === 'USD/SGD') basePrice = 1.3450;
+            else if (i.symbol === 'XAU/USD') basePrice = 2418.50;
+            else if (i.symbol === 'XAG/USD') basePrice = 31.25;
+            else if (i.symbol === 'USOIL') basePrice = 78.40;
+            else if (i.symbol === 'UKOIL') basePrice = 82.10;
+            else if (i.symbol === 'NATGAS') basePrice = 2.15;
+            else if (i.symbol === 'XPT/USD') basePrice = 985.00;
+            else if (i.symbol === 'US30') basePrice = 39850.00;
+            else if (i.symbol === 'NAS100') basePrice = 18650.20;
+            else if (i.symbol === 'SPX500') basePrice = 5480.00;
+            else if (i.symbol === 'GER40') basePrice = 18240.00;
+            else if (i.symbol === 'UK100') basePrice = 8210.00;
+            else if (i.symbol === 'JPN225') basePrice = 38400.00;
+            else if (i.symbol === 'NVDA') basePrice = 128.50;
+            else if (i.symbol === 'AAPL') basePrice = 224.20;
+            else if (i.symbol === 'MSFT') basePrice = 418.50;
+            else if (i.symbol === 'TSLA') basePrice = 218.40;
+            else if (i.symbol === 'AMZN') basePrice = 178.60;
+            else if (i.symbol === 'GOOGL') basePrice = 164.80;
+            else if (i.symbol === 'META') basePrice = 512.30;
+            else if (i.symbol === 'AMD') basePrice = 152.40;
+            else if (i.symbol === 'NFLX') basePrice = 684.20;
+            else if (i.symbol === 'PLTR') basePrice = 31.80;
+            else if (i.symbol === 'JPM') basePrice = 214.50;
+            else if (i.symbol === 'V') basePrice = 268.90;
+            else if (i.symbol === 'BRK.B') basePrice = 448.20;
+            else if (i.symbol === 'LLY') basePrice = 942.50;
+            else if (i.symbol === 'DIS') basePrice = 92.40;
+            else if (i.symbol === 'BABA') basePrice = 82.50;
+            else if (i.symbol === 'TSM') basePrice = 168.40;
+            else if (i.symbol === 'UBER') basePrice = 72.80;
+            else if (i.symbol === 'SPY') basePrice = 766.15;
+            else if (i.symbol === 'QQQ') basePrice = 714.78;
+            else if (i.symbol === 'VOO') basePrice = 704.30;
+            else if (i.symbol === 'VTI') basePrice = 377.68;
+            else if (i.symbol === 'DIA') basePrice = 531.98;
+            else if (i.symbol === 'IWM') basePrice = 293.45;
+            else if (i.symbol === 'SMH') basePrice = 555.21;
+            else if (i.symbol === 'SOXX') basePrice = 282.10;
+            else if (i.symbol === 'XLK') basePrice = 185.77;
+            else if (i.symbol === 'XLF') basePrice = 57.84;
+            else if (i.symbol === 'XLE') basePrice = 63.49;
+            else if (i.symbol === 'ARKK') basePrice = 84.27;
+            else if (i.symbol === 'GLD') basePrice = 406.60;
+            else if (i.symbol === 'SLV') basePrice = 59.96;
+            else if (i.symbol === 'TLT') basePrice = 82.32;
+            else if (i.symbol === 'BND') basePrice = 72.22;
+            else if (i.symbol === 'IBIT') basePrice = 44.50;
+            else if (i.symbol === 'ETHA') basePrice = 18.63;
+
+            let icon = '📊';
+            if (i.category === 'crypto') icon = '🪙';
+            else if (i.category === 'forex') icon = '💱';
+            else if (i.category === 'commodities') icon = '🏆';
+            else if (i.category === 'indices') icon = '📈';
+            else if (i.category === 'stocks') icon = '🏛️';
+            else if (i.category === 'etf') icon = '📦';
+
+            return {
+                symbol: i.symbol,
+                name: i.name,
+                category: i.category,
+                icon: icon,
+                price: basePrice,
+                spread: i.spread || 0.1,
+                change: '+1.85%',
+                changeNum: 1.85,
+                direction: 'up',
+                high24h: +(basePrice * 1.025).toFixed(basePrice < 1 ? 4 : 2),
+                low24h: +(basePrice * 0.978).toFixed(basePrice < 1 ? 4 : 2)
+            };
+        })) %>,
+
+        init() {
+            this.pollLivePrices();
+            setInterval(() => this.pollLivePrices(), 2000);
+        },
+
+        pollLivePrices() {
+            fetch('/api/market/prices')
+                .then(r => r.json())
+                .then(d => {
+                    if (d && d.success && d.prices) {
+                        this.markets.forEach(m => {
+                            const rawSym = m.symbol.replace('/USDT', '').replace('/USD', '');
+                            const quote = d.prices[m.symbol] || d.prices[rawSym];
+                            if (quote && quote.price) {
+                                const oldPrice = m.price;
+                                m.price = quote.price;
+                                m.direction = quote.price >= oldPrice ? 'up' : 'down';
+                                m.changeNum = quote.change24h !== undefined ? quote.change24h : m.changeNum;
+                                m.change = (m.changeNum >= 0 ? '+' : '') + Number(m.changeNum).toFixed(2) + '%';
+                            }
+                        });
+                    }
+                }).catch(e => {});
+        },
+
+        formatPrice(p) {
+            if (!p && p !== 0) return '0.00';
+            const num = Number(p);
+            if (num >= 1000) return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (num >= 1) return '$' + num.toFixed(2);
+            if (num >= 0.001) return '$' + num.toFixed(4);
+            return '$' + num.toFixed(7);
+        },
+
+        calcBid(price, spread) {
+            const numP = Number(price) || 0;
+            const spr = (Number(spread) || 0.1) * 0.0001 * numP;
+            return this.formatPrice(numP - spr);
+        },
+
+        calcAsk(price, spread) {
+            const numP = Number(price) || 0;
+            const spr = (Number(spread) || 0.1) * 0.0001 * numP;
+            return this.formatPrice(numP + spr);
+        },
+
+        sort(col) {
+            if (this.sortBy === col) {
+                this.sortAsc = !this.sortAsc;
+            } else {
+                this.sortBy = col;
+                this.sortAsc = true;
+            }
+        },
+
+        get filteredMarkets() {
+            let list = this.markets.filter(m => {
+                const matchesCat = (this.category === 'all' || m.category === this.category);
+                const q = this.search.toLowerCase().trim();
+                const matchesSearch = !q || m.symbol.toLowerCase().includes(q) || m.name.toLowerCase().includes(q);
+                return matchesCat && matchesSearch;
+            });
+
+            list.sort((a, b) => {
+                let vA = a[this.sortBy];
+                let vB = b[this.sortBy];
+                if (typeof vA === 'string') vA = vA.toLowerCase();
+                if (typeof vB === 'string') vB = vB.toLowerCase();
+                if (vA < vB) return this.sortAsc ? -1 : 1;
+                if (vA > vB) return this.sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            return list;
+        }
+    };
+}
+</script>
+
+<div x-data="marketsMatrixApp()" x-init="init()" class="min-h-screen bg-surface-base pb-16">
+
+    <!-- ============================================================================== -->
+    <!-- 1. HERO BANNER WITH REAL-TIME TELEMETRY METRICS                                -->
+    <!-- ============================================================================== -->
+    <section class="py-16 bg-gradient-to-b from-white via-surface-base to-surface-base border-b border-surface-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-5 text-center">
+            
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-gain/10 text-gain text-xs font-bold font-mono border border-gain/20 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                <span>LIVE INSTITUTIONAL PRICING ACTIVE</span>
+            </div>
+
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-content-primary font-serif tracking-tight">Global Markets Matrix</h1>
+            <p class="text-sm text-content-secondary max-w-2xl mx-auto leading-relaxed">
+                Real-time STP order-book pricing across <strong class="text-content-primary font-mono"><%= insts.length || 67 %> Instruments</strong> spanning Equities, Cryptocurrencies, Forex Majors, and Precious Metals with 0.0 pip raw spreads.
+            </p>
+
+            <!-- Quick Telemetry Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-4 font-mono text-xs">
+                <div class="p-3.5 bg-white rounded-2xl border border-surface-border shadow-sm">
+                    <span class="text-[10px] text-content-tertiary uppercase block">Tradable Instruments</span>
+                    <strong class="text-base text-content-primary"><%= insts.length || 67 %> Active Pairs</strong>
+                </div>
+                <div class="p-3.5 bg-white rounded-2xl border border-surface-border shadow-sm">
+                    <span class="text-[10px] text-content-tertiary uppercase block">Average Raw Spread</span>
+                    <strong class="text-base text-gain">0.0 - 0.2 Pips</strong>
+                </div>
+                <div class="p-3.5 bg-white rounded-2xl border border-surface-border shadow-sm">
+                    <span class="text-[10px] text-content-tertiary uppercase block">Execution Latency</span>
+                    <strong class="text-base text-primary">&lt; 12ms Ultra-Fast</strong>
+                </div>
+                <div class="p-3.5 bg-white rounded-2xl border border-surface-border shadow-sm">
+                    <span class="text-[10px] text-content-tertiary uppercase block">24h Institutional Volume</span>
+                    <strong class="text-base text-content-primary">$2.84 Billion</strong>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================================================== -->
+    <!-- 2. SEARCH, CATEGORY PILLS & MARKETS DATA TABLE                                 -->
+    <!-- ============================================================================== -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
+        
+        <!-- Controls Toolbar (Search & Category Selector) -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-surface-border shadow-sm">
+            
+            <!-- Category Filter Pills with 3D Motion Badges -->
+            <div class="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 font-mono text-xs scrollbar-none">
+                <button type="button" @click="category = 'all'" :class="category === 'all' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-white/20 text-white flex items-center justify-center icon-3d-badge" style="--icon-glow: #0284C7;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </div>
+                    <span>All (<span x-text="markets.length"></span>)</span>
+                </button>
+                <button type="button" @click="category = 'stocks'" :class="category === 'stocks' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #10B981;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                    </div>
+                    <span>Stocks</span>
+                </button>
+                <button type="button" @click="category = 'crypto'" :class="category === 'crypto' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F59E0B;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <span>Crypto</span>
+                </button>
+                <button type="button" @click="category = 'forex'" :class="category === 'forex' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-blue-500/20 text-blue-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #3B82F6;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </div>
+                    <span>Forex</span>
+                </button>
+                <button type="button" @click="category = 'commodities'" :class="category === 'commodities' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-yellow-500/20 text-yellow-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #EAB308;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                    </div>
+                    <span>Commodities</span>
+                </button>
+                <button type="button" @click="category = 'indices'" :class="category === 'indices' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-rose-500/20 text-rose-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F43F5E;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                    </div>
+                    <span>Indices</span>
+                </button>
+                <button type="button" @click="category = 'etf'" :class="category === 'etf' ? 'bg-primary text-white shadow-lg shadow-primary/25 font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3.5 py-2 rounded-2xl transition shrink-0 flex items-center space-x-1.5 group">
+                    <div class="w-4 h-4 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center icon-3d-badge" style="--icon-glow: #A855F7;">
+                        <svg class="w-2.5 h-2.5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    </div>
+                    <span>ETFs</span>
+                </button>
+            </div>
+
+            <!-- Instant Search Input -->
+            <div class="relative min-w-[260px] md:w-80">
+                <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">🔍</span>
+                <input type="text" x-model="search" placeholder="Search ticker or name (e.g. BTC, NVDA)..." 
+                       class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-mono shadow-inner" />
+            </div>
+
+        </div>
+
+        <!-- Institutional Markets Table -->
+        <div class="glass-card rounded-3xl border border-surface-border shadow-lg overflow-hidden bg-white">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left font-mono text-xs">
+                    <thead class="bg-surface-overlay/80 border-b border-surface-border text-[11px] text-content-tertiary uppercase font-sans">
+                        <tr>
+                            <th @click="sort('symbol')" class="py-3.5 px-5 cursor-pointer hover:text-content-primary transition select-none">
+                                <div class="flex items-center space-x-1">
+                                    <span>Instrument</span>
+                                    <span class="text-[9px]" x-show="sortBy === 'symbol'" x-text="sortAsc ? '▲' : '▼'"></span>
+                                </div>
+                            </th>
+                            <th @click="sort('category')" class="py-3.5 px-4 cursor-pointer hover:text-content-primary transition select-none">
+                                <div class="flex items-center space-x-1">
+                                    <span>Asset Class</span>
+                                    <span class="text-[9px]" x-show="sortBy === 'category'" x-text="sortAsc ? '▲' : '▼'"></span>
+                                </div>
+                            </th>
+                            <th @click="sort('price')" class="py-3.5 px-4 cursor-pointer hover:text-content-primary transition select-none">
+                                <div class="flex items-center space-x-1">
+                                    <span>Live Price</span>
+                                    <span class="text-[9px]" x-show="sortBy === 'price'" x-text="sortAsc ? '▲' : '▼'"></span>
+                                </div>
+                            </th>
+                            <th class="py-3.5 px-4">Bid / Ask</th>
+                            <th @click="sort('spread')" class="py-3.5 px-4 cursor-pointer hover:text-content-primary transition select-none">
+                                <div class="flex items-center space-x-1">
+                                    <span>Raw Spread</span>
+                                    <span class="text-[9px]" x-show="sortBy === 'spread'" x-text="sortAsc ? '▲' : '▼'"></span>
+                                </div>
+                            </th>
+                            <th @click="sort('changeNum')" class="py-3.5 px-4 cursor-pointer hover:text-content-primary transition select-none">
+                                <div class="flex items-center space-x-1">
+                                    <span>24h Change</span>
+                                    <span class="text-[9px]" x-show="sortBy === 'changeNum'" x-text="sortAsc ? '▲' : '▼'"></span>
+                                </div>
+                            </th>
+                            <th class="py-3.5 px-4 text-center">24h Range</th>
+                            <th class="py-3.5 px-5 text-right font-sans">Trade Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <template x-for="m in filteredMarkets" :key="m.symbol">
+                            <tr class="hover:bg-surface-overlay/50 transition">
+                                
+                                <!-- Instrument -->
+                                <td class="py-3.5 px-5">
+                                    <div class="flex items-center space-x-3">
+                                        <span class="w-9 h-9 rounded-2xl bg-surface-overlay border border-surface-border flex items-center justify-center font-bold text-base shadow-sm" x-text="m.icon"></span>
+                                        <div>
+                                            <span class="font-extrabold text-content-primary font-sans text-xs block" x-text="m.name"></span>
+                                            <span class="text-[10px] text-content-tertiary font-bold" x-text="m.symbol"></span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Asset Class -->
+                                <td class="py-3.5 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono tracking-wider"
+                                          :class="{
+                                              'bg-blue-500/10 text-blue-600 border border-blue-500/20': m.category === 'stocks',
+                                              'bg-amber-500/10 text-amber-600 border border-amber-500/20': m.category === 'crypto',
+                                              'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20': m.category === 'forex',
+                                              'bg-purple-500/10 text-purple-600 border border-purple-500/20': m.category === 'indices',
+                                              'bg-orange-500/10 text-orange-600 border border-orange-500/20': m.category === 'commodities'
+                                          }"
+                                          x-text="m.category">
+                                    </span>
+                                </td>
+
+                                <!-- Live Price -->
+                                <td class="py-3.5 px-4">
+                                    <span class="font-extrabold text-sm block transition-colors duration-300"
+                                          :class="m.direction === 'up' ? 'text-gain' : 'text-loss'"
+                                          x-text="formatPrice(m.price)"></span>
+                                </td>
+
+                                <!-- Bid / Ask -->
+                                <td class="py-3.5 px-4 text-[11px] text-content-secondary space-y-0.5">
+                                    <div><span class="text-[9px] text-content-tertiary">B:</span> <strong class="text-content-primary" x-text="calcBid(m.price, m.spread)"></strong></div>
+                                    <div><span class="text-[9px] text-content-tertiary">A:</span> <strong class="text-content-primary" x-text="calcAsk(m.price, m.spread)"></strong></div>
+                                </td>
+
+                                <!-- Raw Spread -->
+                                <td class="py-3.5 px-4">
+                                    <span class="px-2 py-0.5 rounded-lg bg-surface-overlay border border-surface-border text-[11px] font-bold text-content-primary" x-text="m.spread + ' Pips'"></span>
+                                </td>
+
+                                <!-- 24h Change -->
+                                <td class="py-3.5 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-extrabold flex items-center space-x-1 w-fit"
+                                          :class="m.changeNum >= 0 ? 'bg-gain/15 text-gain' : 'bg-loss/15 text-loss'">
+                                        <span x-text="m.changeNum >= 0 ? '▲' : '▼'"></span>
+                                        <span x-text="m.change"></span>
+                                    </span>
+                                </td>
+
+                                <!-- 24h Range -->
+                                <td class="py-3.5 px-4 text-center text-[10px] text-content-secondary">
+                                    <span class="text-loss" x-text="formatPrice(m.low24h)"></span>
+                                    <span class="text-content-tertiary mx-1">&mdash;</span>
+                                    <span class="text-gain" x-text="formatPrice(m.high24h)"></span>
+                                </td>
+
+                                <!-- Trade CTA Button -->
+                                <td class="py-3.5 px-5 text-right font-sans">
+                                    <a :href="'/webtrade/app?symbol=' + encodeURIComponent(m.symbol)" class="px-3.5 py-1.5 rounded-xl bg-primary text-white hover:bg-primary-dark font-bold text-xs shadow-md shadow-primary/20 transition inline-flex items-center space-x-1">
+                                        <span>Trade</span>
+                                        <span>&rarr;</span>
+                                    </a>
+                                </td>
+
+                            </tr>
+                        </template>
+
+                        <template x-if="filteredMarkets.length === 0">
+                            <tr>
+                                <td colspan="8" class="py-12 text-center text-content-secondary text-xs">
+                                    <span class="text-3xl block mb-2">🔍</span>
+                                    No instruments match your search criteria.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+
+</div>
+
+<%- include('../partials/footer') %>

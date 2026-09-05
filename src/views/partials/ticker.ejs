@@ -1,0 +1,22 @@
+<!-- TradingView Ticker Tape Widget -->
+<section class="bg-surface-base border-b border-surface-border overflow-hidden">
+    <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+        {
+          "colorTheme": "dark",
+          "displayMode": "adaptive",
+          "symbols": [
+            { "proName": "FX:EURUSD", "title": "EUR/USD" },
+            { "proName": "FX:GBPUSD", "title": "GBP/USD" },
+            { "proName": "BITSTAMP:BTCUSD", "title": "BTC/USD" },
+            { "proName": "BITSTAMP:ETHUSD", "title": "ETH/USD" },
+            { "proName": "OANDA:XAUUSD", "title": "XAU/USD" },
+            { "proName": "FX:USDJPY", "title": "USD/JPY" }
+          ],
+          "isTransparent": true,
+          "showSymbolLogo": true
+        }
+        </script>
+    </div>
+</section>

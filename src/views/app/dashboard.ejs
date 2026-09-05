@@ -1,0 +1,2385 @@
+<%- include('../partials/header') %>
+
+<script>
+function dashboardPortfolioApp() {
+    return {
+        rates: {},
+        userBalances: <%- JSON.stringify(allBalances || []) %>,
+        cashBalance: <%= Number(user.balance) %>,
+        livePortfolioValuation: <%= Number(user.balance) %>,
+        buyStockModal: false,
+        swapModal: false,
+        swapSubmitting: false,
+        basketModal: false,
+        basketSubmitting: false,
+        dividendClaiming: false,
+        selectedBasketKey: 'ai_titans',
+        basketInvestAmount: 100,
+        activeTab: 'holdings',
+        assetFilter: 'owned', // 'owned' | 'all' | 'equity' | 'crypto'
+        showOnboardingRoadmap: true,
+        selectedAccountMode: 'standard', // 'standard' | 'retirement'
+        retirementContributeModal: false,
+        retirementContributeAmount: 1000,
+        retirementInvestModal: false,
+        retirementInvestAsset: 'AAPL',
+        retirementInvestAmount: 500,
+        retirementDripEnabled: <%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.drip_enabled : 1 %>,
+        retirementSubmitting: false,
+        retirementMsg: '',
+        retirementError: '',
+        hideZeroBalances: true,
+        searchQuery: '',
+        viewMode: 'grid',
+        chartTimeframe: '30D',
+        selectedStockSymbol: 'AAPL',
+        investMode: 'usd', // 'usd' | 'shares'
+        investUsdAmount: 100,
+        stockBuyShares: 1,
+        spotActionType: 'buy',
+        spotSubmitting: false,
+        fromSymbol: 'USD',
+        toSymbol: 'BTC',
+        swapAmount: 100,
+        baskets: <%- JSON.stringify(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>,
+        dividendRates: <%- JSON.stringify(typeof dividendRates !== 'undefined' ? dividendRates : {}) %>,
+        discoverModal: false,
+        discoverSearch: '',
+        discoverFilter: 'all',
+        allTradableCatalog: <%- JSON.stringify(typeof tradableMarkets !== 'undefined' ? tradableMarkets : []) %>,
+        liquidateAllModal: false,
+        hazardCountdown: 6,
+        hazardTimerInterval: null,
+        liquidatingAll: false,
+
+        init() {
+            this.fetchLiveMarketRates();
+            setInterval(() => this.fetchLiveMarketRates(), 2500);
+        },
+
+        fetchLiveMarketRates() {
+            fetch('/api/user/sync')
+                .then(r => r.json())
+                .then(d => {
+                    if (d) {
+                        if (d.livePrices) this.rates = d.livePrices;
+                        if (d.userBalances) this.userBalances = d.userBalances;
+                        if (d.balance !== undefined) this.cashBalance = Number(d.balance);
+                        this.recalcPortfolioNetWorth();
+                    }
+                }).catch(e => {});
+        },
+
+        recalcPortfolioNetWorth() {
+            let total = this.cashBalance;
+            if (this.userBalances && this.userBalances.length > 0) {
+                this.userBalances.forEach(b => {
+                    if (b.asset_symbol !== 'USD') {
+                        const rate = this.rates[b.asset_symbol]?.price || b.rate_usd || 1;
+                        total += (Number(b.balance) * rate);
+                    }
+                });
+            }
+            <% if (typeof copySubscriptions !== 'undefined' && copySubscriptions) { %>
+                <% copySubscriptions.filter(cs => cs.status === 'active').forEach(cs => { %>
+                    total += (<%= Number(cs.current_profit) %>);
+                <% }) %>
+            <% } %>
+            this.livePortfolioValuation = +total.toFixed(2);
+        },
+
+        get fromAvailableBalance() {
+            if (this.fromSymbol === 'USD') return this.cashBalance;
+            const match = this.userBalances.find(b => b.asset_symbol === this.fromSymbol);
+            return match ? Number(match.balance || 0) : 0;
+        },
+
+        get fromRate() {
+            if (this.fromSymbol === 'USD' || this.fromSymbol === 'USDT') return 1.0;
+            return this.rates[this.fromSymbol]?.price || 1.0;
+        },
+
+        get toRate() {
+            if (this.toSymbol === 'USD' || this.toSymbol === 'USDT') return 1.0;
+            return this.rates[this.toSymbol]?.price || 1.0;
+        },
+
+        get estimatedOutput() {
+            const amt = parseFloat(this.swapAmount) || 0;
+            if (amt <= 0 || !this.toRate) return '0.00';
+            const out = (amt * this.fromRate) / this.toRate;
+            return out < 1 ? out.toFixed(6) : (out < 100 ? out.toFixed(4) : out.toFixed(2));
+        },
+
+        get equityCashVal() {
+            return <%= Number(user.balance) %>;
+        },
+        get equityStockVal() {
+            let s = 0;
+            <% if (typeof stockBalances !== 'undefined' && stockBalances) { %>
+                <% stockBalances.forEach(sb => { %>
+                    s += (<%= Number(sb.balance) %> * (this.rates['<%= sb.asset_symbol %>']?.price || <%= sb.rate_usd %>));
+                <% }) %>
+            <% } %>
+            return s;
+        },
+        get equityCryptoVal() {
+            let c = 0;
+            <% if (typeof cryptoBalances !== 'undefined' && cryptoBalances) { %>
+                <% cryptoBalances.filter(cb => cb.asset_symbol !== 'USD').forEach(cb => { %>
+                    c += (<%= Number(cb.balance) %> * (this.rates['<%= cb.asset_symbol %>']?.price || <%= cb.rate_usd %>));
+                <% }) %>
+            <% } %>
+            return c;
+        },
+        get equityCopyVal() {
+            let cp = 0;
+            <% if (typeof copySubscriptions !== 'undefined' && copySubscriptions) { %>
+                <% copySubscriptions.filter(cs => cs.status === 'active').forEach(cs => { %>
+                    cp += <%= Number(cs.allocated_amount) + Number(cs.current_profit) %>;
+                <% }) %>
+            <% } %>
+            return cp;
+        },
+        get allocationPercents() {
+            const tot = this.livePortfolioValuation || 1;
+            const pCash = Math.round((this.equityCashVal / tot) * 100);
+            const pStock = Math.round((this.equityStockVal / tot) * 100);
+            const pCrypto = Math.round((this.equityCryptoVal / tot) * 100);
+            const pCopy = Math.max(0, 100 - (pCash + pStock + pCrypto));
+            return { cash: pCash, stock: pStock, crypto: pCrypto, copy: pCopy };
+        },
+
+        get chartPoints() {
+            const base = this.livePortfolioValuation;
+            const tf = this.chartTimeframe;
+            const count = tf === '7D' ? 7 : (tf === '30D' ? 15 : (tf === '90D' ? 24 : 36));
+            const startRatio = tf === '7D' ? 0.95 : (tf === '30D' ? 0.84 : (tf === '90D' ? 0.70 : 0.48));
+            const pts = [];
+            for (let i = 0; i < count; i++) {
+                const progress = i / (count - 1);
+                const wave = Math.sin(i * 0.8) * 0.035;
+                const ratio = startRatio + (1 - startRatio) * progress + wave;
+                const val = +(base * ratio).toFixed(2);
+                pts.push(val);
+            }
+            pts[pts.length - 1] = base;
+            return pts;
+        },
+
+        get chartSvgPath() {
+            const pts = this.chartPoints;
+            const min = Math.min(...pts) * 0.98;
+            const max = Math.max(...pts) * 1.02;
+            const range = (max - min) || 1;
+            const width = 800;
+            const height = 220;
+            
+            const coords = pts.map((p, idx) => {
+                const x = (idx / (pts.length - 1)) * width;
+                const y = height - ((p - min) / range) * (height - 30) - 15;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            });
+            
+            return 'M ' + coords.join(' L ');
+        },
+
+        get chartSvgArea() {
+            const line = this.chartSvgPath;
+            return line + ' L 800,220 L 0,220 Z';
+        },
+
+        openBuyStock(sym, mode = 'usd') {
+            this.selectedStockSymbol = sym || 'AAPL';
+            this.spotActionType = 'buy';
+            this.investMode = mode;
+            this.investUsdAmount = 100;
+            this.stockBuyShares = 1;
+            this.buyStockModal = true;
+        },
+
+        openSellStock(sym, curShares) {
+            this.selectedStockSymbol = sym || 'AAPL';
+            this.spotActionType = 'sell';
+            this.investMode = 'shares';
+            this.stockBuyShares = curShares || 1;
+            this.investUsdAmount = +((curShares || 1) * (this.rates[sym]?.price || 150)).toFixed(2);
+            this.buyStockModal = true;
+        },
+
+        openBasketModal(key) {
+            this.selectedBasketKey = key;
+            const b = this.baskets[key];
+            this.basketInvestAmount = b ? b.minInvestment : 100;
+            this.basketModal = true;
+        },
+
+        isAssetOwned(sym) {
+            return this.getAssetBalance(sym) > 0.000001;
+        },
+
+        get ownedAssetsCount() {
+            return this.userBalances.filter(b => b.asset_symbol !== 'USD' && Number(b.balance || 0) > 0.000001).length;
+        },
+
+        getAssetBalance(sym) {
+            const match = this.userBalances.find(b => b.asset_symbol === sym);
+            return match ? Number(match.balance || 0) : 0;
+        },
+
+        getAssetValuation(sym) {
+            const bal = this.getAssetBalance(sym);
+            const price = this.rates[sym]?.price || 1.0;
+            return bal * price;
+        },
+
+        getAssetPortfolioPercent(sym) {
+            const val = this.getAssetValuation(sym);
+            const total = Math.max(1, this.livePortfolioValuation);
+            return +((val / total) * 100).toFixed(1);
+        },
+
+        getAsset24hPnLDollar(sym) {
+            const val = this.getAssetValuation(sym);
+            const changePct = Number(this.rates[sym]?.change24h || 0);
+            return +(val * (changePct / 100)).toFixed(2);
+        },
+
+        getSparklinePoints(sym) {
+            const chg = Number(this.rates[sym]?.change24h || 0);
+            const dir = chg >= 0 ? 1 : -1;
+            const pts = [
+                `0,${dir > 0 ? 24 : 6}`,
+                `16,${dir > 0 ? 20 : 10}`,
+                `32,${dir > 0 ? 22 : 8}`,
+                `48,${dir > 0 ? 14 : 16}`,
+                `64,${dir > 0 ? 16 : 14}`,
+                `80,${dir > 0 ? 8 : 22}`,
+                `96,${dir > 0 ? 4 : 26}`
+            ];
+            return pts.join(' ');
+        },
+
+        openSwapWith(sym, direction = 'to') {
+            if (direction === 'to') {
+                this.fromSymbol = 'USD';
+                this.toSymbol = sym;
+            } else {
+                this.fromSymbol = sym;
+                this.toSymbol = 'USD';
+            }
+            this.swapModal = true;
+        },
+
+        get currentHeldStockShares() {
+            return this.getAssetBalance(this.selectedStockSymbol);
+        },
+
+        openLiquidateAllModal() {
+            if (this.ownedAssetsCount === 0) {
+                alert('You currently have no active asset holdings to liquidate.');
+                return;
+            }
+            this.hazardCountdown = 6;
+            this.liquidateAllModal = true;
+            
+            if (this.hazardTimerInterval) clearInterval(this.hazardTimerInterval);
+            this.hazardTimerInterval = setInterval(() => {
+                if (this.hazardCountdown > 0) {
+                    this.hazardCountdown--;
+                } else {
+                    clearInterval(this.hazardTimerInterval);
+                }
+            }, 1000);
+        },
+
+        closeLiquidateAllModal() {
+            if (this.hazardTimerInterval) clearInterval(this.hazardTimerInterval);
+            this.liquidateAllModal = false;
+            this.hazardCountdown = 6;
+        },
+
+        get totalEstimatedLiquidationValue() {
+            let total = 0;
+            this.userBalances.forEach(b => {
+                if (b.asset_symbol !== 'USD' && Number(b.balance || 0) > 0.000001) {
+                    const p = this.rates[b.asset_symbol]?.price || b.rate_usd || 1.0;
+                    total += (Number(b.balance) * p);
+                }
+            });
+            return +total.toFixed(2);
+        },
+
+        async toggleRetirementDrip() {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            try {
+                const res = await fetch('/api/retirement/toggle-drip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ _token: token })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.retirementDripEnabled = data.drip_enabled;
+                }
+            } catch(e) {}
+        },
+
+        async executeRetirementContribution() {
+            this.retirementSubmitting = true;
+            this.retirementError = '';
+            this.retirementMsg = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const res = await fetch('/api/retirement/contribute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: this.retirementContributeAmount,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.retirementMsg = data.message;
+                    setTimeout(() => { window.location.reload(); }, 1200);
+                } else {
+                    this.retirementError = (data && data.error) ? data.error : 'Contribution failed.';
+                }
+            } catch (err) {
+                this.retirementError = 'Network error while contributing funds.';
+            } finally {
+                this.retirementSubmitting = false;
+            }
+        },
+
+        async executeRetirementInvestment() {
+            this.retirementSubmitting = true;
+            this.retirementError = '';
+            this.retirementMsg = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const assetNames = {
+                'AAPL': 'Apple Inc.',
+                'MSFT': 'Microsoft Corporation',
+                'NVDA': 'NVIDIA Corporation',
+                'AMZN': 'Amazon.com, Inc.',
+                'BTC': 'Bitcoin Cold IRA Vault',
+                'ETH': 'Ethereum Staking IRA'
+            };
+
+            const assetTypes = {
+                'AAPL': 'stock',
+                'MSFT': 'stock',
+                'NVDA': 'stock',
+                'AMZN': 'stock',
+                'BTC': 'crypto',
+                'ETH': 'crypto'
+            };
+
+            const assetIcons = {
+                'AAPL': '🍏',
+                'MSFT': '🪟',
+                'NVDA': '🟢',
+                'AMZN': '📦',
+                'BTC': '₿',
+                'ETH': 'Ξ'
+            };
+
+            try {
+                const res = await fetch('/api/retirement/invest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        asset_symbol: this.retirementInvestAsset,
+                        asset_name: assetNames[this.retirementInvestAsset] || this.retirementInvestAsset,
+                        asset_type: assetTypes[this.retirementInvestAsset] || 'stock',
+                        icon: assetIcons[this.retirementInvestAsset] || '📈',
+                        amount: this.retirementInvestAmount,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.retirementMsg = data.message;
+                    setTimeout(() => { window.location.reload(); }, 1200);
+                } else {
+                    this.retirementError = (data && data.error) ? data.error : 'Allocation failed.';
+                }
+            } catch (err) {
+                this.retirementError = 'Network error while allocating capital.';
+            } finally {
+                this.retirementSubmitting = false;
+            }
+        },
+
+        async liquidateAllAssets() {
+            if (this.hazardCountdown > 0 || this.liquidatingAll) return;
+            this.liquidatingAll = true;
+            try {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                const token = metaTag ? metaTag.getAttribute('content') : '';
+                const res = await fetch('/api/user/liquidate-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ _token: token })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.liquidateAllModal = false;
+                    window.location.reload();
+                } else {
+                    alert((data && data.error) ? data.error : 'Liquidation failed.');
+                }
+            } catch(e) {
+                alert('Network error executing liquidation.');
+            } finally {
+                this.liquidatingAll = false;
+            }
+        },
+
+        get currentStockPrice() {
+            return this.rates[this.selectedStockSymbol]?.price || 150.0;
+        },
+
+        get estimatedSpotShares() {
+            if (this.investMode === 'shares') return parseFloat(this.stockBuyShares) || 0;
+            const usd = parseFloat(this.investUsdAmount) || 0;
+            return this.currentStockPrice > 0 ? (usd / this.currentStockPrice).toFixed(4) : '0.0000';
+        },
+
+        get estimatedSpotTotalCost() {
+            if (this.investMode === 'usd') return (parseFloat(this.investUsdAmount) || 0).toFixed(2);
+            const shares = parseFloat(this.stockBuyShares) || 0;
+            return (shares * this.currentStockPrice).toFixed(2);
+        },
+
+        async executeSpotTrade() {
+            if (this.spotSubmitting) return;
+            const amount = this.investMode === 'usd' ? parseFloat(this.investUsdAmount) : parseFloat(this.stockBuyShares);
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid investment amount greater than zero.');
+                return;
+            }
+
+            this.spotSubmitting = true;
+            try {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                const token = metaTag ? metaTag.getAttribute('content') : '';
+                const res = await fetch('/api/user/spot-trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: this.selectedStockSymbol,
+                        action: this.spotActionType,
+                        mode: this.investMode,
+                        amount: amount,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.buyStockModal = false;
+                    window.location.reload();
+                } else {
+                    alert((data && data.error) ? data.error : 'Spot order failed.');
+                }
+            } catch (e) {
+                alert('Network error executing spot order.');
+            } finally {
+                this.spotSubmitting = false;
+            }
+        },
+
+        async executeBasketInvest() {
+            if (this.basketSubmitting) return;
+            const amt = parseFloat(this.basketInvestAmount);
+            if (isNaN(amt) || amt <= 0) {
+                alert('Please enter a valid investment amount.');
+                return;
+            }
+            if (amt > this.cashBalance) {
+                alert(`Insufficient cash balance ($${this.cashBalance.toFixed(2)}). Please deposit or reduce allocation.`);
+                return;
+            }
+
+            this.basketSubmitting = true;
+            try {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                const token = metaTag ? metaTag.getAttribute('content') : '';
+                const res = await fetch('/api/user/invest-basket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        basket_id: this.selectedBasketKey,
+                        amount: amt,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.basketModal = false;
+                    window.location.reload();
+                } else {
+                    alert((data && data.error) ? data.error : 'Basket investment failed.');
+                }
+            } catch (e) {
+                alert('Network error executing basket investment.');
+            } finally {
+                this.basketSubmitting = false;
+            }
+        },
+
+        async claimDividends() {
+            if (this.dividendClaiming) return;
+            this.dividendClaiming = true;
+            try {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                const token = metaTag ? metaTag.getAttribute('content') : '';
+                const res = await fetch('/api/user/claim-dividends', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ _token: token })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    window.location.reload();
+                } else {
+                    alert((data && data.error) ? data.error : 'No accrued dividends ready to distribute.');
+                }
+            } catch (e) {
+                alert('Network error claiming dividends.');
+            } finally {
+                this.dividendClaiming = false;
+            }
+        },
+        async executeSwap() {
+            if (this.swapSubmitting) return;
+            const amt = parseFloat(this.swapAmount);
+            if (isNaN(amt) || amt <= 0) {
+                alert('Please enter a valid swap amount greater than zero.');
+                return;
+            }
+            if (amt > this.fromAvailableBalance) {
+                alert(`Insufficient ${this.fromSymbol} balance. Available: ${this.fromAvailableBalance} ${this.fromSymbol}`);
+                return;
+            }
+
+            this.swapSubmitting = true;
+            try {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                const token = metaTag ? metaTag.getAttribute('content') : '';
+                const res = await fetch('/api/user/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        from_symbol: this.fromSymbol,
+                        to_symbol: this.toSymbol,
+                        amount: amt,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.swapModal = false;
+                    window.location.reload();
+                } else {
+                    alert((data && data.error) ? data.error : 'Swap execution failed.');
+                }
+            } catch (err) {
+                alert('Network connection error while executing swap.');
+            } finally {
+                this.swapSubmitting = false;
+            }
+        },
+        closeCfdTrade(tradeId) {
+            if (!confirm('Close this CFD position immediately at market price?')) return;
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            const token = metaTag ? metaTag.getAttribute('content') : '';
+            fetch('/api/trade/close', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ trade_id: tradeId, _token: token })
+            }).then(r => r.json()).then(d => {
+                if (d && d.success) {
+                    window.location.reload();
+                } else {
+                    alert(d.error || 'Failed to close position.');
+                }
+            });
+        }
+    };
+}
+</script>
+
+<section class="py-8 bg-surface-base min-h-screen" x-data="dashboardPortfolioApp()">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-7">
+        
+        <!-- ============================================================================== -->
+        <!-- 1. USER-FRIENDLY HEADER & INSTANT ACTIONS BAR                                  -->
+        <!-- ============================================================================== -->
+        <div class="glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 bg-gradient-to-r from-surface-raised via-white to-surface-raised">
+            
+            <!-- User Profile & Status Pill -->
+            <div class="flex items-center space-x-4">
+                <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-2xl font-bold font-serif shadow-inner">
+                    <%= user.name.charAt(0).toUpperCase() %>
+                </div>
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-content-primary font-serif">Welcome, <%= user.name %></h1>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase bg-gain/15 text-gain border border-gain/20 flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                            <span><%= user.kyc_status === 'verified' ? '✓ Verified Trader' : 'Standard Tier' %></span>
+                        </span>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase bg-primary/10 text-primary border border-primary/20">
+                            <%= user.balance >= 100000 ? '👑 Diamond VIP' : (user.balance >= 25000 ? '🥇 Gold VIP' : '🥈 Silver Trader') %>
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 pt-1">
+                        <p class="text-xs text-content-secondary">Account ID: <strong class="font-mono text-content-primary">#<%= 10000 + user.id %></strong> &bull; STP Routing</p>
+                        
+                        <!-- DUAL ACCOUNT MODE SWITCHER -->
+                        <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border font-mono text-[11px] shadow-inner">
+                            <button type="button" @click="selectedAccountMode = 'standard'; if (activeTab === 'retirement') activeTab = 'holdings'"
+                                    :class="selectedAccountMode === 'standard' ? 'bg-white text-content-primary font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'"
+                                    class="px-2.5 py-1 rounded-lg transition flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-primary"></span>
+                                <span>Standard Trading</span>
+                            </button>
+                            <button type="button" @click="selectedAccountMode = 'retirement'; activeTab = 'retirement'"
+                                    :class="selectedAccountMode === 'retirement' ? 'bg-gradient-to-r from-gain to-emerald-600 text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'"
+                                    class="px-2.5 py-1 rounded-lg transition flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
+                                <span>Retirement IRA</span>
+                                <span class="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">TAX-FREE</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instant User Actions with 3D Motion Badges -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <a href="/deposit" class="px-4 py-2 rounded-2xl bg-gradient-to-r from-gain to-emerald-600 hover:from-gain/90 hover:to-emerald-500 text-white font-bold text-xs shadow-lg shadow-gain/25 transition flex items-center space-x-2 group transform hover:-translate-y-0.5">
+                    <div class="w-5 h-5 rounded-lg bg-white/20 text-white flex items-center justify-center icon-3d-badge" style="--icon-glow: #10B981;">
+                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                    </div>
+                    <span>Deposit</span>
+                </a>
+                <a href="/webtrade/app" class="px-4 py-2 rounded-2xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-dark hover:to-blue-700 text-white font-bold text-xs shadow-lg shadow-primary/25 transition flex items-center space-x-2 group transform hover:-translate-y-0.5">
+                    <div class="w-5 h-5 rounded-lg bg-white/20 text-white flex items-center justify-center icon-3d-badge" style="--icon-glow: #0284C7;">
+                        <svg class="w-3 h-3 icon-floating" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                    </div>
+                    <span>Live Terminal</span>
+                </a>
+                <button type="button" @click="swapModal = true" class="px-4 py-2 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-2 shadow-sm group transform hover:-translate-y-0.5">
+                    <div class="w-5 h-5 rounded-lg bg-indigo-500/20 text-indigo-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #6366F1;">
+                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    </div>
+                    <span>Instant Swap</span>
+                </button>
+                <a href="/withdraw" class="px-4 py-2 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-2 shadow-sm group transform hover:-translate-y-0.5">
+                    <div class="w-5 h-5 rounded-lg bg-rose-500/20 text-rose-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F43F5E;">
+                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                    </div>
+                    <span>Withdraw</span>
+                </a>
+            </div>
+
+        </div>
+
+        <!-- ====================================================================== -->
+        <!-- TRADER ONBOARDING ROADMAP & COMPLIANCE READINESS CHECKLIST               -->
+        <!-- ====================================================================== -->
+        <div x-show="showOnboardingRoadmap" class="glass-card rounded-3xl p-6 border-2 border-primary/20 bg-gradient-to-r from-white via-sky-50/25 to-white shadow-lg space-y-4 relative overflow-hidden" x-cloak>
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border/80 pb-4">
+                <div class="flex items-center space-x-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-primary/20 icon-3d-badge">
+                        <span class="icon-floating">🚀</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-base font-bold font-serif text-content-primary">Trader Onboarding &amp; Account Readiness</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-primary/10 text-primary border border-primary/20">Institutional STP Active</span>
+                        </div>
+                        <p class="text-xs text-content-secondary font-sans">Complete the recommended steps to unlock maximum leverage, instant withdrawals, and automated strategy replication.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 shrink-0">
+                    <div class="text-right font-mono text-xs">
+                        <span class="text-[10px] text-content-tertiary uppercase block">Readiness</span>
+                        <span class="font-extrabold text-primary text-sm"><%= (user.kyc_status === 'verified' ? 80 : 60) %>% Complete</span>
+                    </div>
+                    <button type="button" @click="showOnboardingRoadmap = false" class="p-1.5 rounded-xl hover:bg-surface-overlay text-content-tertiary hover:text-content-primary transition text-lg" title="Dismiss Checklist">&times;</button>
+                </div>
+            </div>
+
+            <!-- 4-Step Interactive Checklist Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
+                
+                <!-- Step 1: Account Created & Demo Credited -->
+                <div class="p-3.5 rounded-2xl bg-white border border-gain/30 shadow-sm flex items-start space-x-3">
+                    <span class="w-6 h-6 rounded-full bg-gain text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
+                    <div>
+                        <strong class="text-content-primary font-sans block font-bold">1. Account Activated</strong>
+                        <span class="text-[10px] text-gain font-bold">+$10,000 Demo Funds Credited</span>
+                    </div>
+                </div>
+
+                <!-- Step 2: KYC Compliance Verification -->
+                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
+                    <div class="flex items-start space-x-3">
+                        <span class="w-6 h-6 rounded-full <%= user.kyc_status === 'verified' ? 'bg-gain text-white' : 'bg-amber-500 text-white' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            <%= user.kyc_status === 'verified' ? '✓' : '🪪' %>
+                        </span>
+                        <div>
+                            <strong class="text-content-primary font-sans block font-bold">2. Identity Clearance</strong>
+                            <span class="text-[10px] <%= user.kyc_status === 'verified' ? 'text-gain font-bold' : 'text-amber-600 font-bold' %>">
+                                <%= user.kyc_status === 'verified' ? 'Tier-1 Verified' : 'Compliance In-Review' %>
+                            </span>
+                        </div>
+                    </div>
+                    <% if (user.kyc_status !== 'verified') { %>
+                        <a href="/profile" class="px-2 py-1 rounded bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary text-[10px] font-sans transition">View</a>
+                    <% } %>
+                </div>
+
+                <!-- Step 3: Security & 2FA Setup -->
+                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
+                    <div class="flex items-start space-x-3">
+                        <span class="w-6 h-6 rounded-full <%= user.two_factor_secret ? 'bg-gain text-white' : 'bg-slate-200 text-slate-600' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            <%= user.two_factor_secret ? '✓' : '3' %>
+                        </span>
+                        <div>
+                            <strong class="text-content-primary font-sans block font-bold">3. 2FA Security Guard</strong>
+                            <span class="text-[10px] <%= user.two_factor_secret ? 'text-gain font-bold' : 'text-content-tertiary' %>">
+                                <%= user.two_factor_secret ? 'Biometric TOTP Active' : 'Protect Account with 2FA' %>
+                            </span>
+                        </div>
+                    </div>
+                    <% if (!user.two_factor_secret) { %>
+                        <a href="/profile" class="px-2 py-1 rounded bg-primary/10 hover:bg-primary hover:text-white text-primary text-[10px] font-sans font-bold transition">Enable</a>
+                    <% } %>
+                </div>
+
+                <!-- Step 4: First Trade or Copy Trade -->
+                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
+                    <div class="flex items-start space-x-3">
+                        <span class="w-6 h-6 rounded-full <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'bg-gain text-white' : 'bg-slate-200 text-slate-600' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? '✓' : '4' %>
+                        </span>
+                        <div>
+                            <strong class="text-content-primary font-sans block font-bold">4. First Strategy Trade</strong>
+                            <span class="text-[10px] <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'text-gain font-bold' : 'text-content-tertiary' %>">
+                                <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'Active Copying Live' : 'Mirror a Master Quant' %>
+                            </span>
+                        </div>
+                    </div>
+                    <a href="/copy-trading" class="px-2 py-1 rounded bg-primary hover:bg-primary-dark text-white text-[10px] font-sans font-bold transition">Copy</a>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 2. HIGH-LEVEL KPI METRICS CARDS WITH 3D MOTION ANIMATION                       -->
+        <!-- ============================================================================== -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            
+            <!-- Card 1: Total Net Worth (Click -> Scroll to Holdings) -->
+            <div @click="activeTab = 'holdings'; document.getElementById('dashboard-tabs')?.scrollIntoView({ behavior: 'smooth' })"
+                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-sky-400/50 hover:shadow-sky-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
+                 title="Click to view full portfolio holdings">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl group-hover:bg-sky-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Net Portfolio Value</span>
+                    <div class="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #0284C7;">
+                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-extrabold text-content-primary font-serif font-mono transition-all duration-300"
+                   x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></p>
+                <div class="flex items-center justify-between">
+                    <p class="text-[11px] text-gain font-semibold flex items-center space-x-1">
+                        <span>▲ +24.8%</span>
+                        <span class="text-content-tertiary font-normal">&bull; Combined Valuation</span>
+                    </p>
+                    <span class="text-[10px] font-bold text-sky-400 group-hover:underline">Holdings &rarr;</span>
+                </div>
+            </div>
+
+            <!-- Card 2: Available Cash Balance (Click -> Go to Deposit) -->
+            <div @click="window.location.href = '/deposit'"
+                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-emerald-400/50 hover:shadow-emerald-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
+                 title="Click to deposit or add liquid funds">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Available Cash</span>
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #10B981;">
+                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-serif">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></p>
+                <div class="flex items-center justify-between">
+                    <p class="text-[11px] text-content-secondary font-medium">Instant Liquid Capital</p>
+                    <span class="text-primary group-hover:underline text-[10px] font-bold capitalize">+ Add Funds &rarr;</span>
+                </div>
+            </div>
+
+            <!-- Card 3: Total Assets (Click -> Scroll to Assets / Holdings) -->
+            <div @click="activeTab = 'holdings'; document.getElementById('dashboard-tabs')?.scrollIntoView({ behavior: 'smooth' })"
+                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-blue-400/50 hover:shadow-blue-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
+                 title="Click to explore and manage all assets">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Total Assets</span>
+                    <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #3B82F6;">
+                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-extrabold text-content-primary font-serif">
+                    <%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets
+                </p>
+                <div class="flex items-center justify-between">
+                    <p class="text-[11px] text-content-secondary font-medium"><%= (typeof stockBalances !== 'undefined' && stockBalances) ? stockBalances.length : 8 %> Equities &bull; <%= (typeof cryptoBalances !== 'undefined' && cryptoBalances) ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 6 %> Crypto</p>
+                    <span class="text-[10px] font-bold text-blue-400 group-hover:underline">Explore &rarr;</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Copy Trading (Click -> Go to Copy Trading Hub) -->
+            <div @click="window.location.href = '/copy-trading/app'"
+                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-amber-400/50 hover:shadow-amber-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
+                 title="Click to view copy trading terminal and strategies">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Copy Trading</span>
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F59E0B;">
+                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-extrabold text-[#D4A038] font-serif"><%= (typeof copySubscriptions !== 'undefined' && copySubscriptions) ? copySubscriptions.length : 0 %> Strategies</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-[11px] text-gain font-medium">Automated Replication</p>
+                    <span class="text-[#D4A038] group-hover:underline text-[10px] font-bold capitalize">View Masters &rarr;</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 3. INTERACTIVE PORTFOLIO PERFORMANCE CHART & ASSET ALLOCATION                  -->
+        <!-- ============================================================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left 8 cols: Interactive Equity Curve -->
+            <div class="lg:col-span-8 glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-lg space-y-5 flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xl">📈</span>
+                            <h3 class="text-base font-bold font-serif text-content-primary">Portfolio Net Asset Value (NAV)</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gain/15 text-gain uppercase font-mono">+24.8% Alpha</span>
+                        </div>
+                        <p class="text-xs text-content-secondary mt-0.5">Real-time cumulative equity telemetry across all connected asset classes.</p>
+                    </div>
+
+                    <!-- Timeframe Selectors -->
+                    <div class="flex items-center space-x-1.5 p-1 bg-surface-overlay rounded-xl border border-surface-border font-mono text-xs">
+                        <button type="button" @click="chartTimeframe = '7D'" :class="chartTimeframe === '7D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">7D</button>
+                        <button type="button" @click="chartTimeframe = '30D'" :class="chartTimeframe === '30D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">30D</button>
+                        <button type="button" @click="chartTimeframe = '90D'" :class="chartTimeframe === '90D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">90D</button>
+                        <button type="button" @click="chartTimeframe = '1Y'" :class="chartTimeframe === '1Y' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">1Y</button>
+                    </div>
+                </div>
+
+                <!-- SVG Performance Chart Area -->
+                <div class="w-full relative h-[210px] overflow-hidden rounded-2xl bg-surface-overlay/50 border border-surface-border/50 p-2">
+                    <svg viewBox="0 0 800 220" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.35" />
+                                <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Shaded Area -->
+                        <path :d="chartSvgArea" fill="url(#equityGradient)" class="transition-all duration-500" />
+                        <!-- Line Stroke -->
+                        <path :d="chartSvgPath" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-500" />
+                    </svg>
+
+                    <!-- Overlay Live Current Marker -->
+                    <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-surface-border shadow-md font-mono text-xs">
+                        <span class="text-[10px] text-content-tertiary uppercase block">Current NAV</span>
+                        <span class="font-extrabold text-primary" x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                    </div>
+                </div>
+
+                <!-- Footer Stats -->
+                <div class="grid grid-cols-3 gap-4 pt-2 border-t border-surface-border text-center font-mono text-xs">
+                    <div>
+                        <span class="text-[10px] text-content-tertiary uppercase block">High Watermark</span>
+                        <strong class="text-content-primary" x-text="'$' + (livePortfolioValuation * 1.04).toLocaleString(undefined, {maximumFractionDigits: 0})"></strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-content-tertiary uppercase block">Max Drawdown</span>
+                        <strong class="text-gain">3.2% (Low Risk)</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-content-tertiary uppercase block">Sharpe Ratio</span>
+                        <strong class="text-primary">2.41 (Institutional)</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right 4 cols: Asset Allocation Telemetry -->
+            <div class="lg:col-span-4 glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-lg space-y-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-base font-bold font-serif text-content-primary flex items-center space-x-2">
+                        <span>🎯 Asset Allocation</span>
+                    </h3>
+                    <p class="text-xs text-content-secondary mt-0.5">Capital distribution across connected asset classes.</p>
+                </div>
+
+                <!-- Multi-Colored Allocation Segment Bar -->
+                <div class="space-y-2">
+                    <div class="w-full h-3.5 rounded-full overflow-hidden flex shadow-inner bg-slate-200">
+                        <div class="bg-primary transition-all duration-500" :style="'width: ' + allocationPercents.cash + '%;'" :title="'Cash: ' + allocationPercents.cash + '%'"></div>
+                        <div class="bg-blue-500 transition-all duration-500" :style="'width: ' + allocationPercents.stock + '%;'" :title="'Equities: ' + allocationPercents.stock + '%'"></div>
+                        <div class="bg-amber-500 transition-all duration-500" :style="'width: ' + allocationPercents.crypto + '%;'" :title="'Crypto: ' + allocationPercents.crypto + '%'"></div>
+                        <div class="bg-[#D4A038] transition-all duration-500" :style="'width: ' + allocationPercents.copy + '%;'" :title="'Copy Trading: ' + allocationPercents.copy + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Breakdown List -->
+                <div class="space-y-2.5 font-mono text-xs">
+                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                            <span class="text-content-secondary">💵 Cash Reserves</span>
+                        </div>
+                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.cash + '%'"></span>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                            <span class="text-content-secondary">🏛️ Global Equities</span>
+                        </div>
+                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.stock + '%'"></span>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <span class="text-content-secondary">🪙 Cryptocurrencies</span>
+                        </div>
+                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.crypto + '%'"></span>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#D4A038]"></span>
+                            <span class="text-content-secondary">👥 Copy Strategies</span>
+                        </div>
+                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.copy + '%'"></span>
+                    </div>
+                </div>
+
+                <button type="button" @click="swapModal = true" class="w-full text-center py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-primary font-bold text-xs transition block">
+                    Rebalance Portfolio &rarr;
+                </button>
+            </div>
+
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 4. MAIN USER-FRIENDLY TABS: HOLDINGS | OPEN CFD TRADES | COPY TRADING | HISTORY-->
+        <!-- ============================================================================== -->
+        <div id="dashboard-tabs" class="space-y-5 scroll-mt-24">
+            
+            <!-- Tab Navigation Strip -->
+            <div class="flex items-center space-x-2 border-b border-surface-border pb-3 overflow-x-auto">
+                <button type="button" @click="activeTab = 'holdings'" 
+                        :class="activeTab === 'holdings' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>📦</span>
+                    <span>Portfolio Assets (<span x-text="ownedAssetsCount" class="font-mono"></span> Owned)</span>
+                </button>
+
+                <button type="button" @click="activeTab = 'baskets'" 
+                        :class="activeTab === 'baskets' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>🧺</span>
+                    <span>Thematic Stock Baskets (<%= typeof stockBaskets !== 'undefined' ? Object.keys(stockBaskets).length : 4 %>)</span>
+                </button>
+
+                <button type="button" @click="activeTab = 'positions'" 
+                        :class="activeTab === 'positions' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>⚡</span>
+                    <span>Open CFD Positions (<%= (typeof openTrades !== 'undefined' && openTrades) ? openTrades.length : 0 %>)</span>
+                </button>
+
+                <button type="button" @click="activeTab = 'copy'" 
+                        :class="activeTab === 'copy' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>👥</span>
+                    <span>Copy Trading (<%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions) ? activeSubscriptions.length : 0 %>)</span>
+                </button>
+
+                <button type="button" @click="activeTab = 'retirement'; selectedAccountMode = 'retirement'" 
+                        :class="activeTab === 'retirement' ? 'bg-gradient-to-r from-gain to-emerald-600 text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>🛡️</span>
+                    <span>Retirement IRA (<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_type.replace('_', ' ').toUpperCase() : 'Roth IRA' %>)</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/20 text-white">TAX-ADVANTAGED</span>
+                </button>
+
+                <button type="button" @click="activeTab = 'history'" 
+                        :class="activeTab === 'history' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
+                    <span>📜</span>
+                    <span>Recent Activity</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: PORTFOLIO HOLDINGS -->
+            <div x-show="activeTab === 'holdings'" class="space-y-4" x-cloak>
+                
+                <!-- Stock Dividend & Institutional Yield Accrual Banner -->
+                <div class="p-4 bg-gradient-to-r from-emerald-500/10 via-surface-overlay to-primary/10 rounded-2xl border border-gain/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-gain/20 text-gain flex items-center justify-center text-xl font-bold shadow-inner">
+                            📈
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h4 class="text-xs font-bold text-content-primary font-serif">Quarterly Equity Dividends & Compound Yields</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gain/10 text-gain border border-gain/20">Auto-Accruing</span>
+                            </div>
+                            <p class="text-[11px] text-content-secondary font-mono">
+                                Estimated Annual Dividend Flow: 
+                                <strong class="text-gain font-bold">+$<%= (typeof estimatedAnnualDividends !== 'undefined' ? estimatedAnnualDividends : 0).toLocaleString(undefined, {minimumFractionDigits: 2}) %> / yr</strong>
+                                &bull; Yields paid directly into cash balance.
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" @click="claimDividends()" :disabled="dividendClaiming" class="px-4 py-2 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md shadow-gain/20 transition flex items-center space-x-1.5 shrink-0">
+                        <span x-text="dividendClaiming ? 'Distributing...' : '⚡ Claim Accrued Dividends'"></span>
+                    </button>
+                </div>
+                
+                <!-- Search & Filters Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-surface-border shadow-sm">
+                    
+                    <!-- Search Input -->
+                    <div class="relative flex-1 max-w-md">
+                        <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">🔍</span>
+                        <input type="text" x-model="searchQuery" placeholder="Search by ticker or company name (e.g. AAPL, BTC, NVDA)..." 
+                               class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-mono" />
+                    </div>
+
+                    <!-- Category Pills, Ownership Filter & Add Asset Button -->
+                    <div class="flex items-center space-x-2 font-mono text-xs flex-wrap gap-y-1">
+                        <!-- Owned Only Filter (Default) -->
+                        <button type="button" @click="assetFilter = 'owned'" :class="assetFilter === 'owned' ? 'bg-emerald-600 text-white shadow-md font-bold' : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border border-emerald-500/20'" class="px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
+                            <span>✓ Owned Only (<span x-text="ownedAssetsCount"></span>)</span>
+                        </button>
+
+                        <button type="button" @click="assetFilter = 'all'" :class="assetFilter === 'all' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
+                            All Markets
+                        </button>
+
+                        <button type="button" @click="assetFilter = 'equity'" :class="assetFilter === 'equity' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
+                            🏛️ Stocks
+                        </button>
+                        <button type="button" @click="assetFilter = 'crypto'" :class="assetFilter === 'crypto' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
+                            🪙 Crypto
+                        </button>
+
+                        <button type="button" @click="discoverModal = true" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-dark hover:to-indigo-700 text-white font-bold transition shadow-sm flex items-center space-x-1.5">
+                            <span>✨ + Add Assets</span>
+                        </button>
+
+                        <button type="button" 
+                                @click="openLiquidateAllModal()" 
+                                :disabled="ownedAssetsCount === 0"
+                                :class="ownedAssetsCount === 0 ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border-surface-border' : 'hover:bg-loss hover:text-white border-loss/30 text-loss bg-loss/10 shadow-sm shadow-loss/10'"
+                                class="px-3.5 py-1.5 rounded-xl border font-bold transition flex items-center space-x-1.5 shrink-0"
+                                title="Emergency Liquidate All Assets to Cash">
+                            <span class="animate-pulse">⚠️</span>
+                            <span>Liquidate All</span>
+                        </button>
+
+                        <div class="h-4 w-px bg-surface-border mx-1"></div>
+
+                        <!-- Grid / Table View Switcher -->
+                        <button type="button" @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'text-primary font-bold bg-surface-overlay rounded-lg' : 'text-content-tertiary'" class="p-1.5 text-sm hover:text-content-primary transition" title="Card Grid View">
+                            ⊞
+                        </button>
+                        <button type="button" @click="viewMode = 'table'" :class="viewMode === 'table' ? 'text-primary font-bold bg-surface-overlay rounded-lg' : 'text-content-tertiary'" class="p-1.5 text-sm hover:text-content-primary transition" title="Table View">
+                            ☰
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- A. GRID VIEW (WITH 3D TILT, JEWELED BADGES, SPARKLINES & TELEMETRY) -->
+                <div x-show="viewMode === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 font-mono">
+                    <% if (typeof allBalances !== 'undefined' && allBalances && allBalances.filter(b => b.asset_symbol !== 'USD').length > 0) { %>
+                        <% allBalances.filter(b => b.asset_symbol !== 'USD').forEach(asset => { 
+                            const isStock = (asset.asset_type === 'stock');
+                            let glowHex = '#0284c7';
+                            if (asset.asset_symbol === 'BTC') glowHex = '#F59E0B';
+                            else if (asset.asset_symbol === 'ETH') glowHex = '#6366F1';
+                            else if (asset.asset_symbol === 'SOL') glowHex = '#A855F7';
+                            else if (asset.asset_symbol === 'NVDA') glowHex = '#10B981';
+                            else if (asset.asset_symbol === 'AAPL') glowHex = '#38BDF8';
+                            else if (asset.asset_symbol === 'TSLA') glowHex = '#EF4444';
+                        %>
+                            <div x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
+                                         ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
+                                 @mousemove="handleCard3DTilt($event, $el)" 
+                                 @mouseleave="resetCard3DTilt($el)"
+                                 :class="isAssetOwned('<%= asset.asset_symbol %>') ? 'border-emerald-500/40 shadow-lg shadow-emerald-500/5 bg-gradient-to-b from-white to-emerald-50/20' : 'opacity-70 hover:opacity-100 border-surface-border bg-white'"
+                                 class="card-3d-wrap glass-card rounded-3xl p-5 border transition-all duration-200 space-y-3.5 flex flex-col justify-between relative overflow-hidden group"
+                                 x-cloak>
+                                
+                                <div class="space-y-3">
+                                    <!-- Top Badges: Ownership Status & 24h Trend Sparkline -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-1.5">
+                                            <!-- Prominent Ownership Badge -->
+                                            <template x-if="isAssetOwned('<%= asset.asset_symbol %>')">
+                                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase font-mono bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 flex items-center space-x-1">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                                                    <span>✓ OWNED</span>
+                                                </span>
+                                            </template>
+                                            <template x-if="!isAssetOwned('<%= asset.asset_symbol %>')">
+                                                <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono bg-slate-100 text-slate-500 border border-slate-200">
+                                                    ⚪ Not Held
+                                                </span>
+                                            </template>
+
+                                            <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono tracking-wider <%= isStock ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20' %>">
+                                                <%= isStock ? 'Equity' : 'Crypto' %>
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-center space-x-2">
+                                            <!-- Mini SVG Sparkline -->
+                                            <svg class="w-14 h-5 overflow-visible" viewBox="0 0 96 30" fill="none">
+                                                <polyline :points="getSparklinePoints('<%= asset.asset_symbol %>')" 
+                                                          :stroke="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '#10B981' : '#EF4444'" 
+                                                          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            
+                                            <span class="text-[11px] font-extrabold"
+                                                  :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
+                                                  x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '+' : '') + (rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Asset Identity & Live Price -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 border border-surface-border flex items-center justify-center text-xl font-bold icon-3d-badge shadow-md shadow-slate-200" style="--icon-glow: <%= glowHex %>;">
+                                                <span class="icon-floating"><%= asset.icon || (isStock ? '🏛️' : '🪙') %></span>
+                                            </div>
+                                            <div>
+                                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight"><%= asset.asset_name %></h4>
+                                                <div class="flex items-center space-x-1 mt-0.5">
+                                                    <span class="text-[10px] text-content-tertiary font-bold"><%= asset.asset_symbol %></span>
+                                                    <% if (isStock && typeof dividendRates !== 'undefined' && dividendRates[asset.asset_symbol]) { %>
+                                                        <span class="text-[9px] px-1 rounded bg-gain/10 text-gain font-bold font-mono"><%= (dividendRates[asset.asset_symbol]*100).toFixed(1) %>% Div</span>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-right">
+                                            <span class="text-xs font-bold text-content-primary block"
+                                                  :class="rates['<%= asset.asset_symbol %>']?.direction === 'up' ? 'text-gain' : 'text-loss'"
+                                                  x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                            <span class="text-[9px] text-content-tertiary">Market Rate</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Reactive Balance & Valuation Card -->
+                                <div class="p-3 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-[9px] text-content-tertiary uppercase block">Quantity Held</span>
+                                            <span class="text-sm font-extrabold text-content-primary"
+                                                  x-text="getAssetBalance('<%= asset.asset_symbol %>').toFixed(<%= isStock ? 2 : 4 %>) + ' <%= isStock ? 'Shares' : asset.asset_symbol %>'"></span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-[9px] text-content-tertiary uppercase block">Total Valuation</span>
+                                            <span class="text-sm font-extrabold text-gain transition-all duration-300"
+                                                  x-text="'≈ $' + getAssetValuation('<%= asset.asset_symbol %>').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Portfolio Share % & 24h PnL Dollar Impact -->
+                                    <div class="pt-1.5 border-t border-surface-border/60 flex items-center justify-between text-[10px] text-content-secondary font-mono">
+                                        <div class="flex items-center space-x-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            <span x-text="getAssetPortfolioPercent('<%= asset.asset_symbol %>') + '% of Total'"></span>
+                                        </div>
+                                        <span :class="getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? 'text-gain font-bold' : 'text-loss font-bold'"
+                                              x-text="(getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? '+$' : '-$') + Math.abs(getAsset24hPnLDollar('<%= asset.asset_symbol %>')).toFixed(2) + ' today'"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons (Buy, Sell, Swap, WebTrader) -->
+                                <div class="space-y-1.5 pt-1">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button type="button" @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" class="py-2 rounded-xl bg-gain/10 hover:bg-gain text-gain hover:text-white border border-gain/20 font-bold text-[11px] transition text-center shadow-sm">
+                                            + Buy More
+                                        </button>
+                                        <button type="button" @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" class="py-2 rounded-xl bg-surface-overlay hover:bg-loss hover:text-white text-content-secondary border border-surface-border font-bold text-[11px] transition text-center">
+                                            Sell
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                                        <button type="button" @click="openSwapWith('<%= asset.asset_symbol %>')" class="py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary transition text-center font-mono">
+                                            🔄 Swap
+                                        </button>
+                                        <a href="/webtrade/app" class="py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary transition text-center font-mono block">
+                                            ⚡ Trade CFD
+                                        </a>
+                                    </div>
+                                </div>
+
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <!-- Clean Onboarding State for New Accounts -->
+                        <div class="col-span-full py-12 text-center bg-white rounded-3xl border border-surface-border p-8 space-y-4">
+                            <span class="text-5xl">🏛️</span>
+                            <h4 class="text-base font-bold font-serif text-content-primary">No Non-USD Assets in Spot Custody</h4>
+                            <p class="text-xs text-content-secondary max-w-md mx-auto">Acquire fractional shares of top global equities or crypto assets directly with your available cash balance.</p>
+                            <div class="flex items-center justify-center gap-3 pt-2">
+                                <button type="button" @click="discoverModal = true" class="px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
+                                    Browse Global Catalog &rarr;
+                                </button>
+                                <button type="button" @click="activeTab = 'baskets'" class="px-5 py-2.5 rounded-2xl bg-surface-overlay border border-surface-border text-content-primary font-bold text-xs">
+                                    View Thematic Baskets &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    <% } %>
+                </div>
+
+                <!-- B. TABLE VIEW (COMPACT INSTITUTIONAL LIST) -->
+                <div x-show="viewMode === 'table'" class="glass-card rounded-3xl border border-surface-border shadow-md overflow-hidden bg-white" x-cloak>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-mono text-xs">
+                            <thead class="bg-surface-overlay/80 border-b border-surface-border text-[11px] text-content-tertiary uppercase font-sans">
+                                <tr>
+                                    <th class="py-3 px-5">Asset</th>
+                                    <th class="py-3 px-4">Market Price</th>
+                                    <th class="py-3 px-4">24h Change</th>
+                                    <th class="py-3 px-4">Holdings</th>
+                                    <th class="py-3 px-4 text-right">Total Valuation</th>
+                                    <th class="py-3 px-5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border">
+                                <% if (typeof allBalances !== 'undefined' && allBalances) { %>
+                                    <% allBalances.filter(b => b.asset_symbol !== 'USD').forEach(asset => { 
+                                        const isStock = (asset.asset_type === 'stock');
+                                    %>
+                                        <tr x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
+                                                    ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
+                                            :class="isAssetOwned('<%= asset.asset_symbol %>') ? 'bg-emerald-50/15 font-semibold' : 'opacity-70 hover:opacity-100'"
+                                            class="hover:bg-surface-overlay/40 transition">
+                                            
+                                            <td class="py-3.5 px-5">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-9 h-9 rounded-xl bg-surface-overlay flex items-center justify-center font-bold text-base icon-3d-badge shadow-sm" style="--icon-glow: #0284c7;">
+                                                        <span class="icon-floating"><%= asset.icon || (isStock ? '🏛️' : '🪙') %></span>
+                                                    </div>
+                                                    <div>
+                                                        <div class="flex items-center space-x-1.5">
+                                                            <span class="font-bold text-content-primary font-sans text-xs block"><%= asset.asset_name %></span>
+                                                            <template x-if="isAssetOwned('<%= asset.asset_symbol %>')">
+                                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-700">✓ OWNED</span>
+                                                            </template>
+                                                        </div>
+                                                        <span class="text-[10px] text-content-tertiary"><%= asset.asset_symbol %> &bull; <%= isStock ? 'Stock' : 'Crypto' %> &bull; <strong class="text-primary" x-text="getAssetPortfolioPercent('<%= asset.asset_symbol %>') + '% of Total'"></strong></span>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td class="py-3.5 px-4 font-bold text-content-primary"
+                                                x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></td>
+
+                                            <td class="py-3.5 px-4 font-bold"
+                                                :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'">
+                                                <div class="flex items-center space-x-1.5">
+                                                    <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '+' : '') + (rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                                    <span class="text-[10px] text-content-tertiary" x-text="'(' + (getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? '+$' : '-$') + Math.abs(getAsset24hPnLDollar('<%= asset.asset_symbol %>')).toFixed(2) + ')'"></span>
+                                                </div>
+                                            </td>
+
+                                            <td class="py-3.5 px-4">
+                                                <span class="font-extrabold text-content-primary" x-text="getAssetBalance('<%= asset.asset_symbol %>').toFixed(<%= isStock ? 2 : 4 %>)"></span>
+                                                <span class="text-[10px] text-content-tertiary"><%= isStock ? 'Shares' : asset.asset_symbol %></span>
+                                            </td>
+
+                                            <td class="py-3.5 px-4 text-right font-extrabold text-gain"
+                                                x-text="'$' + getAssetValuation('<%= asset.asset_symbol %>').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></td>
+
+                                            <td class="py-3.5 px-5 text-right space-x-1.5">
+                                                <button type="button" @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" class="px-3 py-1 rounded-lg bg-gain/10 hover:bg-gain text-gain hover:text-white font-bold text-[10px] transition">
+                                                    Buy
+                                                </button>
+                                                <button type="button" @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" class="px-3 py-1 rounded-lg bg-surface-overlay hover:bg-loss hover:text-white text-content-secondary font-bold text-[10px] transition">
+                                                    Sell
+                                                </button>
+                                                <button type="button" @click="openSwapWith('<%= asset.asset_symbol %>')" class="px-2.5 py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary text-[10px] transition">
+                                                    🔄 Swap
+                                                </button>
+                                            </td>
+
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: THEMATIC STOCK BASKETS -->
+            <div x-show="activeTab === 'baskets'" class="space-y-5" x-cloak>
+                <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                    <div>
+                        <h3 class="text-base font-bold font-serif text-content-primary">Thematic Stock Baskets & Curated ETF Portfolios</h3>
+                        <p class="text-xs text-content-secondary font-mono">One-click diversified institutional baskets with weighted fractional share allocation.</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                        Zero Rebalance Fees
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <% if (typeof stockBaskets !== 'undefined' && stockBaskets) { %>
+                        <% Object.keys(stockBaskets).forEach(key => { 
+                            const basket = stockBaskets[key];
+                        %>
+                            <div class="bg-surface-raised rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 hover:border-primary/40 transition">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-12 h-12 rounded-2xl bg-surface-overlay flex items-center justify-center text-2xl shadow-inner border border-surface-border">
+                                            <%= basket.icon %>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-sm text-content-primary font-serif"><%= basket.name %></h4>
+                                            <p class="text-[11px] text-content-secondary font-sans leading-tight mt-0.5"><%= basket.tagline %></p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-content-tertiary uppercase block">Ann. Return</span>
+                                        <span class="text-sm font-extrabold text-gain font-mono">+<%= basket.annualizedReturn %>%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Constituent Stock Holdings Pills -->
+                                <div class="p-3 bg-surface-overlay/80 rounded-2xl border border-surface-border space-y-2">
+                                    <div class="flex items-center justify-between text-[10px] text-content-tertiary uppercase font-mono">
+                                        <span>Constituent Holdings</span>
+                                        <span>Allocation</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <% basket.holdings.forEach(h => { %>
+                                            <div class="px-2.5 py-1 rounded-xl bg-surface-base border border-surface-border flex items-center space-x-1 text-xs font-mono">
+                                                <strong class="text-content-primary"><%= h.symbol %></strong>
+                                                <span class="text-primary font-bold"><%= Math.round(h.weight * 100) %>%</span>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-1">
+                                    <div class="font-mono text-xs text-content-secondary">
+                                        Min: <strong class="text-content-primary">$<%= basket.minInvestment %></strong> &bull; Risk: <strong class="text-primary"><%= basket.riskLevel %></strong>
+                                    </div>
+                                    <button type="button" @click="openBasketModal('<%= key %>')" class="px-5 py-2.5 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md shadow-primary/25 transition flex items-center space-x-1">
+                                        <span>Invest in Basket</span>
+                                        <span>&rarr;</span>
+                                    </button>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- TAB 2: OPEN CFD POSITIONS (FROM WEBTRADER) -->
+            <div x-show="activeTab === 'positions'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+                <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                    <div>
+                        <h3 class="text-base font-bold font-serif text-content-primary">Active CFD Margin Positions</h3>
+                        <p class="text-xs text-content-secondary">Open orders running on WebTrader prime STP execution.</p>
+                    </div>
+                    <a href="/webtrade/app" class="px-4 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow-md transition flex items-center space-x-1">
+                        <span>⚡ Trade on WebTrader</span>
+                    </a>
+                </div>
+
+                <% if (typeof openTrades !== 'undefined' && openTrades && openTrades.length > 0) { %>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-mono text-xs">
+                            <thead class="bg-surface-overlay border-b border-surface-border text-[10px] text-content-tertiary uppercase font-sans">
+                                <tr>
+                                    <th class="py-2.5 px-4">Ticket</th>
+                                    <th class="py-2.5 px-4">Instrument</th>
+                                    <th class="py-2.5 px-4">Type</th>
+                                    <th class="py-2.5 px-4">Lot Size</th>
+                                    <th class="py-2.5 px-4">Open Price</th>
+                                    <th class="py-2.5 px-4">Take Profit / Stop Loss</th>
+                                    <th class="py-2.5 px-4 text-right">Floating P&L</th>
+                                    <th class="py-2.5 px-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border">
+                                <% openTrades.forEach(t => { %>
+                                    <tr class="hover:bg-surface-overlay/50 transition">
+                                        <td class="py-3 px-4 font-bold text-content-tertiary">#<%= t.id %></td>
+                                        <td class="py-3 px-4 font-extrabold text-content-primary"><%= t.symbol %></td>
+                                        <td class="py-3 px-4">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase <%= t.type === 'BUY' ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss' %>">
+                                                <%= t.type %>
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 font-bold"><%= t.lot_size %> Lots</td>
+                                        <td class="py-3 px-4 font-bold text-content-primary">$<%= Number(t.open_price).toLocaleString() %></td>
+                                        <td class="py-3 px-4 text-[11px]">
+                                            <span class="text-gain font-bold">TP: <%= t.take_profit ? '$' + t.take_profit : 'None' %></span> &bull; 
+                                            <span class="text-loss font-bold">SL: <%= t.stop_loss ? '$' + t.stop_loss : 'None' %></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-right font-extrabold text-sm <%= t.profit_loss >= 0 ? 'text-gain' : 'text-loss' %>">
+                                            <%= t.profit_loss >= 0 ? '+' : '' %>$<%= Number(t.profit_loss).toFixed(2) %>
+                                        </td>
+                                        <td class="py-3 px-4 text-right">
+                                            <button type="button" @click="closeCfdTrade(<%= t.id %>)" class="px-3 py-1 rounded-lg bg-loss/10 hover:bg-loss text-loss hover:text-white font-bold text-[10px] transition">
+                                                Close
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="py-12 text-center space-y-3">
+                        <span class="text-4xl">📊</span>
+                        <h4 class="font-bold text-sm text-content-primary font-serif">No Active Positions Running</h4>
+                        <p class="text-xs text-content-secondary max-w-sm mx-auto">You currently have no open margin trades. Launch WebTrader to place high-frequency trades across Forex, Crypto, Indices, and Commodities.</p>
+                        <a href="/webtrade/app" class="inline-block px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
+                            Open Terminal &rarr;
+                        </a>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- TAB 3: COPY TRADING SUBSCRIPTIONS -->
+            <div x-show="activeTab === 'copy'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+                <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                    <div>
+                        <h3 class="text-base font-bold font-serif text-content-primary">Active Copy Trading Strategies</h3>
+                        <p class="text-xs text-content-secondary">Automated trade mirroring from verified institutional traders.</p>
+                    </div>
+                    <a href="/copy-trading/app" class="px-4 py-2 rounded-xl bg-[#D4A038] text-white font-bold text-xs shadow-md transition">
+                        Browse Master Traders &rarr;
+                    </a>
+                </div>
+
+                <% if (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) { %>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+                        <% activeSubscriptions.forEach(sub => { %>
+                            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2.5">
+                                        <span class="w-10 h-10 rounded-xl bg-white border border-surface-border flex items-center justify-center font-bold text-lg">
+                                            <%= sub.avatar || '👨‍💼' %>
+                                        </span>
+                                        <div>
+                                            <h4 class="font-bold text-content-primary text-sm font-sans"><%= sub.strategy_name || 'Master Strategy' %></h4>
+                                            <span class="text-[10px] text-content-tertiary">Trader: <%= sub.master_name %> &bull; Win Rate: <%= sub.win_rate %>%</span>
+                                        </div>
+                                    </div>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-gain animate-pulse"></span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 p-2.5 bg-white rounded-xl border border-surface-border text-center">
+                                    <div>
+                                        <span class="text-[9px] text-content-tertiary uppercase block">Capital Allocated</span>
+                                        <strong class="text-content-primary text-xs">$<%= Number(sub.allocated_amount).toLocaleString() %></strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-[9px] text-content-tertiary uppercase block">Live Accrued P&L</span>
+                                        <strong class="<%= Number(sub.current_profit) >= 0 ? 'text-gain' : 'text-loss' %> text-xs">
+                                            <%= Number(sub.current_profit) >= 0 ? '+' : '' %>$<%= Number(sub.current_profit).toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <form action="/api/copy-trading/stop" method="POST">
+                                    <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                    <input type="hidden" name="subscription_id" value="<%= sub.id %>" />
+                                    <button type="submit" onclick="return confirm('Stop copying this master and settle capital + profit back to cash balance?');" 
+                                            class="w-full py-2 rounded-xl bg-loss/10 hover:bg-loss text-loss hover:text-white font-bold text-xs transition text-center font-sans">
+                                        Stop Strategy & Settle Funds
+                                    </button>
+                                </form>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="py-12 text-center space-y-3">
+                        <span class="text-4xl">👥</span>
+                        <h4 class="font-bold text-sm text-content-primary font-serif">No Active Copy Subscriptions</h4>
+                        <p class="text-xs text-content-secondary max-w-sm mx-auto">Copy trade top-performing verified traders with auditable track records and automatic risk parameters.</p>
+                        <a href="/copy-trading/app" class="inline-block px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
+                            Browse Verified Master Traders &rarr;
+                        </a>
+                    </div>
+                <% } %>
+            </div>
+
+            
+            <!-- ============================================================== -->
+            <!-- TAB 6: RETIREMENT IRA WEALTH HUB & TAX-ADVANTAGED PORTFOLIO    -->
+            <!-- ============================================================== -->
+            <div x-show="activeTab === 'retirement'" class="space-y-6" x-cloak>
+                
+                <!-- Retirement Account Overview Header -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 border-2 border-gain/20 bg-gradient-to-r from-white via-emerald-50/20 to-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-2xl bg-gain/15 text-gain flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-gain/20" style="--icon-glow: #10B981;">
+                                <span class="icon-floating">🛡️</span>
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="text-xl font-bold font-serif text-content-primary">
+                                        <%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? (retirementAccount.account_type.replace('_', ' ').toUpperCase() + ' Account') : 'Roth IRA Account' %>
+                                    </h3>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-gain/15 text-gain border border-gain/20">Tax-Free Compounding</span>
+                                </div>
+                                <p class="text-xs text-content-secondary font-mono">
+                                    Account Number: <strong class="text-content-primary">#<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_number : 'IRA-80001' %></strong> &bull; Segregated Custodial Vault
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-4 text-xs font-mono pt-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-content-tertiary">Unallocated Cash:</span>
+                                <strong class="text-content-primary text-sm">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
+                            </div>
+                            <span class="text-surface-border">|</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-content-tertiary">Total IRA Valuation:</span>
+                                <strong class="text-gain text-sm">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.equity).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions & DRIP Toggle -->
+                    <div class="flex flex-wrap items-center gap-3 font-sans">
+                        
+                        <!-- Automated DRIP Toggle -->
+                        <div class="p-2.5 bg-surface-overlay rounded-2xl border border-surface-border flex items-center space-x-3 text-xs">
+                            <div>
+                                <span class="block font-bold text-content-primary text-[11px]">Auto DRIP</span>
+                                <span class="text-[10px] text-content-tertiary font-mono" x-text="retirementDripEnabled ? 'Reinvesting' : 'Cash Payout'"></span>
+                            </div>
+                            <button type="button" @click="toggleRetirementDrip()"
+                                    :class="retirementDripEnabled ? 'bg-gain' : 'bg-slate-300'"
+                                    class="w-10 h-6 rounded-full transition-colors p-0.5 flex items-center">
+                                <span :class="retirementDripEnabled ? 'translate-x-4' : 'translate-x-0'"
+                                      class="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform"></span>
+                            </button>
+                        </div>
+
+                        <button type="button" @click="retirementContributeModal = true" class="px-5 py-3 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-lg shadow-gain/25 transition transform hover:-translate-y-0.5 flex items-center space-x-2">
+                            <span>+ Contribute Funds</span>
+                        </button>
+
+                        <button type="button" @click="retirementInvestModal = true" class="px-5 py-3 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center space-x-2">
+                            <span>📈 Invest Cash</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- 2026 IRS Annual Contribution Limit Gauge -->
+                <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-md space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">📊</span>
+                            <h4 class="text-sm font-bold font-serif text-content-primary">2026 Tax-Year IRS Contribution Limit</h4>
+                        </div>
+                        <span class="text-xs font-mono text-content-tertiary">
+                            Contributed: <strong class="text-primary">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed).toLocaleString() : '0' %></strong> / $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit).toLocaleString() : '7,000' %> Limit
+                        </span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="space-y-1.5 font-mono text-xs">
+                        <% 
+                            const limit = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit) : 7000;
+                            const contributed = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed) : 3500;
+                            const percent = Math.min(100, Math.round((contributed / limit) * 100));
+                            const remaining = Math.max(0, limit - contributed);
+                        %>
+                        <div class="h-3 w-full bg-surface-overlay rounded-full overflow-hidden border border-surface-border/60 p-0.5">
+                            <div class="h-full bg-gradient-to-r from-primary to-gain rounded-full transition-all duration-700" style="width: <%= percent %>%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-content-tertiary">
+                            <span><%= percent %>% Utilized</span>
+                            <span class="text-gain font-bold">$<%= remaining.toLocaleString() %> remaining capacity for 2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Retirement Assets & Holdings Table -->
+                <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4">
+                    
+                    <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">💼</span>
+                            <h4 class="text-sm font-bold font-serif text-content-primary">Retirement Holdings (<%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %>)</h4>
+                        </div>
+                        <span class="text-xs font-mono text-gain font-bold flex items-center space-x-1">
+                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                            <span>Insured Custody</span>
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-sans text-xs">
+                            <thead>
+                                <tr class="border-b border-surface-border text-content-tertiary font-mono uppercase text-[10px]">
+                                    <th class="py-3 px-3">Asset</th>
+                                    <th class="py-3 px-3">Type</th>
+                                    <th class="py-3 px-3 text-right">Shares / Units</th>
+                                    <th class="py-3 px-3 text-right">Cost Basis</th>
+                                    <th class="py-3 px-3 text-right">Current Value</th>
+                                    <th class="py-3 px-3 text-right">Unrealized Gain</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border font-mono text-xs">
+                                <% if (typeof retirementHoldings !== 'undefined' && retirementHoldings && retirementHoldings.length > 0) { %>
+                                    <% retirementHoldings.forEach(h => { %>
+                                        <% 
+                                            const quotes = { 'AAPL': 224.20, 'MSFT': 418.50, 'NVDA': 128.50, 'BTC': 68650.00, 'ETH': 3645.00 };
+                                            const rate = quotes[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1));
+                                            const currentVal = +(h.shares_or_units * rate).toFixed(2);
+                                            const pnl = +(currentVal - h.cost_basis).toFixed(2);
+                                            const pnlPct = h.cost_basis > 0 ? +((pnl / h.cost_basis) * 100).toFixed(2) : 0;
+                                        %>
+                                        <tr class="hover:bg-surface-overlay/50 transition">
+                                            <td class="py-3.5 px-3 flex items-center space-x-2.5">
+                                                <span class="text-base"><%= h.icon || '📈' %></span>
+                                                <div>
+                                                    <strong class="text-content-primary font-sans block"><%= h.asset_name %></strong>
+                                                    <span class="text-[10px] text-content-tertiary"><%= h.asset_symbol %></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-3.5 px-3 uppercase text-[10px] font-bold text-content-secondary">
+                                                <%= h.asset_type %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold text-content-primary">
+                                                <%= h.shares_or_units %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right text-content-secondary">
+                                                $<%= Number(h.cost_basis).toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold text-content-primary">
+                                                $<%= currentVal.toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold <%= pnl >= 0 ? 'text-gain' : 'text-loss' %>">
+                                                <%= pnl >= 0 ? '+' : '' %>$<%= pnl.toLocaleString(undefined, {minimumFractionDigits: 2}) %> (<%= pnlPct %>%)
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-content-tertiary">
+                                            No retirement assets allocated yet. Click "+ Invest Cash" to allocate your retirement funds.
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- TAB 4: RECENT ACTIVITY & LEDGER -->
+            <div x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+                <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                    <div>
+                        <h3 class="text-base font-bold font-serif text-content-primary">Recent Transactions & Activity</h3>
+                        <p class="text-xs text-content-secondary">Audit log of deposits, withdrawals, trades, and credit adjustments.</p>
+                    </div>
+                    <a href="/transactions" class="text-xs font-bold text-primary hover:underline">
+                        View Full History &rarr;
+                    </a>
+                </div>
+
+                <% if (typeof recentTransactions !== 'undefined' && recentTransactions && recentTransactions.length > 0) { %>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-mono text-xs">
+                            <thead class="bg-surface-overlay border-b border-surface-border text-[10px] text-content-tertiary uppercase font-sans">
+                                <tr>
+                                    <th class="py-2.5 px-4">Date</th>
+                                    <th class="py-2.5 px-4">Reference</th>
+                                    <th class="py-2.5 px-4">Type</th>
+                                    <th class="py-2.5 px-4">Amount</th>
+                                    <th class="py-2.5 px-4">Status</th>
+                                    <th class="py-2.5 px-4">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border">
+                                <% recentTransactions.forEach(tx => { %>
+                                    <tr class="hover:bg-surface-overlay/50 transition">
+                                        <td class="py-3 px-4 text-content-tertiary"><%= new Date(tx.created_at).toLocaleDateString() %></td>
+                                        <td class="py-3 px-4 font-bold text-content-primary"><%= tx.reference || ('#TX-' + tx.id) %></td>
+                                        <td class="py-3 px-4">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= tx.type === 'deposit' || tx.type === 'bonus' ? 'bg-gain/20 text-gain' : (tx.type === 'withdrawal' ? 'bg-loss/20 text-loss' : 'bg-primary/20 text-primary') %>">
+                                                <%= tx.type %>
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 font-bold text-content-primary">$<%= Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2}) %></td>
+                                        <td class="py-3 px-4">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= tx.status === 'completed' ? 'bg-gain/20 text-gain' : 'bg-amber-500/20 text-amber-600' %>">
+                                                <%= tx.status %>
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-content-secondary font-sans text-[11px]"><%= tx.description %></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="py-8 text-center text-xs text-content-tertiary">
+                        No transactions recorded yet.
+                    </div>
+                <% } %>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- INSTANT ASSET SWAP / CONVERTER MODAL (3D MOTION & REAL-TIME RATES)            -->
+    <!-- ============================================================================== -->
+    <div x-show="swapModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-surface-raised rounded-3xl border border-surface-border max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 relative">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-surface-border pb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500/20 to-primary/20 text-primary flex items-center justify-center icon-3d-badge shadow-md shadow-primary/20" style="--icon-glow: #6366F1;">
+                        <svg class="w-5 h-5 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Instant Multi-Asset Swap</h3>
+                        <p class="text-[11px] text-content-secondary font-mono">Convert Equities, Cryptos & Cash with 0 Slippage</p>
+                    </div>
+                </div>
+                <button type="button" @click="swapModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <form @submit.prevent="executeSwap()" class="space-y-4 text-xs font-mono">
+                <!-- 1. Source Asset Card (You Pay) -->
+                <div class="p-4 bg-surface-overlay/80 rounded-2xl border border-surface-border space-y-2.5">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="uppercase font-bold text-content-secondary font-sans flex items-center space-x-1">
+                            <span>You Pay</span>
+                        </span>
+                        <div class="flex items-center space-x-1.5 font-mono">
+                            <span class="text-content-tertiary">Avail:</span>
+                            <span class="font-bold text-content-primary" x-text="fromAvailableBalance.toLocaleString(undefined, {maximumFractionDigits: 6})"></span>
+                            <span class="font-bold text-primary" x-text="fromSymbol"></span>
+                            <button type="button" @click="swapAmount = fromAvailableBalance" class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition">MAX</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <input type="number" step="any" min="0.000001" x-model="swapAmount" required placeholder="0.00" class="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary shadow-inner" />
+                        <select x-model="fromSymbol" class="bg-surface-base border border-surface-border rounded-xl px-3 py-2.5 font-bold text-content-primary outline-none focus:border-primary shrink-0 shadow-sm">
+                            <optgroup label="💵 Cash & Fiat">
+                                <option value="USD">USD (Cash Balance)</option>
+                                <option value="USDT">USDT (Tether USD)</option>
+                            </optgroup>
+                            <optgroup label="🪙 Cryptocurrencies">
+                                <option value="BTC">BTC (Bitcoin)</option>
+                                <option value="ETH">ETH (Ethereum)</option>
+                                <option value="SOL">SOL (Solana)</option>
+                                <option value="BNB">BNB (BNB Chain)</option>
+                                <option value="XRP">XRP (Ripple)</option>
+                                <option value="ADA">ADA (Cardano)</option>
+                                <option value="AVAX">AVAX (Avalanche)</option>
+                                <option value="DOGE">DOGE (Dogecoin)</option>
+                                <option value="LINK">LINK (Chainlink)</option>
+                                <option value="SUI">SUI (Sui Network)</option>
+                                <option value="TON">TON (Toncoin)</option>
+                                <option value="PEPE">PEPE (Pepe)</option>
+                            </optgroup>
+                            <optgroup label="🏛️ Global Stocks">
+                                <option value="AAPL">AAPL (Apple Inc)</option>
+                                <option value="MSFT">MSFT (Microsoft)</option>
+                                <option value="NVDA">NVDA (NVIDIA)</option>
+                                <option value="TSLA">TSLA (Tesla)</option>
+                                <option value="AMZN">AMZN (Amazon)</option>
+                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                <option value="META">META (Meta Platforms)</option>
+                                <option value="PLTR">PLTR (Palantir)</option>
+                                <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                <option value="NFLX">NFLX (Netflix)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[10px] text-content-tertiary pt-0.5 font-sans">
+                        <span>Live Market Price:</span>
+                        <span class="font-mono font-bold text-content-secondary" x-text="'$' + fromRate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})"></span>
+                    </div>
+                </div>
+
+                <!-- Direction Swap Button -->
+                <div class="flex justify-center -my-2 relative z-10">
+                    <button type="button" @click="const temp = fromSymbol; fromSymbol = toSymbol; toSymbol = temp;" class="w-9 h-9 rounded-full bg-surface-raised border border-surface-border shadow-lg flex items-center justify-center hover:bg-surface-overlay text-primary hover:scale-110 transition group" title="Flip Direction">
+                        <svg class="w-4 h-4 transition-transform group-hover:rotate-180 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 2. Target Asset Card (You Receive) -->
+                <div class="p-4 bg-surface-overlay/80 rounded-2xl border border-surface-border space-y-2.5">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="uppercase font-bold text-content-secondary font-sans flex items-center space-x-1">
+                            <span>You Receive (Estimated)</span>
+                        </span>
+                        <span class="font-mono text-gain font-bold flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                            <span>Direct Fill</span>
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-base font-bold text-gain font-mono shadow-inner truncate" x-text="estimatedOutput"></div>
+                        <select x-model="toSymbol" class="bg-surface-base border border-surface-border rounded-xl px-3 py-2.5 font-bold text-content-primary outline-none focus:border-primary shrink-0 shadow-sm">
+                            <optgroup label="🪙 Cryptocurrencies">
+                                <option value="BTC">BTC (Bitcoin)</option>
+                                <option value="ETH">ETH (Ethereum)</option>
+                                <option value="SOL">SOL (Solana)</option>
+                                <option value="BNB">BNB (BNB Chain)</option>
+                                <option value="XRP">XRP (Ripple)</option>
+                                <option value="ADA">ADA (Cardano)</option>
+                                <option value="AVAX">AVAX (Avalanche)</option>
+                                <option value="DOGE">DOGE (Dogecoin)</option>
+                                <option value="LINK">LINK (Chainlink)</option>
+                                <option value="SUI">SUI (Sui Network)</option>
+                                <option value="TON">TON (Toncoin)</option>
+                                <option value="PEPE">PEPE (Pepe)</option>
+                            </optgroup>
+                            <optgroup label="💵 Cash & Fiat">
+                                <option value="USD">USD (Cash Balance)</option>
+                                <option value="USDT">USDT (Tether USD)</option>
+                            </optgroup>
+                            <optgroup label="🏛️ Global Stocks">
+                                <option value="AAPL">AAPL (Apple Inc)</option>
+                                <option value="MSFT">MSFT (Microsoft)</option>
+                                <option value="NVDA">NVDA (NVIDIA)</option>
+                                <option value="TSLA">TSLA (Tesla)</option>
+                                <option value="AMZN">AMZN (Amazon)</option>
+                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                <option value="META">META (Meta Platforms)</option>
+                                <option value="PLTR">PLTR (Palantir)</option>
+                                <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                <option value="NFLX">NFLX (Netflix)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[10px] text-content-tertiary pt-0.5 font-sans">
+                        <span>Live Target Rate:</span>
+                        <span class="font-mono font-bold text-content-secondary" x-text="'$' + toRate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})"></span>
+                    </div>
+                </div>
+
+                <!-- Conversion Ratio & Speed Guarantee -->
+                <div class="p-3 bg-gain/10 rounded-2xl border border-gain/30 text-[11px] text-gain font-sans space-y-1">
+                    <div class="flex items-center justify-between font-mono font-bold">
+                        <span>Conversion Rate:</span>
+                        <span x-text="'1 ' + fromSymbol + ' ≈ ' + (toRate ? (fromRate / toRate).toFixed(6) : 0) + ' ' + toSymbol"></span>
+                    </div>
+                    <p class="text-[10px] text-content-secondary font-mono">Zero Slippage &bull; Instant Settlement into Available Portfolio</p>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        :disabled="swapSubmitting || swapAmount <= 0 || swapAmount > fromAvailableBalance"
+                        :class="swapSubmitting || swapAmount <= 0 || swapAmount > fromAvailableBalance ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary-dark shadow-lg shadow-primary/25'"
+                        class="w-full py-3.5 rounded-2xl bg-primary text-white font-bold text-xs transition font-sans tracking-wide">
+                    <span x-show="!swapSubmitting">Execute Instant Swap &rarr;</span>
+                    <span x-show="swapSubmitting" x-cloak>Converting at Live Rates...</span>
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- SPOT TRADING & FRACTIONAL SHARE ACQUISITION MODAL                              -->
+    <!-- ============================================================================== -->
+    <div x-show="buyStockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-surface-raised rounded-3xl border border-surface-border max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 relative">
+            
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-primary/20 text-primary flex items-center justify-center text-xl font-bold shadow-md shadow-primary/20">
+                        🏛️
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Spot Equity Order: <span x-text="selectedStockSymbol"></span></h3>
+                        <p class="text-[11px] text-content-secondary font-mono" x-text="'Market Price: $' + currentStockPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' &bull; Direct Custody'"></p>
+                    </div>
+                </div>
+                <button type="button" @click="buyStockModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <!-- Action Tabs (Buy vs Liquidate) -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-surface-overlay rounded-2xl border border-surface-border font-mono text-xs">
+                <button type="button" @click="spotActionType = 'buy'" :class="spotActionType === 'buy' ? 'bg-gain text-white font-bold shadow-md' : 'text-content-secondary hover:text-content-primary'" class="py-2.5 rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <span>+ Buy & Hold</span>
+                </button>
+                <button type="button" @click="spotActionType = 'sell'" :class="spotActionType === 'sell' ? 'bg-loss text-white font-bold shadow-md' : 'text-content-secondary hover:text-content-primary'" class="py-2.5 rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <span>Sell / Liquidate</span>
+                </button>
+            </div>
+
+            <!-- Mode Selector (Dollar Amount vs Shares) -->
+            <div class="flex items-center justify-between p-1 bg-surface-overlay/80 rounded-xl border border-surface-border font-mono text-xs">
+                <button type="button" @click="investMode = 'usd'" :class="investMode === 'usd' ? 'bg-surface-base text-primary font-bold shadow-sm' : 'text-content-tertiary hover:text-content-secondary'" class="flex-1 py-1.5 rounded-lg transition text-center">
+                    💵 Invest by Dollar ($)
+                </button>
+                <button type="button" @click="investMode = 'shares'" :class="investMode === 'shares' ? 'bg-surface-base text-primary font-bold shadow-sm' : 'text-content-tertiary hover:text-content-secondary'" class="flex-1 py-1.5 rounded-lg transition text-center">
+                    📊 Buy by Shares (Qty)
+                </button>
+            </div>
+
+            <form @submit.prevent="executeSpotTrade()" class="space-y-4 text-xs font-mono">
+                
+                <!-- In USD Mode -->
+                <div x-show="investMode === 'usd'" class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                    <div class="flex justify-between text-[11px] text-content-secondary">
+                        <span class="uppercase font-bold">Dollar Amount (USD)</span>
+                        <span class="text-content-tertiary">Available Cash: <strong class="text-content-primary font-mono">$<span x-text="cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})"></span></strong></span>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-2.5 text-base font-bold text-content-tertiary">$</span>
+                        <input type="number" step="any" min="1" x-model="investUsdAmount" placeholder="100.00" class="w-full bg-surface-base border border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary shadow-inner" />
+                    </div>
+                    <!-- Quick Dollar Chips -->
+                    <div class="flex items-center gap-1.5 pt-1">
+                        <button type="button" @click="investUsdAmount = 50" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$50</button>
+                        <button type="button" @click="investUsdAmount = 100" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$100</button>
+                        <button type="button" @click="investUsdAmount = 250" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$250</button>
+                        <button type="button" @click="investUsdAmount = 500" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$500</button>
+                        <button type="button" @click="investUsdAmount = 1000" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$1,000</button>
+                    </div>
+                </div>
+
+                <!-- In Shares Mode -->
+                <div x-show="investMode === 'shares'" class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                    <div class="flex justify-between text-[11px] text-content-secondary">
+                        <span class="uppercase font-bold">Quantity (Shares)</span>
+                        <div class="flex items-center space-x-1">
+                            <span class="text-content-tertiary">Held:</span>
+                            <span class="font-bold text-content-primary" x-text="currentHeldStockShares.toFixed(4)"></span>
+                            <button x-show="spotActionType === 'sell'" type="button" @click="stockBuyShares = currentHeldStockShares" class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">MAX</button>
+                        </div>
+                    </div>
+                    <input type="number" step="any" min="0.0001" x-model="stockBuyShares" class="w-full bg-surface-base border border-surface-border rounded-xl px-4 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary shadow-inner" />
+                </div>
+
+                <!-- Live Conversion & Output Breakdown -->
+                <div class="p-3 bg-surface-overlay/80 rounded-2xl border border-surface-border space-y-1.5 font-mono text-xs">
+                    <div class="flex items-center justify-between text-content-secondary">
+                        <span>Allocated Shares:</span>
+                        <strong class="text-content-primary" x-text="estimatedSpotShares + ' shares'"></strong>
+                    </div>
+                    <div class="flex items-center justify-between text-content-secondary">
+                        <span>Total Cash <span x-text="spotActionType === 'buy' ? 'Required:' : 'Proceeds:'"></span></span>
+                        <strong class="text-sm font-extrabold" :class="spotActionType === 'buy' ? 'text-primary' : 'text-gain'" x-text="'$' + estimatedSpotTotalCost"></strong>
+                    </div>
+                </div>
+
+                <button type="submit" 
+                        :disabled="spotSubmitting"
+                        :class="spotActionType === 'buy' ? 'bg-gain hover:bg-gain/90 shadow-gain/20' : 'bg-loss hover:bg-loss/90 shadow-loss/20'" 
+                        class="w-full py-3.5 rounded-2xl text-white font-bold text-xs shadow-lg transition">
+                    <span x-show="!spotSubmitting" x-text="spotActionType === 'buy' ? 'Confirm Spot Stock Purchase &rarr;' : 'Confirm Stock Liquidation &rarr;'"></span>
+                    <span x-show="spotSubmitting" x-cloak>Executing Order...</span>
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- THEMATIC STOCK BASKET INVESTMENT MODAL                                         -->
+    <!-- ============================================================================== -->
+    <div x-show="basketModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-surface-raised rounded-3xl border border-surface-border max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 relative">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-primary/20 text-primary flex items-center justify-center text-xl font-bold shadow-md">
+                        🧺
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary" x-text="baskets[selectedBasketKey]?.name"></h3>
+                        <p class="text-[11px] text-content-secondary font-mono" x-text="baskets[selectedBasketKey]?.tagline"></p>
+                    </div>
+                </div>
+                <button type="button" @click="basketModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <form @submit.prevent="executeBasketInvest()" class="space-y-4 text-xs font-mono">
+                <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                    <div class="flex justify-between text-[11px] text-content-secondary">
+                        <span class="uppercase font-bold">Investment Amount (USD)</span>
+                        <span class="text-content-tertiary">Available: $<span x-text="cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})"></span></span>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-2.5 text-base font-bold text-content-tertiary">$</span>
+                        <input type="number" step="any" :min="baskets[selectedBasketKey]?.minInvestment || 50" x-model="basketInvestAmount" class="w-full bg-surface-base border border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary shadow-inner" />
+                    </div>
+                    <div class="flex items-center gap-1.5 pt-1">
+                        <button type="button" @click="basketInvestAmount = 100" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$100</button>
+                        <button type="button" @click="basketInvestAmount = 250" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$250</button>
+                        <button type="button" @click="basketInvestAmount = 500" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$500</button>
+                        <button type="button" @click="basketInvestAmount = 1000" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$1,000</button>
+                        <button type="button" @click="basketInvestAmount = 2500" class="px-2.5 py-1 rounded-lg bg-surface-base border border-surface-border hover:border-primary text-content-secondary hover:text-primary transition font-bold text-[10px]">$2,500</button>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-gain/10 rounded-2xl border border-gain/30 text-[11px] text-gain font-sans space-y-1">
+                    <p class="font-bold">&check; Automatic Proportional Fractional Distribution</p>
+                    <p class="text-content-secondary font-mono text-[10px]">Constituent shares are immediately credited directly to your custody holdings.</p>
+                </div>
+
+                <button type="submit" :disabled="basketSubmitting" class="w-full py-3.5 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition">
+                    <span x-show="!basketSubmitting">Execute Thematic Basket Allocation &rarr;</span>
+                    <span x-show="basketSubmitting" x-cloak>Allocating Holdings...</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- GLOBAL ASSET DISCOVERY & CATALOG MODAL                                         -->
+    <!-- ============================================================================== -->
+    <div x-show="discoverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-surface-raised rounded-3xl border border-surface-border max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            
+            <div class="flex items-center justify-between border-b border-surface-border pb-3 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary/20 to-indigo-500/20 text-primary flex items-center justify-center text-xl font-bold shadow-md">
+                        ✨
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Discover & Add Tradable Assets</h3>
+                        <p class="text-[11px] text-content-secondary font-mono">Select any equity, crypto, or commodity to acquire spot shares or trade CFDs</p>
+                    </div>
+                </div>
+                <button type="button" @click="discoverModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <!-- Search & Filter Controls -->
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="relative flex-1">
+                    <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">🔍</span>
+                    <input type="text" x-model="discoverSearch" placeholder="Search catalog (e.g. TSLA, NVDA, ETH, Gold)..." class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-surface-base border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-mono" />
+                </div>
+                <div class="flex items-center space-x-1.5 font-mono text-xs">
+                    <button type="button" @click="discoverFilter = 'all'" :class="discoverFilter === 'all' ? 'bg-primary text-white font-bold' : 'bg-surface-overlay text-content-secondary'" class="px-3 py-2 rounded-xl transition">All</button>
+                    <button type="button" @click="discoverFilter = 'stocks'" :class="discoverFilter === 'stocks' ? 'bg-primary text-white font-bold' : 'bg-surface-overlay text-content-secondary'" class="px-3 py-2 rounded-xl transition">Stocks</button>
+                    <button type="button" @click="discoverFilter = 'crypto'" :class="discoverFilter === 'crypto' ? 'bg-primary text-white font-bold' : 'bg-surface-overlay text-content-secondary'" class="px-3 py-2 rounded-xl transition">Crypto</button>
+                </div>
+            </div>
+
+            <!-- Catalog List Scrollable -->
+            <div class="overflow-y-auto space-y-2.5 flex-1 pr-1 font-mono text-xs">
+                <template x-for="item in allTradableCatalog.filter(m => (discoverFilter === 'all' || m.category === discoverFilter) && (m.name.toLowerCase().includes(discoverSearch.toLowerCase()) || m.symbol.toLowerCase().includes(discoverSearch.toLowerCase())))" :key="item.symbol">
+                    <div class="p-3.5 bg-surface-overlay/80 hover:bg-surface-overlay rounded-2xl border border-surface-border flex items-center justify-between transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-surface-base border border-surface-border flex items-center justify-center font-bold text-base shadow-sm">
+                                <span x-text="item.category === 'stocks' ? '🏛️' : (item.category === 'crypto' ? '🪙' : '📈')"></span>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight" x-text="item.name"></h4>
+                                <div class="flex items-center space-x-2 text-[10px] text-content-tertiary">
+                                    <strong class="text-content-primary font-mono" x-text="item.symbol"></strong>
+                                    <span class="capitalize" x-text="item.category"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-4">
+                            <div class="text-right">
+                                <span class="font-bold text-sm text-content-primary block" x-text="'$' + (rates[item.symbol.replace('/USDT', '').replace('/USD', '')]?.price || rates[item.symbol]?.price || 150).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                <span class="text-[10px] font-bold" 
+                                      :class="(rates[item.symbol.replace('/USDT', '').replace('/USD', '')]?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
+                                      x-text="((rates[item.symbol.replace('/USDT', '').replace('/USD', '')]?.change24h || 0) >= 0 ? '+' : '') + (rates[item.symbol.replace('/USDT', '').replace('/USD', '')]?.change24h || 0) + '%'"></span>
+                            </div>
+
+                            <div class="flex items-center space-x-1.5">
+                                <button type="button" 
+                                        @click="discoverModal = false; item.category === 'stocks' ? openBuyStock(item.symbol.replace('/USDT', '').replace('/USD', '')) : openSwapWith(item.symbol.replace('/USDT', '').replace('/USD', ''), 'to')"
+                                        class="px-3 py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm transition">
+                                    Buy Spot
+                                </button>
+                                <a :href="'/webtrade/app'" class="px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-sm transition">
+                                    Trade CFD
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- HAZARD COUNTDOWN WARNING: EMERGENCY PORTFOLIO LIQUIDATION MODAL               -->
+    <!-- ============================================================================== -->
+    <div x-show="liquidateAllModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-surface-raised rounded-3xl border-2 border-loss/60 max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 relative overflow-hidden">
+            
+            <!-- Hazard Caution Stripes Bar -->
+            <div class="absolute top-0 left-0 right-0 h-2 bg-[repeating-linear-gradient(45deg,#EF4444,#EF4444_12px,#FBBF24_12px,#FBBF24_24px)]"></div>
+
+            <!-- Header -->
+            <div class="flex items-start justify-between border-b border-surface-border pb-4 pt-1">
+                <div class="flex items-center space-x-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-loss/20 text-loss flex items-center justify-center text-2xl font-bold border border-loss/30 animate-pulse shadow-lg shadow-loss/20">
+                        ⚠️
+                    </div>
+                    <div>
+                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase font-mono bg-loss text-white tracking-widest">Hazard Protocol</span>
+                        <h3 class="text-lg font-bold font-serif text-content-primary mt-0.5">Emergency Portfolio Liquidation</h3>
+                    </div>
+                </div>
+                <button type="button" @click="closeLiquidateAllModal()" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <!-- Warning Callout Box -->
+            <div class="p-4 bg-loss/10 rounded-2xl border border-loss/30 space-y-2 font-sans">
+                <div class="flex items-center space-x-2 text-loss font-bold text-xs">
+                    <span class="text-base">🚨</span>
+                    <span>IRREVERSIBLE ACTION NOTICE</span>
+                </div>
+                <p class="text-xs text-content-secondary leading-relaxed">
+                    You are initiating a <strong>full liquidation</strong> of all spot stocks, cryptocurrencies, and thematic holdings. All non-USD assets will be liquidated immediately at current live market execution rates.
+                </p>
+            </div>
+
+            <!-- Position & Value Breakdown Table -->
+            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 font-mono text-xs">
+                <div class="flex items-center justify-between text-content-secondary">
+                    <span>Positions to Settle:</span>
+                    <strong class="text-content-primary" x-text="ownedAssetsCount + ' Active Holdings'"></strong>
+                </div>
+                <div class="flex items-center justify-between text-content-secondary">
+                    <span>Estimated Cash Proceeds:</span>
+                    <strong class="text-base font-extrabold text-gain" x-text="'≈ $' + totalEstimatedLiquidationValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'"></strong>
+                </div>
+                <div class="flex items-center justify-between text-content-secondary pt-1 border-t border-surface-border">
+                    <span>Settlement Destination:</span>
+                    <strong class="text-primary font-bold">USD Cash Reserves (Direct)</strong>
+                </div>
+            </div>
+
+            <!-- Safety Lock & Countdown Indicator -->
+            <div class="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/30 text-center space-y-2">
+                <div class="flex items-center justify-center space-x-2 font-mono font-bold text-xs text-amber-800">
+                    <span x-show="hazardCountdown > 0" class="animate-spin text-sm">⏳</span>
+                    <span x-show="hazardCountdown > 0">Safety Lock Active: Confirmation unlocks in <strong class="text-loss text-sm" x-text="hazardCountdown + 's'"></strong></span>
+                    <span x-show="hazardCountdown === 0" class="text-loss font-extrabold flex items-center space-x-1">
+                        <span>⚠️</span>
+                        <span>Safety Lock Disengaged &bull; Ready to Confirm</span>
+                    </span>
+                </div>
+                
+                <!-- Countdown Visual Progress Bar -->
+                <div class="w-full h-1.5 rounded-full bg-amber-200 overflow-hidden">
+                    <div class="h-full bg-loss transition-all duration-1000 ease-linear" :style="'width: ' + ((6 - hazardCountdown) / 6 * 100) + '%;'"></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-2 pt-1 font-sans">
+                <button type="button" 
+                        @click="confirmLiquidateAll()" 
+                        :disabled="hazardCountdown > 0 || liquidatingAll"
+                        :class="hazardCountdown > 0 || liquidatingAll ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border border-surface-border' : 'bg-loss hover:bg-loss/90 text-white shadow-lg shadow-loss/25 animate-pulse'"
+                        class="w-full py-3.5 rounded-2xl font-bold text-xs transition flex items-center justify-center space-x-2">
+                    <span x-show="hazardCountdown > 0" x-text="'⚠️ Safety Lock Active (' + hazardCountdown + 's)'"></span>
+                    <span x-show="hazardCountdown === 0 && !liquidatingAll">🚨 CONFIRM LIQUIDATION (SETTLE ALL TO CASH) &rarr;</span>
+                    <span x-show="liquidatingAll" x-cloak>Liquidating Portfolio...</span>
+                </button>
+
+                <button type="button" @click="closeLiquidateAllModal()" class="w-full py-2.5 rounded-xl hover:bg-surface-overlay text-content-secondary font-bold text-xs transition text-center">
+                    Cancel &amp; Retain Holdings
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ========================================================================== -->
+    <!-- MODAL: CONTRIBUTE FUNDS TO RETIREMENT IRA                                  -->
+    <!-- ========================================================================== -->
+    <div x-show="retirementContributeModal" class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-surface-border shadow-2xl" @click.outside="retirementContributeModal = false">
+            
+            <div class="flex justify-between items-center border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">💰</span>
+                    <h3 class="font-bold text-base font-serif text-content-primary">Contribute to Retirement IRA</h3>
+                </div>
+                <button type="button" @click="retirementContributeModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-4 text-xs font-sans">
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="block uppercase font-semibold text-content-secondary">Contribution Amount (USD) *</label>
+                        <span class="text-[10px] text-content-tertiary font-mono">Available Cash: $<%= Number(user.balance).toLocaleString() %></span>
+                    </div>
+                    <input type="number" x-model.number="retirementContributeAmount" min="50" max="7000" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-sm shadow-sm" />
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="grid grid-cols-4 gap-2 font-mono text-[11px]">
+                    <button type="button" @click="retirementContributeAmount = 500" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border transition">$500</button>
+                    <button type="button" @click="retirementContributeAmount = 1000" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border transition">$1,000</button>
+                    <button type="button" @click="retirementContributeAmount = 2500" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border transition">$2,500</button>
+                    <button type="button" @click="retirementContributeAmount = Math.min(3500, <%= Number(user.balance) %>)" class="py-1.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-white text-primary border border-primary/30 transition">Max Room</button>
+                </div>
+
+                <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary leading-relaxed font-sans">
+                    Funds will be deducted from your primary USD trading balance and deposited into your segregated tax-advantaged Retirement IRA vault.
+                </div>
+
+                <div x-show="retirementError" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-bold font-sans" x-text="retirementError"></div>
+                <div x-show="retirementMsg" class="p-3 rounded-xl bg-gain/10 border border-gain/30 text-gain text-xs font-bold font-sans" x-text="retirementMsg"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 font-sans">
+                <button type="button" @click="retirementContributeModal = false" class="px-4 py-2 rounded-xl bg-surface-overlay text-content-secondary font-bold text-xs">Cancel</button>
+                <button type="button" @click="executeRetirementContribution()" :disabled="retirementSubmitting" class="px-6 py-2.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center space-x-1.5">
+                    <span x-text="retirementSubmitting ? 'Transferring...' : 'Confirm Contribution &rarr;'"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================== -->
+    <!-- MODAL: INVEST RETIREMENT CASH INTO ASSETS                                  -->
+    <!-- ========================================================================== -->
+    <div x-show="retirementInvestModal" class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-surface-border shadow-2xl" @click.outside="retirementInvestModal = false">
+            
+            <div class="flex justify-between items-center border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">📈</span>
+                    <h3 class="font-bold text-base font-serif text-content-primary">Invest Retirement Cash</h3>
+                </div>
+                <button type="button" @click="retirementInvestModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-4 text-xs font-sans">
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1">Select Investment Vehicle *</label>
+                    <select x-model="retirementInvestAsset" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-xs shadow-sm">
+                        <option value="AAPL">Apple Inc. (AAPL) &bull; Blue-Chip Dividend Stock</option>
+                        <option value="MSFT">Microsoft Corporation (MSFT) &bull; Enterprise Tech</option>
+                        <option value="NVDA">NVIDIA Corporation (NVDA) &bull; AI Hardware</option>
+                        <option value="AMZN">Amazon.com, Inc. (AMZN) &bull; E-Commerce &amp; Cloud</option>
+                        <option value="BTC">Bitcoin Cold IRA Vault (BTC) &bull; Insured Crypto</option>
+                        <option value="ETH">Ethereum Staking IRA (ETH) &bull; Decentralized Layer-1</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="block uppercase font-semibold text-content-secondary">Amount to Allocate (USD) *</label>
+                        <span class="text-[10px] text-content-tertiary font-mono">Unallocated IRA Cash: $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString() : '0' %></span>
+                    </div>
+                    <input type="number" x-model.number="retirementInvestAmount" min="20" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-sm shadow-sm" />
+                </div>
+
+                <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary leading-relaxed font-sans">
+                    With <strong>Automated DRIP enabled</strong>, all quarterly dividend payouts from this position will automatically buy additional fractional shares tax-free.
+                </div>
+
+                <div x-show="retirementError" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-bold font-sans" x-text="retirementError"></div>
+                <div x-show="retirementMsg" class="p-3 rounded-xl bg-gain/10 border border-gain/30 text-gain text-xs font-bold font-sans" x-text="retirementMsg"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 font-sans">
+                <button type="button" @click="retirementInvestModal = false" class="px-4 py-2 rounded-xl bg-surface-overlay text-content-secondary font-bold text-xs">Cancel</button>
+                <button type="button" @click="executeRetirementInvestment()" :disabled="retirementSubmitting" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center space-x-1.5">
+                    <span x-text="retirementSubmitting ? 'Allocating...' : 'Allocate IRA Capital &rarr;'"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+</section>
+
+<%- include('../partials/footer') %>

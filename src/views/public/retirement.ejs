@@ -1,0 +1,466 @@
+<%- include('../partials/header') %>
+
+<script>
+function retirementApp() {
+    return {
+        currentAge: 32,
+        retireAge: 62,
+        initialNestEgg: 15000,
+        monthlyContribution: 600,
+        expectedReturnRate: 9.5, // Annual % ROI
+        selectedIraType: 'roth_ira',
+        
+        openModal: false,
+        modalIraType: 'roth_ira',
+        beneficiaryName: '',
+        openSubmitting: false,
+        openSuccess: '',
+        openError: '',
+
+        get yearsToRetire() {
+            return Math.max(1, this.retireAge - this.currentAge);
+        },
+
+        get totalContributed() {
+            return this.initialNestEgg + (this.monthlyContribution * 12 * this.yearsToRetire);
+        },
+
+        get projectedNestEgg() {
+            const r = (this.expectedReturnRate / 100) / 12; // Monthly rate
+            const n = this.yearsToRetire * 12; // Total months
+            
+            // Future Value of Initial Principal: P * (1 + r)^n
+            const fvPrincipal = this.initialNestEgg * Math.pow(1 + r, n);
+            
+            // Future Value of Monthly Contributions: PMT * (((1 + r)^n - 1) / r)
+            const fvAnnuity = r > 0 ? (this.monthlyContribution * (Math.pow(1 + r, n) - 1) / r) : (this.monthlyContribution * n);
+            
+            return Math.round(fvPrincipal + fvAnnuity);
+        },
+
+        get compoundGains() {
+            return Math.max(0, this.projectedNestEgg - this.totalContributed);
+        },
+
+        get estimatedMonthlyRetirementIncome() {
+            // Using standard 4% safe withdrawal rule / 12 months
+            return Math.round((this.projectedNestEgg * 0.04) / 12);
+        },
+
+        openAccountModal(type) {
+            <% if (!user) { %>
+                window.location.href = '/register?intent=retirement&type=' + encodeURIComponent(type);
+                return;
+            <% } %>
+            this.modalIraType = type;
+            this.openSuccess = '';
+            this.openError = '';
+            this.openModal = true;
+        },
+
+        async submitOpenAccount() {
+            this.openSubmitting = true;
+            this.openError = '';
+            this.openSuccess = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const res = await fetch('/api/retirement/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        account_type: this.modalIraType,
+                        beneficiary_name: this.beneficiaryName,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.openSuccess = data.message;
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } else {
+                    this.openError = (data && data.error) ? data.error : 'Failed to open retirement account.';
+                }
+            } catch (err) {
+                this.openError = 'Network error occurred while opening account.';
+            } finally {
+                this.openSubmitting = false;
+            }
+        }
+    };
+}
+</script>
+
+<div x-data="retirementApp()" class="bg-surface-base text-content-primary">
+    
+    <!-- ============================================================================== -->
+    <!-- 1. HERO SECTION: GENERATIONAL WEALTH & TAX-ADVANTAGED TRADING                  -->
+    <!-- ============================================================================== -->
+    <section class="relative py-24 overflow-hidden border-b border-surface-border bg-gradient-to-b from-sky-500/5 via-surface-base to-surface-base">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center space-y-6">
+            
+            <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold font-mono uppercase tracking-widest shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                <span>Tier-1 Tax-Advantaged Custody</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl font-extrabold font-serif tracking-tight text-content-primary max-w-4xl mx-auto leading-tight">
+                Build Generational Wealth with <span class="text-primary">Retirement Trading IRAs</span>
+            </h1>
+
+            <p class="text-base sm:text-lg text-content-secondary max-w-3xl mx-auto leading-relaxed">
+                Compound your wealth tax-free or tax-deferred. Trade fractional equities, algorithmic thematic baskets, and prime cold-storage Crypto IRAs with zero custodial management fees.
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
+                <button type="button" @click="openAccountModal('roth_ira')" class="px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/25 transition transform hover:-translate-y-0.5">
+                    Open Tax-Free Roth IRA &rarr;
+                </button>
+                <a href="#nest-egg-calc" class="px-8 py-4 rounded-2xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary font-bold text-sm shadow-sm transition">
+                    📈 Interactive Nest-Egg Calculator
+                </a>
+            </div>
+
+            <!-- Trust Disclosures -->
+            <div class="pt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-mono text-content-tertiary">
+                <div class="flex items-center space-x-2">
+                    <span class="text-gain text-sm">✓</span>
+                    <span>100% Tax-Free Roth Growth</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gain text-sm">✓</span>
+                    <span>Automated DRIP Compounding</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gain text-sm">✓</span>
+                    <span>Multi-Asset Cross-Collateral</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gain text-sm">✓</span>
+                    <span>SIPC &amp; Custodial Insurance</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================================================== -->
+    <!-- 2. 4 RETIREMENT PILLARS & ACCOUNT TYPES                                        -->
+    <!-- ============================================================================== -->
+    <section class="py-20 bg-white border-b border-surface-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            
+            <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono uppercase tracking-wider">STRUCTURED ACCOUNTS</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">Tailored Retirement Vehicles</h2>
+                <p class="text-sm text-content-secondary">Choose the optimal tax-advantaged account structure aligned with your financial timeline and tax strategy.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Pillar 1: Roth IRA -->
+                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-emerald-500/50 shadow-lg transition flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-emerald-500/20" style="--icon-glow: #10B981;">
+                            <span class="icon-floating">🌱</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-mono font-bold uppercase text-emerald-600 tracking-wider">Most Popular</span>
+                            <h3 class="text-xl font-bold font-serif text-content-primary">Roth IRA</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary leading-relaxed">
+                            Contribute after-tax dollars. All dividend accruals, trading gains, and future retirement withdrawals are <strong>100% tax-free</strong>.
+                        </p>
+                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">2026 Limit:</span>
+                                <span class="font-bold text-content-primary">$7,000 / yr</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">Tax Benefit:</span>
+                                <span class="font-bold text-gain">Tax-Free Returns</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-3 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md transition font-sans">
+                        Select Roth IRA &rarr;
+                    </button>
+                </div>
+
+                <!-- Pillar 2: Traditional IRA -->
+                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-sky-500/50 shadow-lg transition flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-500/15 text-sky-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-sky-500/20" style="--icon-glow: #0284C7;">
+                            <span class="icon-floating">🏛️</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-mono font-bold uppercase text-sky-600 tracking-wider">Tax-Deductible</span>
+                            <h3 class="text-xl font-bold font-serif text-content-primary">Traditional IRA</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary leading-relaxed">
+                            Deduct contributions from current taxable income. Compounding grows tax-deferred until distribution age.
+                        </p>
+                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">2026 Limit:</span>
+                                <span class="font-bold text-content-primary">$7,000 / yr</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">Tax Benefit:</span>
+                                <span class="font-bold text-primary">Pre-Tax Deduction</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" @click="openAccountModal('traditional_ira')" class="w-full py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition font-sans">
+                        Select Traditional IRA &rarr;
+                    </button>
+                </div>
+
+                <!-- Pillar 3: 401(k) Rollover Vault -->
+                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-amber-500/50 shadow-lg transition flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-amber-500/20" style="--icon-glow: #F59E0B;">
+                            <span class="icon-floating">🔄</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-mono font-bold uppercase text-amber-600 tracking-wider">Direct Custodial Transfer</span>
+                            <h3 class="text-xl font-bold font-serif text-content-primary">401(k) Rollover</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary leading-relaxed">
+                            Roll over an old 401(k) or pension into TradeXEdge with zero tax penalties. Unlock full access to multi-asset alpha.
+                        </p>
+                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">Transfer Cap:</span>
+                                <span class="font-bold text-content-primary">Unlimited</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">Penalty:</span>
+                                <span class="font-bold text-gain">0.0% Direct Rollover</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" @click="openAccountModal('rollover_401k')" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition font-sans">
+                        Start Rollover &rarr;
+                    </button>
+                </div>
+
+                <!-- Pillar 4: SEP / Solo 401(k) -->
+                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-indigo-500/50 shadow-lg transition flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-indigo-500/20" style="--icon-glow: #6366F1;">
+                            <span class="icon-floating">⚡</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-mono font-bold uppercase text-indigo-600 tracking-wider">High-Earner &amp; Business</span>
+                            <h3 class="text-xl font-bold font-serif text-content-primary">SEP / Solo 401(k)</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary leading-relaxed">
+                            Designed for entrepreneurs, self-employed contractors, and proprietary traders seeking maximum annual contributions.
+                        </p>
+                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">2026 Limit:</span>
+                                <span class="font-bold text-indigo-600">Up to $69,000 / yr</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-content-tertiary">Tax Status:</span>
+                                <span class="font-bold text-content-primary">Employer Deductible</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" @click="openAccountModal('sep_ira')" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition font-sans">
+                        Select SEP IRA &rarr;
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================================================== -->
+    <!-- 3. INTERACTIVE RETIREMENT NEST-EGG COMPOUND CALCULATOR                          -->
+    <!-- ============================================================================== -->
+    <section id="nest-egg-calc" class="py-24 bg-surface-base border-b border-surface-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            
+            <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+                <span class="px-3 py-1 rounded-full bg-gain/10 text-gain text-xs font-bold font-mono uppercase tracking-wider">EXPONENTIAL WEALTH SIMULATION</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">Retirement Trajectory Calculator</h2>
+                <p class="text-sm text-content-secondary">Simulate your compound retirement nest egg based on your age, monthly contribution, and portfolio yield.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                <!-- Left: Control Sliders -->
+                <div class="lg:col-span-6 glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-surface-border shadow-xl">
+                    
+                    <!-- Current Age & Target Age -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-content-secondary font-sans font-bold">Current Age</span>
+                                <span class="font-bold text-primary" x-text="currentAge + ' yrs'"></span>
+                            </div>
+                            <input type="range" min="18" max="70" x-model.number="currentAge" class="w-full accent-primary cursor-pointer" />
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-content-secondary font-sans font-bold">Retire Age</span>
+                                <span class="font-bold text-emerald-600" x-text="retireAge + ' yrs'"></span>
+                            </div>
+                            <input type="range" min="45" max="80" x-model.number="retireAge" class="w-full accent-emerald-500 cursor-pointer" />
+                        </div>
+                    </div>
+
+                    <!-- Initial Capital / Starting Balance -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-content-secondary font-sans font-bold">Current Starting Balance</span>
+                            <span class="font-bold text-content-primary" x-text="'$' + initialNestEgg.toLocaleString()"></span>
+                        </div>
+                        <input type="range" min="1000" max="250000" step="1000" x-model.number="initialNestEgg" class="w-full accent-primary cursor-pointer" />
+                    </div>
+
+                    <!-- Monthly Contribution -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-content-secondary font-sans font-bold">Monthly Contribution</span>
+                            <span class="font-bold text-gain text-sm" x-text="'$' + monthlyContribution.toLocaleString() + ' / mo'"></span>
+                        </div>
+                        <input type="range" min="50" max="4000" step="25" x-model.number="monthlyContribution" class="w-full accent-gain cursor-pointer" />
+                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
+                            <span>$50/mo</span>
+                            <span>$583/mo ($7k IRS Cap)</span>
+                            <span>$4,000/mo</span>
+                        </div>
+                    </div>
+
+                    <!-- Expected Annual Return Rate (%) -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-content-secondary font-sans font-bold">Expected Annual Portfolio Return</span>
+                            <span class="font-bold text-indigo-600 text-sm" x-text="expectedReturnRate + '% / yr'"></span>
+                        </div>
+                        <input type="range" min="4.0" max="20.0" step="0.5" x-model.number="expectedReturnRate" class="w-full accent-indigo-600 cursor-pointer" />
+                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
+                            <span>4% (Conservative Bonds)</span>
+                            <span>9.5% (S&P 500 Historical)</span>
+                            <span>20% (Thematic Alpha)</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right: Projected Results Display Card -->
+                <div class="lg:col-span-6 glass-card rounded-3xl p-7 sm:p-10 space-y-6 border-2 border-gain/20 bg-gradient-to-br from-white via-gain/5 to-white shadow-2xl relative overflow-hidden">
+                    
+                    <div class="flex items-center justify-between border-b border-surface-border pb-4">
+                        <div>
+                            <span class="text-[10px] font-bold font-mono uppercase tracking-widest text-gain">ESTIMATED AT AGE <span x-text="retireAge"></span></span>
+                            <h3 class="text-xl font-bold font-serif text-content-primary">Projected Total Nest Egg</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-gain/15 text-gain flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-gain/20" style="--icon-glow: #10B981;">
+                            <span class="icon-floating">💰</span>
+                        </div>
+                    </div>
+
+                    <!-- Hero Number -->
+                    <div class="space-y-1">
+                        <p class="text-4xl sm:text-5xl font-extrabold font-serif text-content-primary font-mono tracking-tight"
+                           x-text="'$' + projectedNestEgg.toLocaleString()"></p>
+                        <p class="text-xs text-content-secondary">
+                            Compounding horizon: <strong class="font-mono text-content-primary" x-text="yearsToRetire + ' years'"></strong>
+                        </p>
+                    </div>
+
+                    <!-- Breakdown Cards -->
+                    <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+                        <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm">
+                            <span class="text-[10px] text-content-tertiary uppercase block">Your Deposits</span>
+                            <span class="text-base font-bold text-content-primary" x-text="'$' + totalContributed.toLocaleString()"></span>
+                        </div>
+                        <div class="p-3.5 rounded-2xl bg-white border border-gain/30 shadow-sm">
+                            <span class="text-[10px] text-gain uppercase font-bold block">Compound Interest</span>
+                            <span class="text-base font-bold text-gain" x-text="'+$' + compoundGains.toLocaleString()"></span>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Income Potential (4% Rule) -->
+                    <div class="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-1 text-xs">
+                        <div class="flex items-center justify-between font-mono">
+                            <span class="text-primary font-bold">Estimated Monthly Retirement Payout:</span>
+                            <span class="text-lg font-extrabold text-primary font-serif" x-text="'$' + estimatedMonthlyRetirementIncome.toLocaleString() + ' / mo'"></span>
+                        </div>
+                        <p class="text-[11px] text-content-secondary leading-normal">
+                            Based on the standard 4% perpetual withdrawal framework for endless lifetime liquidity.
+                        </p>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-4 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-sm shadow-xl shadow-gain/20 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2">
+                        <span>Open Your Retirement Account Now &rarr;</span>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================================================== -->
+    <!-- MODAL: 1-CLICK OPEN RETIREMENT ACCOUNT                                         -->
+    <!-- ============================================================================== -->
+    <div x-show="openModal" class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-surface-border shadow-2xl" @click.outside="openModal = false">
+            
+            <div class="flex justify-between items-center border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🛡️</span>
+                    <h3 class="font-bold text-base font-serif text-content-primary">Open Retirement IRA Account</h3>
+                </div>
+                <button type="button" @click="openModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-4 text-xs font-sans">
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1">Select IRA Structure *</label>
+                    <select x-model="modalIraType" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-xs shadow-sm">
+                        <option value="roth_ira">Roth IRA (100% Tax-Free Returns)</option>
+                        <option value="traditional_ira">Traditional IRA (Pre-Tax Deduction)</option>
+                        <option value="rollover_401k">401(k) Rollover Vault (Direct Custodial Transfer)</option>
+                        <option value="sep_ira">SEP / Solo 401(k) (Up to $69,000 / yr)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1">Designated Beneficiary (Optional)</label>
+                    <input type="text" x-model="beneficiaryName" placeholder="e.g. Spouse / Trust / Family Member" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none text-xs" />
+                    <span class="text-[10px] text-content-tertiary font-mono">You can update your beneficiaries anytime in Account Settings.</span>
+                </div>
+
+                <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary leading-relaxed">
+                    By confirming, TradeXEdge will establish a segregated, tax-advantaged retirement sub-account under your primary user profile with automated DRIP compounding.
+                </div>
+
+                <div x-show="openError" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-bold" x-text="openError"></div>
+                <div x-show="openSuccess" class="p-3 rounded-xl bg-gain/10 border border-gain/30 text-gain text-xs font-bold" x-text="openSuccess"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 font-sans">
+                <button type="button" @click="openModal = false" class="px-4 py-2 rounded-xl bg-surface-overlay text-content-secondary font-bold text-xs">Cancel</button>
+                <button type="button" @click="submitOpenAccount()" :disabled="openSubmitting" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center space-x-1.5">
+                    <span x-text="openSubmitting ? 'Provisioning...' : 'Open Retirement IRA &rarr;'"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,1417 @@
+<%- include('../partials/header') %>
+
+<!-- ============================================================================== -->
+<!-- 1. STREAMING HIGH-FREQUENCY LIVE MARKET TICKER RIBBON                          -->
+<!-- ============================================================================== -->
+<div class="w-full bg-slate-900 border-b border-slate-800 overflow-hidden py-2.5 relative z-20" x-data="{
+    rates: <%- JSON.stringify(typeof livePrices !== 'undefined' ? livePrices : {}) %>,
+    init() {
+        setInterval(() => {
+            fetch('/api/market/prices').then(r => r.json()).then(d => {
+                if (d && d.prices) this.rates = d.prices;
+            }).catch(e => {});
+        }, 2500);
+    }
+}">
+    <div class="flex items-center space-x-8 animate-marquee whitespace-nowrap font-mono text-xs text-slate-300">
+        <!-- Repeating Ticker Stream -->
+        <template x-for="i in 2" :key="i">
+            <div class="flex items-center space-x-8 shrink-0">
+                <!-- BTC -->
+                <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                    <strong class="text-white">BTC/USD</strong>
+                    <span class="font-bold text-amber-400" x-text="'$' + (rates['BTC']?.price || 68650).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['BTC']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['BTC']?.change24h || 0) >= 0 ? '+' : '') + (rates['BTC']?.change24h || 3.85) + '%'"></span>
+                </div>
+
+                <!-- ETH -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">ETH/USD</strong>
+                    <span class="font-bold text-indigo-400" x-text="'$' + (rates['ETH']?.price || 3645).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['ETH']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['ETH']?.change24h || 0) >= 0 ? '+' : '') + (rates['ETH']?.change24h || 2.95) + '%'"></span>
+                </div>
+
+                <!-- NVDA -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">NVDA</strong>
+                    <span class="font-bold text-emerald-400" x-text="'$' + (rates['NVDA']?.price || 128.5).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['NVDA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['NVDA']?.change24h || 0) >= 0 ? '+' : '') + (rates['NVDA']?.change24h || 3.20) + '%'"></span>
+                </div>
+
+                <!-- AAPL -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">AAPL</strong>
+                    <span class="font-bold text-sky-400" x-text="'$' + (rates['AAPL']?.price || 224.2).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['AAPL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['AAPL']?.change24h || 0) >= 0 ? '+' : '') + (rates['AAPL']?.change24h || 1.45) + '%'"></span>
+                </div>
+
+                <!-- TSLA -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">TSLA</strong>
+                    <span class="font-bold text-rose-400" x-text="'$' + (rates['TSLA']?.price || 218.4).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['TSLA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['TSLA']?.change24h || 0) >= 0 ? '+' : '') + (rates['TSLA']?.change24h || 2.15) + '%'"></span>
+                </div>
+
+                <!-- XAU/USD (Gold) -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">XAU/USD</strong>
+                    <span class="font-bold text-yellow-400" x-text="'$' + (rates['XAU/USD']?.price || 2418.5).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['XAU/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['XAU/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAU/USD']?.change24h || 1.45) + '%'"></span>
+                </div>
+
+                <!-- SOL -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">SOL/USD</strong>
+                    <span class="font-bold text-purple-400" x-text="'$' + (rates['SOL']?.price || 156.2).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['SOL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SOL']?.change24h || 0) >= 0 ? '+' : '') + (rates['SOL']?.change24h || 5.40) + '%'"></span>
+                </div>
+
+                <!-- SPX500 -->
+                <div class="flex items-center space-x-2">
+                    <strong class="text-white">S&P 500</strong>
+                    <span class="font-bold text-slate-200" x-text="(rates['SPX500']?.price || 5480).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="(rates['SPX500']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SPX500']?.change24h || 0) >= 0 ? '+' : '') + (rates['SPX500']?.change24h || 0.65) + '%'"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- 2. HERO SECTION: 3D INTERACTIVE PARTICLE CANVAS & DUAL-CARD SHOWCASE           -->
+<!-- ============================================================================== -->
+<section class="relative overflow-hidden pt-12 pb-24 lg:pt-20 lg:pb-32 bg-gradient-to-b from-white via-slate-50 to-surface-base">
+    <!-- 3D WebGL Canvas Layer -->
+    <div id="three-hero-container" class="canvas-3d-hero"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <!-- Left Hero Content -->
+            <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                
+                <!-- Trust & Regulation Pill -->
+                <div class="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold text-primary shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                    <span>Institutional Prime Liquidity &bull; Sub-10ms STP Execution</span>
+                </div>
+
+                <!-- Main Hero Typography -->
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-content-primary font-serif leading-[1.15]">
+                    Trade Equities, Crypto &amp; Baskets with <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Institutional Alpha</span>
+                </h1>
+
+                <p class="text-base sm:text-lg text-content-secondary leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal">
+                    Experience zero-commission fractional stock investing, deep 24/7 institutional cryptocurrency liquidity, automated quarterly dividend accrual, and 1-click master strategy copy-trading.
+                </p>
+
+                <!-- Call to Action Buttons with 3D Hover Tilt -->
+                <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                    <a href="/register" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-primary/40 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center space-x-2">
+                        <span>Open Live Account</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
+                    <a href="/copy-trading" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white hover:bg-surface-overlay text-content-primary font-bold text-sm border border-surface-border shadow-md transition transform hover:-translate-y-0.5 text-center flex items-center justify-center space-x-2">
+                        <span>Explore Master Traders</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] bg-[#D4A038]/15 text-[#D4A038] font-bold">96.5% WIN</span>
+                    </a>
+                </div>
+
+                <!-- Live Key Stats Counter -->
+                <div class="grid grid-cols-4 gap-4 pt-6 border-t border-surface-border text-center lg:text-left font-mono">
+                    <div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-content-primary font-serif">$4.8B+</p>
+                        <p class="text-[11px] text-content-tertiary font-sans">Monthly Volume</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-gain font-serif">212</p>
+                        <p class="text-[11px] text-content-tertiary font-sans">Global Nations</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-primary font-serif">Tax-Free</p>
+                        <p class="text-[11px] text-content-tertiary font-sans">Retirement IRAs</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-[#D4A038] font-serif">96.5%</p>
+                        <p class="text-[11px] text-content-tertiary font-sans">Quant Win Rate</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Interactive 3D Trading Showcase Card -->
+            <div class="lg:col-span-5 relative" x-data="{
+                activeTab: 'stocks', // 'stocks' | 'crypto' | 'commodities'
+                rates: <%- JSON.stringify(typeof livePrices !== 'undefined' ? livePrices : {}) %>,
+                init() {
+                    setInterval(() => {
+                        fetch('/api/market/prices').then(r => r.json()).then(d => {
+                            if (d && d.prices) this.rates = d.prices;
+                        }).catch(e => {});
+                    }, 2500);
+                }
+            }">
+                <div onmousemove="handleCard3DTilt(event, this)" 
+                     onmouseleave="resetCard3DTilt(this)"
+                     class="card-3d-wrap glass-card rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl relative border border-surface-border bg-white/95 backdrop-blur-md">
+                    
+                    <!-- Card Header -->
+                    <div class="flex items-center justify-between border-b border-surface-border pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-500/20 to-primary/20 text-primary flex items-center justify-center icon-3d-badge shadow-md shadow-primary/20" style="--icon-glow: #0284C7;">
+                                <svg class="w-6 h-6 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold font-serif text-content-primary">Execution Desk Pro</h3>
+                                <p class="text-[11px] text-gain flex items-center space-x-1 font-mono font-medium">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                                    <span>Direct Prime Feed &bull; Zero Slippage</span>
+                                </p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-surface-overlay text-primary font-mono text-xs font-bold border border-surface-border">STP ECN</span>
+                    </div>
+
+                    <!-- Category Tab Pills -->
+                    <div class="grid grid-cols-3 gap-1.5 p-1 bg-surface-overlay rounded-2xl border border-surface-border font-mono text-xs">
+                        <button type="button" @click="activeTab = 'stocks'" :class="activeTab === 'stocks' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-1.5 rounded-xl transition text-center">
+                            🏛️ Stocks
+                        </button>
+                        <button type="button" @click="activeTab = 'crypto'" :class="activeTab === 'crypto' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-1.5 rounded-xl transition text-center">
+                            🪙 Crypto
+                        </button>
+                        <button type="button" @click="activeTab = 'commodities'" :class="activeTab === 'commodities' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-1.5 rounded-xl transition text-center">
+                            🥇 Metals
+                        </button>
+                    </div>
+
+                    <!-- Market Rows (Dynamic Switcher) -->
+                    <div class="space-y-2.5 font-mono text-xs">
+                        <!-- STOCKS VIEW -->
+                        <div x-show="activeTab === 'stocks'" class="space-y-2" x-cloak>
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">🍏</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">AAPL</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Apple Inc &bull; 1.5% Yield</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['AAPL']?.price || 224.2).toFixed(2)">$224.20</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['AAPL']?.change24h || 0) >= 0 ? '+' : '') + (rates['AAPL']?.change24h || 1.45) + '%'">+1.45%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-sm">⚡</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">NVDA</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">NVIDIA Corp &bull; AI Compute</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['NVDA']?.price || 128.5).toFixed(2)">$128.50</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['NVDA']?.change24h || 0) >= 0 ? '+' : '') + (rates['NVDA']?.change24h || 3.20) + '%'">+3.20%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm shadow-sm">🏦</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">JPM</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">JPMorgan &bull; 3.4% Yield</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['JPM']?.price || 214.5).toFixed(2)">$214.50</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['JPM']?.change24h || 0) >= 0 ? '+' : '') + (rates['JPM']?.change24h || 0.45) + '%'">+0.45%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CRYPTO VIEW -->
+                        <div x-show="activeTab === 'crypto'" class="space-y-2" x-cloak>
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-sm shadow-sm">₿</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">BTC/USD</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Bitcoin Spot</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['BTC']?.price || 68650).toLocaleString(undefined, {minimumFractionDigits: 2})">$68,650.00</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['BTC']?.change24h || 0) >= 0 ? '+' : '') + (rates['BTC']?.change24h || 3.85) + '%'">+3.85%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-sm shadow-sm">Ξ</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">ETH/USD</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Ethereum Spot</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['ETH']?.price || 3645).toLocaleString(undefined, {minimumFractionDigits: 2})">$3,645.00</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['ETH']?.change24h || 0) >= 0 ? '+' : '') + (rates['ETH']?.change24h || 2.95) + '%'">+2.95%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-sm shadow-sm">☀️</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">SOL/USD</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Solana Spot</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['SOL']?.price || 156.2).toFixed(2)">$156.20</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['SOL']?.change24h || 0) >= 0 ? '+' : '') + (rates['SOL']?.change24h || 5.40) + '%'">+5.40%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COMMODITIES VIEW -->
+                        <div x-show="activeTab === 'commodities'" class="space-y-2" x-cloak>
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-yellow-500/10 text-yellow-600 flex items-center justify-center font-bold text-sm shadow-sm">🥇</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">XAU/USD</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Spot Gold Bullion</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['XAU/USD']?.price || 2418.5).toLocaleString(undefined, {minimumFractionDigits: 2})">$2,418.50</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['XAU/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAU/USD']?.change24h || 1.45) + '%'">+1.45%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-slate-500/10 text-slate-600 flex items-center justify-center font-bold text-sm shadow-sm">🥈</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">XAG/USD</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">Spot Silver</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['XAG/USD']?.price || 31.25).toFixed(2)">$31.25</span>
+                                    <span class="block text-[10px] text-gain font-bold" x-text="((rates['XAG/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAG/USD']?.change24h || 2.10) + '%'">+2.10%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-overlay border border-surface-border hover:border-primary/40 transition">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold text-sm shadow-sm">🛢️</span>
+                                    <div>
+                                        <span class="font-bold text-content-primary">USOIL</span>
+                                        <span class="block text-[10px] text-content-tertiary font-sans">WTI Crude Oil</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-content-primary text-sm" x-text="'$' + (rates['USOIL']?.price || 78.4).toFixed(2)">$78.40</span>
+                                    <span class="block text-[10px] text-loss font-bold">-0.85%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instant Quick Trade Demo CTA -->
+                    <a href="/register" class="w-full block py-3.5 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-xs text-center shadow-lg shadow-gain/20 transition">
+                        Start Trading with $10,000 Demo Funds &rarr;
+                    </a>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- LIVE 3D THREE.JS CANVAS SCRIPT -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('three-hero-container');
+    if (!container || typeof THREE === 'undefined') return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const particleCount = 240;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    const color1 = new THREE.Color(0x0284C7); // Azure
+    const color2 = new THREE.Color(0x10B981); // Emerald
+    const color3 = new THREE.Color(0x6366F1); // Indigo
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const r = 2.4 + Math.random() * 0.5;
+
+        positions[i] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i + 2] = r * Math.cos(phi);
+
+        const mixedColor = color1.clone().lerp(color2, Math.random()).lerp(color3, Math.random() * 0.5);
+        colors[i] = mixedColor.r;
+        colors[i + 1] = mixedColor.g;
+        colors[i + 2] = mixedColor.b;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+        size: 0.045,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    // Outer Gyroscope Rings
+    const ringGeo = new THREE.TorusGeometry(2.8, 0.015, 16, 100);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x0284C7, transparent: true, opacity: 0.25 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    scene.add(ring);
+
+    // Inner Wireframe Icosahedron
+    const icoGeo = new THREE.IcosahedronGeometry(1.8, 1);
+    const icoMat = new THREE.MeshBasicMaterial({ color: 0x6366F1, wireframe: true, transparent: true, opacity: 0.15 });
+    const ico = new THREE.Mesh(icoGeo, icoMat);
+    scene.add(ico);
+
+    camera.position.z = 4.6;
+
+    let mouseX = 0, mouseY = 0;
+    window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 0.5;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 0.5;
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        particles.rotation.y += 0.0018;
+        particles.rotation.x += 0.0008;
+        ring.rotation.x += 0.002;
+        ring.rotation.y += 0.001;
+        ico.rotation.y -= 0.0015;
+        ico.rotation.x -= 0.001;
+
+        particles.rotation.x += (mouseY - particles.rotation.x) * 0.05;
+        particles.rotation.y += (mouseX - particles.rotation.y) * 0.05;
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        if (!container) return;
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+});
+</script>
+
+
+<!-- ============================================================================== -->
+<!-- 2B. INSTITUTIONAL TRUST, REGULATORY & CUSTODIAL GUARANTEE BAR                  -->
+<!-- ============================================================================== -->
+<section class="py-6 bg-surface-base border-b border-surface-border relative z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-center font-mono text-xs">
+            
+            <!-- Trust 1: SIPC Custody -->
+            <div class="flex items-center space-x-3.5 p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm hover:border-gain/40 transition">
+                <div class="w-10 h-10 rounded-xl bg-gain/15 text-gain flex items-center justify-center text-lg font-bold shrink-0 icon-3d-badge shadow-sm shadow-gain/20" style="--icon-glow: #10B981;">
+                    <span class="icon-floating">🛡️</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-content-primary font-serif text-xs leading-tight">SIPC Custodial Vaults</h4>
+                    <span class="text-[11px] text-content-tertiary font-sans">Segregated Client Assets</span>
+                </div>
+            </div>
+
+            <!-- Trust 2: Latency -->
+            <div class="flex items-center space-x-3.5 p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm hover:border-primary/40 transition">
+                <div class="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center text-lg font-bold shrink-0 icon-3d-badge shadow-sm shadow-primary/20" style="--icon-glow: #0284C7;">
+                    <span class="icon-floating">⚡</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-content-primary font-serif text-xs leading-tight">Equinix NY4/LD4 Fiber</h4>
+                    <span class="text-[11px] text-content-tertiary font-sans">&lt;10ms Optical STP Route</span>
+                </div>
+            </div>
+
+            <!-- Trust 3: Cold Storage -->
+            <div class="flex items-center space-x-3.5 p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm hover:border-amber-500/40 transition">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center text-lg font-bold shrink-0 icon-3d-badge shadow-sm shadow-amber-500/20" style="--icon-glow: #F59E0B;">
+                    <span class="icon-floating">🔒</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-content-primary font-serif text-xs leading-tight">Multi-Sig Cold Storage</h4>
+                    <span class="text-[11px] text-content-tertiary font-sans">100% Offline Insured Crypto</span>
+                </div>
+            </div>
+
+            <!-- Trust 4: 212 Nations -->
+            <div class="flex items-center space-x-3.5 p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm hover:border-indigo-500/40 transition">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-600 flex items-center justify-center text-lg font-bold shrink-0 icon-3d-badge shadow-sm shadow-indigo-500/20" style="--icon-glow: #6366F1;">
+                    <span class="icon-floating">🌐</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-content-primary font-serif text-xs leading-tight">212 Global Territories</h4>
+                    <span class="text-[11px] text-content-tertiary font-sans">Fully Compliant Onboarding</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================================== -->
+<!-- 3. INSTITUTIONAL MULTI-ASSET SUITE: ISOMETRIC LEVITATING CARD SHOWCASE         -->
+<!-- ============================================================================== -->
+<section class="py-24 bg-white border-y border-surface-border relative overflow-hidden" x-data="{
+    selectedDesk: 'equities', // 'equities' | 'crypto' | 'copy' | 'baskets' | 'webtrade'
+    desks: {
+        equities: {
+            title: 'Fractional Equities',
+            tag: 'Blue-Chip Wall Street Stocks',
+            icon: '🏛️',
+            stat: '0 Commission &bull; 1.5% Yield',
+            highlight: 'AAPL, NVDA, MSFT, AMZN',
+            desc: 'Acquire high-performing US equities for as little as $10 with automated quarterly dividend yield compounding and zero custodial friction.',
+            ctaText: 'Invest in Stocks &rarr;',
+            ctaLink: '/register',
+            glowColor: 'rgba(2, 132, 199, 0.35)',
+            badgeBg: 'bg-sky-500/15 text-sky-600 border-sky-500/30',
+            liveRate: '$224.20',
+            rateSymbol: 'AAPL Spot',
+            change: '+1.45%'
+        },
+        crypto: {
+            title: '24/7 Prime Crypto Desk',
+            tag: 'Deep Institutional Liquidity',
+            icon: '🪙',
+            stat: '0.0 Spread &bull; Instant Settlement',
+            highlight: 'BTC, ETH, SOL, AVAX',
+            desc: 'Direct optical connectivity into global order books. Trade spot or prime crypto derivatives with sub-second execution and multi-sig cold vault custody.',
+            ctaText: 'Trade Crypto &rarr;',
+            ctaLink: '/register',
+            glowColor: 'rgba(245, 158, 11, 0.35)',
+            badgeBg: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+            liveRate: '$68,650.00',
+            rateSymbol: 'BTC/USD Spot',
+            change: '+3.85%'
+        },
+        copy: {
+            title: 'Copy Trading Alpha',
+            tag: 'Verified Quant Replication',
+            icon: '👥',
+            stat: '96.5% Win Rate &bull; +510% ROI',
+            highlight: 'Sophia Vanguard, Alpha Quantum',
+            desc: 'Automate your wealth creation by mirroring top-tier proprietary hedge fund managers with automated lot scaling and instant profit payouts.',
+            ctaText: 'Explore Masters &rarr;',
+            ctaLink: '/copy-trading',
+            glowColor: 'rgba(212, 160, 56, 0.4)',
+            badgeBg: 'bg-[#D4A038]/15 text-[#D4A038] border-[#D4A038]/30',
+            liveRate: '+510.0%',
+            rateSymbol: 'Peak Quant ROI',
+            change: 'Audited'
+        },
+        baskets: {
+            title: 'Thematic ETF Baskets',
+            tag: 'Curated Thematic Portfolios',
+            icon: '🧺',
+            stat: '+38.4% Ann. Return',
+            highlight: 'AI Titans, Mag 7, Dividend Aristocrats',
+            desc: 'One-click thematic diversification into specialized baskets designed by quantitative research analysts for superior compound risk-adjusted growth.',
+            ctaText: 'View Baskets &rarr;',
+            ctaLink: '/register',
+            glowColor: 'rgba(16, 185, 129, 0.35)',
+            badgeBg: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
+            liveRate: '+38.4%',
+            rateSymbol: 'AI Titans Return',
+            change: 'Annualized'
+        },
+        webtrade: {
+            title: 'WebTrader Prime Terminal',
+            tag: 'Ultra Low-Latency ECN STP',
+            icon: '⚡',
+            stat: '< 10ms Latency &bull; 1:100 Leverage',
+            highlight: 'TradingView Engine &bull; Cross-Connects',
+            desc: 'Institutional browser-based execution terminal equipped with 100+ technical indicators, depth-of-market ladder, and optical fiber cross-connects.',
+            ctaText: 'Launch WebTrader &rarr;',
+            ctaLink: '/webtrade',
+            glowColor: 'rgba(99, 102, 241, 0.35)',
+            badgeBg: 'bg-indigo-500/15 text-indigo-600 border-indigo-500/30',
+            liveRate: '< 8.4ms',
+            rateSymbol: 'NY4 Cross-Connect',
+            change: 'Live Fiber'
+        }
+    }
+}">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        
+        <!-- Section Header -->
+        <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+            <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono uppercase tracking-wider">INSTITUTIONAL SUITE</span>
+            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-serif">One Prime Account. Endless Alpha.</h2>
+            <p class="text-sm sm:text-base text-content-secondary">Explore our 5 specialized institutional desks unified within an isometric 3D prime trading engine.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <!-- LEFT COLUMN: THE ISOMETRIC LEVITATING CARD SHOWCASE -->
+            <div class="lg:col-span-6 flex items-center justify-center relative py-12">
+                
+                <!-- Isometric 3D Perspective Stage -->
+                <div class="isometric-stage relative w-full max-w-md">
+                    
+                    <!-- Ambient Levitating Drop Shadow on the Floor Plane -->
+                    <div class="iso-shadow absolute -bottom-10 left-1/2 -translate-x-1/2 w-72 h-16 bg-slate-900/40 rounded-full blur-2xl pointer-events-none transition-all duration-700"
+                         :style="'box-shadow: 0 0 60px 20px ' + desks[selectedDesk].glowColor"></div>
+
+                    <!-- THE ISOMETRIC LEVITATING CARD -->
+                    <div class="iso-levitating-card w-full rounded-[2.5rem] p-7 sm:p-9 border-2 border-white/80 bg-gradient-to-br from-white via-slate-50/95 to-slate-100/90 backdrop-blur-2xl shadow-2xl relative overflow-hidden preserve-3d cursor-pointer"
+                         :style="'box-shadow: -20px 30px 50px -10px rgba(15, 23, 42, 0.18), 0 0 40px -5px ' + desks[selectedDesk].glowColor">
+                        
+                        <!-- Metallic Micro-Mesh Pattern Overlay -->
+                        <div class="absolute inset-0 bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none"></div>
+
+                        <!-- Top Card Brand & EMV Holographic Security Chip -->
+                        <div class="flex items-center justify-between border-b border-surface-border/80 pb-5 layer-z-20">
+                            <div class="flex items-center space-x-3">
+                                <!-- EMV Metallic Chip -->
+                                <div class="w-10 h-7 rounded-lg bg-gradient-to-tr from-amber-300 via-amber-100 to-amber-400 border border-amber-500/40 shadow-sm flex items-center justify-center relative overflow-hidden">
+                                    <div class="w-full h-px bg-amber-600/40 absolute top-2"></div>
+                                    <div class="w-full h-px bg-amber-600/40 absolute bottom-2"></div>
+                                    <div class="h-full w-px bg-amber-600/40 absolute left-3"></div>
+                                    <div class="h-full w-px bg-amber-600/40 absolute right-3"></div>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-extrabold tracking-widest text-content-tertiary uppercase font-mono block">TRADEXEDGE PRIME</span>
+                                    <span class="text-xs font-bold text-content-primary font-serif">INSTITUTIONAL DESK</span>
+                                </div>
+                            </div>
+
+                            <!-- Desk Category Pill -->
+                            <span class="px-3 py-1 rounded-full text-[11px] font-extrabold font-mono border shadow-sm transition-all duration-300"
+                                  :class="desks[selectedDesk].badgeBg"
+                                  x-text="desks[selectedDesk].tag"></span>
+                        </div>
+
+                        <!-- Floating 3D Desk Identity & Icon -->
+                        <div class="py-6 space-y-3 layer-z-30">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-14 h-14 rounded-2xl bg-white shadow-xl border border-surface-border flex items-center justify-center text-3xl icon-3d-badge"
+                                     :style="'--icon-glow: ' + desks[selectedDesk].glowColor">
+                                    <span class="icon-floating" x-text="desks[selectedDesk].icon"></span>
+                                </div>
+                                <div>
+                                    <h3 class="text-2xl font-extrabold font-serif text-content-primary tracking-tight transition-all duration-300"
+                                        x-text="desks[selectedDesk].title"></h3>
+                                    <p class="text-xs font-mono text-content-secondary"
+                                       x-text="desks[selectedDesk].highlight"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Holographic Metrics Telemetry Box (Floats at +30px Z-depth) -->
+                        <div class="p-4 bg-white/90 rounded-2xl border border-surface-border shadow-md space-y-2 layer-z-20 font-mono text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] text-content-tertiary uppercase font-sans font-bold" x-text="desks[selectedDesk].rateSymbol"></span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-gain/15 text-gain font-mono" x-text="desks[selectedDesk].change"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-2xl font-extrabold text-content-primary font-serif" x-text="desks[selectedDesk].liveRate"></span>
+                                <span class="text-[11px] font-bold text-primary" x-text="desks[selectedDesk].stat"></span>
+                            </div>
+                        </div>
+
+                        <!-- Card Footer: Multi-Asset Security Guarantee -->
+                        <div class="pt-5 flex items-center justify-between text-[11px] font-mono text-content-tertiary layer-z-10 border-t border-surface-border/60 mt-4">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                                <span>Zero Counterparty Risk</span>
+                            </div>
+                            <span>Tier-1 Custody Vaults</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN: INTERACTIVE DESK SELECTORS & EDITORIAL -->
+            <div class="lg:col-span-6 space-y-6">
+                
+                <div class="space-y-3">
+                    <span class="text-xs font-extrabold font-mono text-primary uppercase tracking-widest block">Interactive Multi-Asset Architecture</span>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold font-serif text-content-primary leading-tight">
+                        Switch Seamlessly Across Global Financial Markets
+                    </h3>
+                    <p class="text-sm text-content-secondary leading-relaxed"
+                       x-text="desks[selectedDesk].desc"></p>
+                </div>
+
+                <!-- 5 Interactive Desk Selector Cards -->
+                <div class="space-y-2.5 font-mono text-xs">
+                    
+                    <!-- Desk 1 -->
+                    <div @click="selectedDesk = 'equities'"
+                         :class="selectedDesk === 'equities' ? 'border-primary bg-primary/5 shadow-md -translate-y-0.5' : 'border-surface-border bg-surface-overlay/50 hover:bg-surface-overlay hover:border-surface-border'"
+                         class="p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">🏛️</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight">Fractional Equities</h4>
+                                <span class="text-[11px] text-content-tertiary font-sans">Apple, Nvidia, Microsoft, Amazon &bull; 0 Commission</span>
+                            </div>
+                        </div>
+                        <span :class="selectedDesk === 'equities' ? 'text-primary font-bold' : 'text-content-tertiary group-hover:text-content-primary'" class="text-xs font-sans">Select &rarr;</span>
+                    </div>
+
+                    <!-- Desk 2 -->
+                    <div @click="selectedDesk = 'crypto'"
+                         :class="selectedDesk === 'crypto' ? 'border-amber-500 bg-amber-500/5 shadow-md -translate-y-0.5' : 'border-surface-border bg-surface-overlay/50 hover:bg-surface-overlay hover:border-surface-border'"
+                         class="p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">🪙</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight">24/7 Prime Crypto Desk</h4>
+                                <span class="text-[11px] text-content-tertiary font-sans">Bitcoin, Ethereum, Solana &bull; Sub-Second Settlement</span>
+                            </div>
+                        </div>
+                        <span :class="selectedDesk === 'crypto' ? 'text-amber-500 font-bold' : 'text-content-tertiary group-hover:text-content-primary'" class="text-xs font-sans">Select &rarr;</span>
+                    </div>
+
+                    <!-- Desk 3 -->
+                    <div @click="selectedDesk = 'copy'"
+                         :class="selectedDesk === 'copy' ? 'border-[#D4A038] bg-[#D4A038]/5 shadow-md -translate-y-0.5' : 'border-surface-border bg-surface-overlay/50 hover:bg-surface-overlay hover:border-surface-border'"
+                         class="p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">👥</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight">Copy Trading Alpha</h4>
+                                <span class="text-[11px] text-content-tertiary font-sans">Verified Hedge Fund Quants &bull; 96.5% Audited Win Rate</span>
+                            </div>
+                        </div>
+                        <span :class="selectedDesk === 'copy' ? 'text-[#D4A038] font-bold' : 'text-content-tertiary group-hover:text-content-primary'" class="text-xs font-sans">Select &rarr;</span>
+                    </div>
+
+                    <!-- Desk 4 -->
+                    <div @click="selectedDesk = 'baskets'"
+                         :class="selectedDesk === 'baskets' ? 'border-gain bg-gain/5 shadow-md -translate-y-0.5' : 'border-surface-border bg-surface-overlay/50 hover:bg-surface-overlay hover:border-surface-border'"
+                         class="p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">🧺</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight">Thematic ETF Baskets</h4>
+                                <span class="text-[11px] text-content-tertiary font-sans">AI Titans &amp; Dividend Aristocrats &bull; +38.4% Return</span>
+                            </div>
+                        </div>
+                        <span :class="selectedDesk === 'baskets' ? 'text-gain font-bold' : 'text-content-tertiary group-hover:text-content-primary'" class="text-xs font-sans">Select &rarr;</span>
+                    </div>
+
+                    <!-- Desk 5 -->
+                    <div @click="selectedDesk = 'webtrade'"
+                         :class="selectedDesk === 'webtrade' ? 'border-indigo-500 bg-indigo-500/5 shadow-md -translate-y-0.5' : 'border-surface-border bg-surface-overlay/50 hover:bg-surface-overlay hover:border-surface-border'"
+                         class="p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">⚡</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight">WebTrader Prime Terminal</h4>
+                                <span class="text-[11px] text-content-tertiary font-sans">TradingView Integration &bull; Sub-10ms Optical Cross-Connect</span>
+                            </div>
+                        </div>
+                        <span :class="selectedDesk === 'webtrade' ? 'text-indigo-500 font-bold' : 'text-content-tertiary group-hover:text-content-primary'" class="text-xs font-sans">Select &rarr;</span>
+                    </div>
+
+                </div>
+
+                <!-- 1-Click Action Button -->
+                <div class="pt-2">
+                    <a :href="desks[selectedDesk].ctaLink" 
+                       class="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-primary/40 transition transform hover:-translate-y-0.5">
+                        <span x-html="desks[selectedDesk].ctaText"></span>
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ============================================================================== -->
+<!-- 3B. THEMATIC STOCK BASKETS & DIVIDEND PORTFOLIOS PREVIEW                       -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-surface-base border-b border-surface-border" x-data="{
+    activeBasket: 'ai_titans',
+    baskets: <%- JSON.stringify(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>
+}">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div class="space-y-2 max-w-2xl">
+                <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono uppercase tracking-wider">
+                    <span>🧺 ALGORITHMIC DIVERSIFICATION</span>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">
+                    Thematic Stock Baskets with <span class="text-primary">Automated Dividends</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-content-secondary font-normal">
+                    Invest by market theme in a single tap. Fractional blue-chip equities are automatically weighted, balanced, and credited with quarterly dividend distributions.
+                </p>
+            </div>
+
+            <!-- Basket Pills Switcher -->
+            <div class="flex items-center space-x-2 p-1.5 bg-white rounded-2xl border border-surface-border shadow-sm font-mono text-xs overflow-x-auto">
+                <template x-for="(b, key) in baskets" :key="key">
+                    <button type="button" @click="activeBasket = key"
+                            :class="activeBasket === key ? 'bg-primary text-white font-bold shadow-md' : 'text-content-secondary hover:text-content-primary'"
+                            class="px-4 py-2 rounded-xl transition flex items-center space-x-2 shrink-0">
+                        <span x-text="b.icon"></span>
+                        <span x-text="b.name.split(' ')[0]"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Dynamic Selected Basket Showcase Card -->
+        <template x-if="baskets[activeBasket]">
+            <div class="glass-card rounded-3xl p-6 sm:p-9 border border-surface-border bg-white shadow-xl space-y-6">
+                
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-surface-border pb-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold shadow-inner"
+                             x-text="baskets[activeBasket].icon"></div>
+                        <div>
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-xl sm:text-2xl font-bold font-serif text-content-primary" x-text="baskets[activeBasket].name"></h3>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-gain/15 text-gain border border-gain/20"
+                                      x-text="baskets[activeBasket].riskLevel + ' Risk'"></span>
+                            </div>
+                            <p class="text-xs text-content-secondary mt-1" x-text="baskets[activeBasket].tagline"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-6 font-mono">
+                        <div>
+                            <span class="text-[10px] text-content-tertiary uppercase block">Annualized Target</span>
+                            <span class="text-2xl font-extrabold text-gain font-serif" x-text="'+' + baskets[activeBasket].annualizedReturn + '%'"></span>
+                        </div>
+                        <div class="border-l border-surface-border pl-6">
+                            <span class="text-[10px] text-content-tertiary uppercase block">Quarterly Dividend</span>
+                            <span class="text-2xl font-extrabold text-primary font-serif" x-text="baskets[activeBasket].dividendYield + '% Yield'"></span>
+                        </div>
+                        <a href="/register" class="hidden sm:inline-flex px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/20 transition font-sans">
+                            Invest in Basket &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Basket Holdings Visual Progress Bars -->
+                <div class="space-y-3">
+                    <span class="text-[11px] font-mono uppercase font-bold text-content-tertiary tracking-wider block">
+                        Constituent Stock Holdings &amp; Target Allocations
+                    </span>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 font-mono text-xs">
+                        <template x-for="h in baskets[activeBasket].holdings" :key="h.symbol">
+                            <div class="p-3 rounded-2xl bg-surface-overlay border border-surface-border flex items-center justify-between">
+                                <div>
+                                    <strong class="text-content-primary font-bold block" x-text="h.symbol"></strong>
+                                    <span class="text-[10px] text-content-tertiary font-sans" x-text="h.name"></span>
+                                </div>
+                                <span class="px-2 py-1 rounded-lg bg-white border border-surface-border font-bold text-primary text-[11px] shadow-sm"
+                                      x-text="Math.round(h.weight * 100) + '%'"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+
+    </div>
+</section>
+
+
+
+<!-- ============================================================================== -->
+<!-- 4. EFFORTLESS WEALTH: PROPRIETARY COPY TRADING SPOTLIGHT                       -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-surface-base border-t border-surface-border relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <!-- Left: High-Impact Lifestyle Image Showcase with 3D Parallax & Floating Telemetry -->
+            <div class="lg:col-span-6 relative">
+                <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                     class="card-3d-wrap relative rounded-3xl overflow-hidden shadow-2xl border-2 border-white group">
+                    
+                    <img src="/images/digital_nomad_trader.jpg" 
+                         alt="Digital Nomad Trader Generating Passive Alpha Anywhere with TradeXEdge Copy Trading" 
+                         class="w-full h-[540px] object-cover object-top rounded-3xl transform group-hover:scale-105 transition duration-700 ease-out shadow-2xl" />
+                    
+                    <!-- Ambient Bottom Gradient -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition duration-500"></div>
+
+                    <!-- Floating Performance Badge 1: Top Left -->
+                    <div class="absolute top-6 left-6 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/60 shadow-xl flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gain/15 text-gain flex items-center justify-center font-bold text-lg">
+                            📈
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-content-tertiary uppercase font-bold tracking-wider block font-sans">Top Quant ROI</span>
+                            <span class="text-sm font-extrabold text-gain font-mono">+510.0% All-Time</span>
+                        </div>
+                    </div>
+
+                    <!-- Floating Performance Badge 2: Bottom Right -->
+                    <div class="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-slate-700 shadow-2xl text-right">
+                        <div class="flex items-center justify-end space-x-1.5 text-[11px] text-amber-400 font-bold mb-0.5">
+                            <span>👑 Verified Master STP</span>
+                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                        </div>
+                        <p class="text-xs text-white font-mono font-bold">1-Click Auto Replication</p>
+                        <p class="text-[10px] text-slate-300">Zero Trading Experience Needed</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right: Compelling Copy Trading Editorial, Live Mini-Leaderboard & Metrics -->
+            <div class="lg:col-span-6 space-y-6 text-center lg:text-left">
+                
+                <div class="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-[#D4A038]/10 border border-[#D4A038]/20 text-xs font-bold text-[#D4A038] shadow-sm font-mono">
+                    <span>👑 PROPRIETARY COPY TRADING</span>
+                </div>
+
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-serif leading-tight">
+                    Effortless Passive Alpha. <br/>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-indigo-600 to-[#D4A038]">Mirror Elite Wall Street Quants.</span>
+                </h2>
+
+                <p class="text-base text-content-secondary leading-relaxed font-normal">
+                    You don't need years of technical analysis or complex coding to trade like an institutional hedge fund. Select from our audited directory of top-tier proprietary quants, set your desired allocation, and let verified automated algorithms execute every trade directly in your account.
+                </p>
+
+                <!-- Value Highlights 4-Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1 text-left font-mono">
+                    <div class="p-3 rounded-2xl bg-white border border-surface-border shadow-sm">
+                        <span class="text-xl font-extrabold text-gain font-serif block">+510.0%</span>
+                        <span class="text-[11px] font-bold text-content-primary font-sans">Peak ROI</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white border border-surface-border shadow-sm">
+                        <span class="text-xl font-extrabold text-primary font-serif block">97.2%</span>
+                        <span class="text-[11px] font-bold text-content-primary font-sans">Win Rate</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white border border-surface-border shadow-sm">
+                        <span class="text-xl font-extrabold text-[#D4A038] font-serif block">100%</span>
+                        <span class="text-[11px] font-bold text-content-primary font-sans">Custody</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white border border-surface-border shadow-sm">
+                        <span class="text-xl font-extrabold text-content-primary font-serif block">&lt; 10ms</span>
+                        <span class="text-[11px] font-bold text-content-primary font-sans">STP Route</span>
+                    </div>
+                </div>
+
+                <!-- LIVE MASTER TRADER MINI-LEADERBOARD WIDGET -->
+                <div class="space-y-2.5 font-mono text-xs pt-1 text-left">
+                    <div class="flex items-center justify-between text-content-tertiary text-[11px]">
+                        <span class="uppercase tracking-wider font-bold">Top Verified Quant Masters</span>
+                        <span class="text-gain font-bold flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                            <span>Live STP Execution</span>
+                        </span>
+                    </div>
+
+                    <!-- Mini-Table of Top Masters -->
+                    <div class="space-y-2">
+                        <% if (typeof masters !== 'undefined' && masters && masters.length > 0) { %>
+                            <% masters.slice(0, 3).forEach(m => { %>
+                                <div class="p-3 rounded-2xl bg-white border border-surface-border shadow-sm hover:border-[#D4A038]/50 transition flex items-center justify-between gap-3">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-9 h-9 rounded-xl bg-surface-overlay border border-surface-border flex items-center justify-center text-lg overflow-hidden shrink-0">
+                                            <%= m.avatar || '👨‍💼' %>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center space-x-2">
+                                                <h4 class="font-bold text-content-primary font-serif text-xs"><%= m.name %></h4>
+                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#D4A038]/15 text-[#D4A038]">VERIFIED</span>
+                                            </div>
+                                            <p class="text-[10px] text-content-tertiary font-sans"><%= m.strategy_name %> &bull; <%= m.win_rate %>% Win Rate</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <div class="text-right">
+                                            <span class="text-sm font-extrabold text-gain font-serif block">+<%= m.total_roi %>%</span>
+                                            <span class="text-[9px] text-content-tertiary font-mono">All-Time ROI</span>
+                                        </div>
+                                        <a href="/copy-trading" class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary hover:text-white text-primary text-[11px] font-bold font-sans transition shrink-0">
+                                            Mirror &rarr;
+                                        </a>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Call to Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                    <a href="/copy-trading" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-primary/40 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center space-x-2">
+                        <span>Explore 50+ Verified Master Traders</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
+                    <a href="/register" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white hover:bg-surface-overlay text-content-primary font-bold text-sm border border-surface-border shadow-md transition transform hover:-translate-y-0.5 text-center flex items-center justify-center space-x-2">
+                        <span>Start Copying from $500</span>
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+
+
+<!-- ============================================================================== -->
+<!-- 4B. GENERATIONAL WEALTH: TAX-ADVANTAGED RETIREMENT TRADING IRAs                -->
+<!-- ============================================================================== -->
+<section class="py-24 bg-gradient-to-b from-white via-emerald-50/25 to-white border-t border-surface-border relative overflow-hidden">
+    <!-- Ambient Background Glows -->
+    <div class="absolute -top-40 left-10 w-96 h-96 bg-gain/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+        
+        <!-- Section Header / Copywriting -->
+        <div class="text-center space-y-3 mb-16 max-w-3xl mx-auto">
+            <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-gain/10 border border-gain/20 text-gain text-xs font-bold font-mono uppercase tracking-wider shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                <span>TAX-ADVANTAGED WEALTH PRESERVATION</span>
+            </div>
+            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-serif leading-tight">
+                Retire on Your Terms with <span class="text-gain">Tax-Free Trading IRAs</span>
+            </h2>
+            <p class="text-sm sm:text-base text-content-secondary leading-relaxed font-normal">
+                Compound your lifetime wealth with zero capital gains tax drag. Allocate fractional equities, dividend aristocrats, and insured crypto inside segregated, SIPC-backed retirement vaults.
+            </p>
+        </div>
+
+        <!-- 2-Column Showcase: Zigzag Visual Rhythm (Card on LEFT, Feature Photo on RIGHT) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            
+            <!-- Left 6 Cols (order-2 lg:order-1): Isometric Levitating Card -->
+            <div class="lg:col-span-6 order-2 lg:order-1 flex flex-col items-center lg:items-start justify-center">
+                
+                <div class="isometric-stage w-full max-w-[460px] py-6">
+                    
+                    <!-- 3D Isometric Levitating Card -->
+                    <div class="iso-levitating-card relative rounded-3xl p-7 sm:p-8 space-y-6 shadow-2xl border-2 border-gain/30 bg-gradient-to-br from-white via-emerald-50/20 to-white text-content-primary preserve-3d"
+                         style="box-shadow: 0 35px 65px -15px rgba(16, 185, 129, 0.25), 0 20px 35px -10px rgba(0, 0, 0, 0.1);">
+                        
+                        <!-- Layer 1: Card Header with Chip & Status -->
+                        <div class="flex items-center justify-between border-b border-surface-border/70 pb-4 layer-z-20">
+                            <div class="flex items-center space-x-3">
+                                <!-- EMV Hologram Chip -->
+                                <div class="w-10 h-7 rounded-md bg-gradient-to-tr from-amber-400 via-yellow-200 to-amber-500 border border-amber-300 shadow-inner flex items-center justify-center">
+                                    <div class="w-6 h-4 border border-amber-600/40 rounded-sm"></div>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-mono text-content-tertiary uppercase tracking-wider block">Custodial Vault</span>
+                                    <strong class="text-xs font-serif font-bold text-content-primary">Tax-Free Roth IRA #80001</strong>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full bg-gain/15 text-gain text-[10px] font-mono font-bold flex items-center space-x-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                                <span>TAX-FREE</span>
+                            </span>
+                        </div>
+
+                        <!-- Layer 2: Main Highlight Metric -->
+                        <div class="space-y-1 layer-z-30">
+                            <span class="text-[10px] font-mono uppercase text-content-tertiary tracking-wider block">2026 Annual Contribution Room</span>
+                            <div class="flex items-baseline justify-between">
+                                <p class="text-3xl sm:text-4xl font-extrabold font-serif font-mono text-content-primary">$7,000<span class="text-sm font-normal text-content-secondary"> / yr</span></p>
+                                <span class="text-xs font-mono text-gain font-bold">0.0% Capital Gains Drag</span>
+                            </div>
+                        </div>
+
+                        <!-- Layer 3: Minimal but Necessary Institutional Highlights -->
+                        <div class="space-y-2.5 font-sans text-xs layer-z-20">
+                            
+                            <!-- Point 1 -->
+                            <div class="flex items-center space-x-3 p-2.5 rounded-xl bg-surface-overlay/80 border border-surface-border">
+                                <div class="w-7 h-7 rounded-lg bg-gain/15 text-gain flex items-center justify-center text-sm font-bold shrink-0">
+                                    🏛️
+                                </div>
+                                <div>
+                                    <strong class="text-content-primary block font-medium">Multi-Asset Allocation</strong>
+                                    <span class="text-[11px] text-content-tertiary">Fractional Stocks, Thematic Baskets &amp; Insured Crypto</span>
+                                </div>
+                            </div>
+
+                            <!-- Point 2 -->
+                            <div class="flex items-center space-x-3 p-2.5 rounded-xl bg-surface-overlay/80 border border-surface-border">
+                                <div class="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                                    🔄
+                                </div>
+                                <div>
+                                    <strong class="text-content-primary block font-medium">Automated DRIP Compounding</strong>
+                                    <span class="text-[11px] text-content-tertiary">Dividends Automatically Buy Fractional Shares</span>
+                                </div>
+                            </div>
+
+                            <!-- Point 3 -->
+                            <div class="flex items-center space-x-3 p-2.5 rounded-xl bg-surface-overlay/80 border border-surface-border">
+                                <div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center text-sm font-bold shrink-0">
+                                    🛡️
+                                </div>
+                                <div>
+                                    <strong class="text-content-primary block font-medium">Zero Custodial Fees</strong>
+                                    <span class="text-[11px] text-content-tertiary">SIPC Insured Custody &bull; Unlimited 401(k) Rollovers</span>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Layer 4: Prominent CTA & Calculator Link -->
+                        <div class="pt-2 space-y-3 layer-z-40 font-sans">
+                            <a href="/retirement" 
+                               class="w-full py-4 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-xl shadow-gain/25 transition transform hover:-translate-y-0.5 text-center flex items-center justify-center space-x-2">
+                                <span>Open Tax-Free IRA Account &rarr;</span>
+                            </a>
+                            
+                            <div class="text-center">
+                                <a href="/retirement#nest-egg-calc" 
+                                   class="text-[11px] font-mono text-content-secondary hover:text-gain transition inline-flex items-center space-x-1 font-bold">
+                                    <span>📈 Simulate Your Compound Nest Egg</span>
+                                    <span>&rarr;</span>
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 3D Shadow Floor Physics -->
+                    <div class="iso-shadow w-72 h-10 bg-emerald-950/20 rounded-full mx-auto -mt-3"></div>
+
+                </div>
+
+            </div>
+
+            <!-- Right 6 Cols (order-1 lg:order-2): Feature Picture of Aged Happy Retiree -->
+            <div class="lg:col-span-6 order-1 lg:order-2 relative">
+                <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                     class="card-3d-wrap relative rounded-3xl overflow-hidden shadow-2xl border-2 border-white/80 group cursor-default">
+                    
+                    <img src="/images/happy_aged_retiree.jpg" 
+                         alt="Happy Aged Retiree Enjoying Life with TradeXEdge Tax-Free Retirement IRA" 
+                         class="w-full h-[520px] object-cover object-top rounded-3xl transform group-hover:scale-105 transition duration-700 ease-out shadow-2xl" />
+                    
+                    <!-- Ambient Inner Gradient -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-75 group-hover:opacity-60 transition duration-500"></div>
+
+                    <!-- Floating Badge 1: Top Right on this side -->
+                    <div class="absolute top-6 right-6 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/60 shadow-xl flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gain/15 text-gain flex items-center justify-center font-bold text-lg">
+                            🌴
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-content-tertiary uppercase font-bold tracking-wider block font-sans">Retirement Freedom</span>
+                            <span class="text-xs font-extrabold text-gain font-mono">100% Tax-Free Compound Growth</span>
+                        </div>
+                    </div>
+
+                    <!-- Floating Badge 2: Bottom Overlay -->
+                    <div class="absolute bottom-6 left-6 right-6 bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-700 shadow-2xl flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-gain flex items-center justify-center font-bold text-base">
+                                🛡️
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 uppercase font-mono tracking-wider block">Insured Custody</span>
+                                <h4 class="text-xs font-bold text-white font-serif">SIPC Protected &bull; Direct Custodial Vault</h4>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-gain/20 text-gain text-[10px] font-mono font-bold">0.0% TAX</span>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ============================================================================== -->
+<!-- 5. INTERACTIVE PORTFOLIO & COMPOUND GROWTH CALCULATOR                          -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-white border-t border-surface-border">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="glass-card rounded-3xl p-8 sm:p-12 shadow-xl space-y-8 border border-surface-border" x-data="{
+            capital: 5000,
+            roiRate: 32,
+            months: 6,
+            strategyType: 'alpha', // 'alpha' | 'basket' | 'dividend'
+            get activeApy() {
+                if (this.strategyType === 'alpha') return 36;
+                if (this.strategyType === 'basket') return 31;
+                return 18;
+            },
+            get projectedProfit() {
+                const monthlyRate = this.activeApy / 12 / 100;
+                return this.capital * Math.pow(1 + monthlyRate, this.months) - this.capital;
+            },
+            get totalEnding() {
+                return this.capital + this.projectedProfit;
+            }
+        }">
+            
+            <div class="text-center space-y-2 max-w-xl mx-auto">
+                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">GROWTH SIMULATOR</span>
+                <h2 class="text-3xl font-extrabold text-content-primary font-serif">Simulate Your Trading Wealth</h2>
+                <p class="text-xs text-content-secondary font-mono">Project compounding returns across verified quant models, thematic stock baskets, or high-yield equities.</p>
+            </div>
+
+            <!-- Strategy Mode Selector -->
+            <div class="grid grid-cols-3 gap-2 p-1.5 bg-surface-overlay rounded-2xl border border-surface-border font-mono text-xs max-w-lg mx-auto">
+                <button type="button" @click="strategyType = 'alpha'" :class="strategyType === 'alpha' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-2 rounded-xl transition text-center">
+                    👑 Quant Alpha (~36% APY)
+                </button>
+                <button type="button" @click="strategyType = 'basket'" :class="strategyType === 'basket' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-2 rounded-xl transition text-center">
+                    🤖 AI Baskets (~31% APY)
+                </button>
+                <button type="button" @click="strategyType = 'dividend'" :class="strategyType === 'dividend' ? 'bg-white text-primary font-bold shadow-sm' : 'text-content-secondary'" class="py-2 rounded-xl transition text-center">
+                    🏛️ Dividends (~18% APY)
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                <!-- Sliders -->
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-content-primary mb-2">
+                            <span>Initial Capital ($ USD)</span>
+                            <span class="font-mono text-primary font-extrabold text-sm" x-text="'$' + Number(capital).toLocaleString()"></span>
+                        </div>
+                        <input type="range" min="500" max="100000" step="500" x-model="capital" class="w-full accent-primary h-2 bg-slate-200 rounded-lg cursor-pointer" />
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-content-primary mb-2">
+                            <span>Holding Horizon (Months)</span>
+                            <span class="font-mono text-content-primary font-extrabold text-sm" x-text="months + ' Months'"></span>
+                        </div>
+                        <input type="range" min="1" max="24" step="1" x-model="months" class="w-full accent-primary h-2 bg-slate-200 rounded-lg cursor-pointer" />
+                    </div>
+
+                    <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary font-mono">
+                        <span>Expected Strategy Rate: </span>
+                        <strong class="text-gain font-bold" x-text="activeApy + '% Annualized Target'"></strong>
+                    </div>
+                </div>
+
+                <!-- Live Results Display Box -->
+                <div class="p-6 bg-gradient-to-br from-primary/10 via-surface-overlay to-white rounded-3xl border border-primary/30 space-y-5 text-center shadow-lg">
+                    <div>
+                        <span class="text-xs text-content-tertiary uppercase font-bold tracking-wider">Projected Portfolio Balance</span>
+                        <p class="text-4xl sm:text-5xl font-extrabold text-content-primary font-serif mt-1" x-text="'$' + Number(totalEnding).toLocaleString(undefined, {maximumFractionDigits: 0})"></p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-3 border-t border-surface-border font-mono text-xs">
+                        <div class="p-3 bg-white rounded-2xl shadow-sm border border-surface-border">
+                            <span class="text-[10px] text-content-tertiary uppercase block">Projected Profit</span>
+                            <span class="text-base font-bold text-gain" x-text="'+$' + Number(projectedProfit).toLocaleString(undefined, {maximumFractionDigits: 0})"></span>
+                        </div>
+                        <div class="p-3 bg-white rounded-2xl shadow-sm border border-surface-border">
+                            <span class="text-[10px] text-content-tertiary uppercase block">Multiplier</span>
+                            <span class="text-base font-bold text-primary" x-text="(totalEnding / capital).toFixed(2) + 'x'"></span>
+                        </div>
+                    </div>
+
+                    <a href="/register" class="w-full block py-3.5 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/20 transition">
+                        Start Growing Your Capital &rarr;
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================================== -->
+<!-- 6. GLOBAL TIER-1 SECURITY & CUSTODY INFRASTRUCTURE                             -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-surface-base border-t border-surface-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+            <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">INSTITUTIONAL TRUST</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">Engineered for Maximum Security &amp; Speed</h2>
+            <p class="text-sm text-content-secondary">Every layer of TradeXEdge adheres to strict global regulatory compliance, segregated banking, and military-grade encryption.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Pillar 1: Latency -->
+            <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-7 space-y-4 border border-surface-border hover:border-sky-400/50 shadow-xl transition relative overflow-hidden group cursor-default bg-white">
+                <div class="w-12 h-12 rounded-2xl bg-sky-500/15 text-sky-500 flex items-center justify-center icon-3d-badge shadow-md shadow-sky-500/20" style="--icon-glow: #0284C7;">
+                    <svg class="w-6 h-6 icon-floating" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                </div>
+                <h3 class="text-lg font-bold text-content-primary font-serif">Sub-10ms Execution</h3>
+                <p class="text-xs text-content-secondary leading-relaxed">Direct optical cross-connects to Equinix NY4 and LD4 financial hubs ensure 0 slippage on high-speed market entries.</p>
+            </div>
+
+            <!-- Pillar 2: Custody -->
+            <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-7 space-y-4 border border-surface-border hover:border-emerald-400/50 shadow-xl transition relative overflow-hidden group cursor-default bg-white">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center icon-3d-badge shadow-md shadow-emerald-500/20" style="--icon-glow: #10B981;">
+                    <svg class="w-6 h-6 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+                <h3 class="text-lg font-bold text-content-primary font-serif">Tier-1 Cold Custody</h3>
+                <p class="text-xs text-content-secondary leading-relaxed">Client funds are strictly segregated and secured in multi-signature offline cold vaults with institutional insurance.</p>
+            </div>
+
+            <!-- Pillar 3: Copy Trading -->
+            <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-7 space-y-4 border border-surface-border hover:border-amber-400/50 shadow-xl transition relative overflow-hidden group cursor-default bg-white">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center icon-3d-badge shadow-md shadow-amber-500/20" style="--icon-glow: #F59E0B;">
+                    <svg class="w-6 h-6 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                </div>
+                <h3 class="text-lg font-bold text-content-primary font-serif">1-Click Pro Copy Trading</h3>
+                <p class="text-xs text-content-secondary leading-relaxed">Seamlessly mirror verified Wall Street algorithms with proportional lot scaling, custom stop losses, and instant profit settlement.</p>
+            </div>
+
+            <!-- Pillar 4: Pricing -->
+            <div onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
+                 class="glass-card rounded-3xl p-7 space-y-4 border border-surface-border hover:border-cyan-400/50 shadow-xl transition relative overflow-hidden group cursor-default bg-white">
+                <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center icon-3d-badge shadow-md shadow-cyan-500/20" style="--icon-glow: #06B6D4;">
+                    <svg class="w-6 h-6 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
+                </div>
+                <h3 class="text-lg font-bold text-content-primary font-serif">Zero Hidden Fees</h3>
+                <p class="text-xs text-content-secondary leading-relaxed">Transparent raw STP spreads, zero deposit or custodial fees, and automated cryptocurrency and bank wire withdrawals.</p>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ============================================================================== -->
+<!-- 7. FREQUENTLY ASKED QUESTIONS (ACCORDION)                                      -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-white border-t border-surface-border" x-data="{ activeFaq: null }">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-12">
+        <div class="text-center space-y-2">
+            <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">FAQ</span>
+            <h2 class="text-3xl font-extrabold text-content-primary font-serif">Frequently Asked Questions</h2>
+            <p class="text-xs text-content-secondary">Everything you need to know about trading, security, and withdrawals at TradeXEdge.</p>
+        </div>
+
+        <div class="space-y-4 font-sans text-sm">
+            <!-- FAQ 1 -->
+            <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/50 cursor-pointer transition" @click="activeFaq = activeFaq === 1 ? null : 1">
+                <div class="flex items-center justify-between font-bold text-content-primary">
+                    <span>How does fractional stock investing work?</span>
+                    <span class="text-lg transition-transform" :class="activeFaq === 1 ? 'rotate-180' : ''">&darr;</span>
+                </div>
+                <div x-show="activeFaq === 1" class="pt-3 text-xs text-content-secondary leading-relaxed" x-cloak>
+                    TradeXEdge allows you to invest by exact dollar amounts into blue-chip US equities (e.g. $50 in Apple or NVIDIA). Our prime brokerage engine converts your capital into exact fractional shares at live market prices and registers them directly in your custody holdings with quarterly dividend accruals.
+                </div>
+            </div>
+
+            <!-- FAQ 2 -->
+            <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/50 cursor-pointer transition" @click="activeFaq = activeFaq === 2 ? null : 2">
+                <div class="flex items-center justify-between font-bold text-content-primary">
+                    <span>How fast are deposits and withdrawals processed?</span>
+                    <span class="text-lg transition-transform" :class="activeFaq === 2 ? 'rotate-180' : ''">&darr;</span>
+                </div>
+                <div x-show="activeFaq === 2" class="pt-3 text-xs text-content-secondary leading-relaxed" x-cloak>
+                    Cryptocurrency deposits and withdrawals are processed within 15–30 minutes following network confirmation. Fiat wire transfers and card deposits settle instantly into your USD cash ledger.
+                </div>
+            </div>
+
+            <!-- FAQ 3 -->
+            <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/50 cursor-pointer transition" @click="activeFaq = activeFaq === 3 ? null : 3">
+                <div class="flex items-center justify-between font-bold text-content-primary">
+                    <span>Are client funds segregated and safe?</span>
+                    <span class="text-lg transition-transform" :class="activeFaq === 3 ? 'rotate-180' : ''">&darr;</span>
+                </div>
+                <div x-show="activeFaq === 3" class="pt-3 text-xs text-content-secondary leading-relaxed" x-cloak>
+                    Yes. All client capital is held in segregated Tier-1 custodial accounts and offline multi-signature cold vaults. Client assets are never commingled with company operating expenses.
+                </div>
+            </div>
+
+            <!-- FAQ 4 -->
+            <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/50 cursor-pointer transition" @click="activeFaq = activeFaq === 4 ? null : 4">
+                <div class="flex items-center justify-between font-bold text-content-primary">
+                    <span>Can I stop or adjust a copy trading strategy at any time?</span>
+                    <span class="text-lg transition-transform" :class="activeFaq === 4 ? 'rotate-180' : ''">&darr;</span>
+                </div>
+                <div x-show="activeFaq === 4" class="pt-3 text-xs text-content-secondary leading-relaxed" x-cloak>
+                    Absolutely. You maintain 100% custody of your capital. You can adjust risk allocation, modify stop-losses, or tap 'Stop Strategy & Settle Funds' at any time to immediately liquidate positions back to cash.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================================== -->
+<!-- 8. FINAL HIGH-CONVERTING CALL TO ACTION                                        -->
+<!-- ============================================================================== -->
+<section class="py-20 bg-gradient-to-r from-primary via-indigo-700 to-slate-900 text-white relative overflow-hidden">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6 relative z-10">
+        <div class="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center mx-auto text-3xl icon-3d-badge shadow-xl" style="--icon-glow: #38BDF8;">
+            <span class="icon-floating">⚡</span>
+        </div>
+        <h2 class="text-3xl sm:text-5xl font-extrabold font-serif leading-tight">Ready to Elevate Your Financial Edge?</h2>
+        <p class="text-sm sm:text-base text-slate-200 max-w-xl mx-auto">Join over 120,000 active traders and institutional investors on the fastest-growing multi-asset prime broker.</p>
+        <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="/register" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white text-primary font-bold text-sm shadow-2xl hover:bg-slate-100 transition transform hover:-translate-y-0.5">
+                Create Free Account in 2 Minutes &rarr;
+            </a>
+            <a href="/webtrade" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition">
+                Launch WebTrader Terminal
+            </a>
+        </div>
+    </div>
+</section>
+
+<%- include('../partials/footer') %>

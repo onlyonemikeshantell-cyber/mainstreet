@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+
+<section class="py-16 bg-gradient-to-b from-white to-surface-base border-b border-surface-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-4">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#D4A038]/10 text-[#D4A038] text-xs font-bold font-mono">
+            <span>👑 INSTITUTIONAL COPY TRADING</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-content-primary font-serif">Mirror Top Wall Street Algorithms</h1>
+        <p class="text-sm text-content-secondary max-w-2xl mx-auto">Automate your portfolio growth with direct STP order replication from audited and verified master traders.</p>
+    </div>
+</section>
+
+<section class="py-16 bg-surface-base">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <% (typeof masters !== 'undefined' && masters && masters.length > 0 ? masters : [
+                { id: 1, name: 'Sophia Vanguard', strategy_name: 'Quantum High-Frequency Alpha', category: 'Crypto & Indices', total_roi: 450.0, win_rate: 96.5, copiers_count: 620, min_allocation: 500, description: 'Proprietary institutional HFT model targeting high volatility in BTC, Gold, and US30.', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
+                { id: 2, name: 'Alpha Quantum Elite', strategy_name: 'Macro Trend Momentum', category: 'Multi-Asset', total_roi: 420.5, win_rate: 94.2, copiers_count: 512, min_allocation: 500, description: 'Quantitative multi-asset momentum capturing global macroeconomic liquidity cycles.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
+                { id: 3, name: 'Alexander Vance', strategy_name: 'Forex & Gold Precision', category: 'Forex & Gold', total_roi: 340.5, win_rate: 91.8, copiers_count: 480, min_allocation: 500, description: 'Algorithmic scalper focused on EUR/USD, GBP/USD, and XAU/USD breakouts.', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
+                { id: 4, name: 'Elena Rostova', strategy_name: 'Crypto Derivatives Scalp', category: 'Crypto Derivatives', total_roi: 295.0, win_rate: 89.4, copiers_count: 390, min_allocation: 500, description: 'Automated order-book flow analysis across BTC, ETH, and Solana derivatives.', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80' }
+            ]).forEach(master => { %>
+                <div class="glass-card rounded-3xl p-6 space-y-5 flex flex-col justify-between border border-surface-border shadow-xl">
+                    
+                    <div class="space-y-4">
+                        <!-- Profile Header -->
+                        <div class="flex items-center space-x-3.5">
+                            <img src="<%= master.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' %>" alt="<%= master.name %>" class="w-13 h-13 rounded-2xl object-cover border-2 border-primary/40 shadow-md" style="width: 52px; height: 52px;" />
+                            <div>
+                                <h3 class="font-bold text-base text-content-primary font-serif"><%= master.name %></h3>
+                                <p class="text-[11px] text-[#D4A038] font-semibold"><%= master.strategy_name %></p>
+                            </div>
+                        </div>
+
+                        <!-- Return & Win Rate Grid -->
+                        <div class="grid grid-cols-2 gap-3 p-3.5 bg-surface-overlay rounded-2xl border border-surface-border">
+                            <div>
+                                <span class="text-[10px] text-content-tertiary uppercase font-bold tracking-wider">Total Return</span>
+                                <p class="text-xl font-extrabold text-gain font-serif">+<%= Number(master.total_roi).toFixed(1) %>%</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] text-content-tertiary uppercase font-bold tracking-wider">Win Rate</span>
+                                <p class="text-xl font-extrabold text-content-primary font-serif"><%= Number(master.win_rate).toFixed(1) %>%</p>
+                            </div>
+                        </div>
+
+                        <!-- Details Spec -->
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between text-content-secondary">
+                                <span class="font-sans">Asset Focus:</span>
+                                <span class="font-bold text-content-primary"><%= master.category || 'Multi-Asset' %></span>
+                            </div>
+                            <div class="flex justify-between text-content-secondary">
+                                <span class="font-sans">Active Copiers:</span>
+                                <span class="font-bold text-content-primary"><%= master.copiers_count %> traders</span>
+                            </div>
+                            <div class="flex justify-between text-content-secondary">
+                                <span class="font-sans">Min Allocation:</span>
+                                <span class="font-bold text-[#D4A038]">$<%= Number(master.min_allocation || 500).toLocaleString() %> USD</span>
+                            </div>
+                        </div>
+
+                        <!-- Bio -->
+                        <p class="text-xs text-content-secondary italic line-clamp-2 leading-relaxed">
+                            "<%= master.description || 'Institutional quantitative algorithm with tight automated risk control.' %>"
+                        </p>
+                    </div>
+
+                    <!-- Action Button -->
+                    <% if (user) { %>
+                        <a href="/copy-trading/app" class="w-full block py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs text-center shadow-md shadow-primary/20 transition">
+                            Copy Strategy &rarr;
+                        </a>
+                    <% } else { %>
+                        <a href="/login" class="w-full block py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs text-center shadow-md shadow-primary/20 transition">
+                            Copy Strategy &rarr;
+                        </a>
+                    <% } %>
+
+                </div>
+            <% }) %>
+        </div>
+
+    </div>
+</section>
+
+<%- include('../partials/footer') %>

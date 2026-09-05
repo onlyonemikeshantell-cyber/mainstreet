@@ -1,0 +1,434 @@
+<%- include('../partials/header') %>
+
+<script>
+function investmentPlansApp() {
+    return {
+        selectedPlan: null,
+        investModal: false,
+        investAmount: 5000,
+        submitting: false,
+        successMsg: '',
+        errorMsg: '',
+
+        // Calculator State
+        calcCapital: 5000,
+        calcDurationDays: 14,
+        calcWeeklyRoi: 25.0,
+
+        get calcDailyProfit() {
+            const dailyRoi = this.calcWeeklyRoi / 7;
+            return (this.calcCapital * (dailyRoi / 100));
+        },
+        get calcTotalNetProfit() {
+            return (this.calcDailyProfit * this.calcDurationDays);
+        },
+        get calcTotalPayout() {
+            return (Number(this.calcCapital) + this.calcTotalNetProfit);
+        },
+
+        openInvestModal(plan) {
+            <% if (!user) { %>
+                window.location.href = '/register?plan=' + encodeURIComponent(plan.name);
+                return;
+            <% } %>
+            this.selectedPlan = plan;
+            this.investAmount = plan.min_deposit;
+            this.errorMsg = '';
+            this.successMsg = '';
+            this.investModal = true;
+        },
+
+        async submitInvestment() {
+            if (!this.selectedPlan) return;
+            this.submitting = true;
+            this.errorMsg = '';
+            this.successMsg = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const res = await fetch('/api/investments/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plan_id: this.selectedPlan.id,
+                        amount: this.investAmount,
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.successMsg = '✓ Plan activated successfully! Redirecting to dashboard...';
+                    setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+                } else {
+                    this.errorMsg = (data && data.error) ? data.error : 'Failed to allocate capital.';
+                }
+            } catch (err) {
+                this.errorMsg = 'Network error while processing investment.';
+            } finally {
+                this.submitting = false;
+            }
+        }
+    };
+}
+</script>
+
+<div x-data="investmentPlansApp()" class="bg-surface-base text-content-primary">
+    
+    <!-- Hero Section -->
+    <section class="relative py-20 overflow-hidden border-b border-surface-border bg-gradient-to-b from-primary/5 via-surface-base to-surface-base">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center space-y-6">
+            
+            <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold font-mono uppercase tracking-widest shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                <span>Tier-1 Institutional Yield Portfolios</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl font-extrabold font-serif tracking-tight text-content-primary max-w-4xl mx-auto leading-tight">
+                High-Performance <span class="text-primary">Investment Plans</span> with Automated Compounding
+            </h1>
+
+            <p class="text-base sm:text-lg text-content-secondary max-w-2xl mx-auto leading-relaxed">
+                Harness algorithmic quantitative trading, institutional liquidity arbitrage, and structured yield portfolios engineered for consistent returns and zero downside slippage.
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
+                <a href="#plans-grid" class="px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/20 transition transform hover:-translate-y-0.5">
+                    Explore Investment Plans &rarr;
+                </a>
+                <a href="#roi-calculator" class="px-8 py-4 rounded-2xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary font-bold text-sm shadow-sm transition">
+                    Interactive ROI Calculator
+                </a>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto pt-10 font-mono text-center">
+                <div class="p-4 rounded-2xl bg-surface-raised border border-surface-border shadow-sm">
+                    <span class="text-2xl font-extrabold text-primary block">$148.5M+</span>
+                    <span class="text-[11px] text-content-tertiary uppercase font-sans">Active Capital Under Custody</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-surface-raised border border-surface-border shadow-sm">
+                    <span class="text-2xl font-extrabold text-gain block">99.4%</span>
+                    <span class="text-[11px] text-content-tertiary uppercase font-sans">Profitable Settlement Rate</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-surface-raised border border-surface-border shadow-sm">
+                    <span class="text-2xl font-extrabold text-content-primary block">Instant</span>
+                    <span class="text-[11px] text-content-tertiary uppercase font-sans">Principal Return on Maturity</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-surface-raised border border-surface-border shadow-sm">
+                    <span class="text-2xl font-extrabold text-[#D4A038] block">24/7</span>
+                    <span class="text-[11px] text-content-tertiary uppercase font-sans">Dedicated VIP Wealth Advisory</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Plans Matrix Section -->
+    <section id="plans-grid" class="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+        <div class="text-center space-y-3">
+            <h2 class="text-3xl sm:text-4xl font-extrabold font-serif text-content-primary">Select Your Investment Tier</h2>
+            <p class="text-sm text-content-secondary max-w-xl mx-auto">Choose a structured quantitative strategy designed for your specific financial objectives.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <% if (typeof plans !== 'undefined' && plans) { %>
+                <% plans.forEach(plan => { %>
+                    <div class="glass-card rounded-3xl p-7 border <%= plan.is_featured ? 'border-primary shadow-2xl shadow-primary/10 ring-2 ring-primary/20 relative' : 'border-surface-border shadow-lg' %> flex flex-col justify-between space-y-6 hover:-translate-y-1.5 transition-all duration-300">
+                        
+                        <div class="space-y-4">
+                            <% if (plan.is_featured) { %>
+                                <div class="absolute -top-3.5 left-1/2 transform -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-white text-[10px] font-extrabold uppercase tracking-widest shadow-md">
+                                    ★ Most Popular Choice
+                                </div>
+                            <% } %>
+
+                            <div class="flex items-center justify-between pt-2">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono <%= plan.is_featured ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-overlay text-content-secondary border border-surface-border' %>">
+                                    <%= plan.tier_badge %>
+                                </span>
+                                <span class="text-xs font-bold text-gain font-mono"><%= plan.risk_level %></span>
+                            </div>
+
+                            <div>
+                                <h3 class="text-2xl font-extrabold font-serif text-content-primary"><%= plan.name %></h3>
+                                <p class="text-xs text-content-secondary mt-1 leading-relaxed"><%= plan.description %></p>
+                            </div>
+
+                            <!-- ROI Showcase -->
+                            <div class="p-4 rounded-2xl bg-surface-overlay border border-surface-border text-center space-y-1">
+                                <span class="text-3xl font-extrabold text-gain font-mono">+<%= plan.weekly_roi %>%</span>
+                                <span class="text-xs text-content-tertiary block font-semibold">Target Weekly ROI (<%= plan.daily_roi %>% Daily)</span>
+                            </div>
+
+                            <!-- Plan Details & Features -->
+                            <ul class="space-y-2.5 text-xs text-content-secondary">
+                                <li class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+                                    <span>Min Allocation:</span>
+                                    <strong class="text-content-primary font-mono font-bold">$<%= Number(plan.min_deposit).toLocaleString() %> USD</strong>
+                                </li>
+                                <li class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+                                    <span>Max Allocation:</span>
+                                    <strong class="text-content-primary font-mono font-bold"><%= plan.max_deposit >= 1000000 ? 'Unlimited' : '$' + Number(plan.max_deposit).toLocaleString() + ' USD' %></strong>
+                                </li>
+                                <li class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+                                    <span>Strategy Duration:</span>
+                                    <strong class="text-primary font-mono font-bold"><%= plan.duration_days %> Trading Days</strong>
+                                </li>
+                                <li class="flex items-center space-x-2 pt-1 text-content-primary">
+                                    <span class="text-gain">✓</span>
+                                    <span>Instant Principal Return on Maturity</span>
+                                </li>
+                                <li class="flex items-center space-x-2 text-content-primary">
+                                    <span class="text-gain">✓</span>
+                                    <span>Automated Daily Compound Yield</span>
+                                </li>
+                                <li class="flex items-center space-x-2 text-content-primary">
+                                    <span class="text-gain">✓</span>
+                                    <span>Zero Management or Hedging Fees</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <button type="button" 
+                                @click="openInvestModal(<%= JSON.stringify(plan) %>)"
+                                class="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition shadow-md <%= plan.is_featured ? 'bg-primary hover:bg-primary-dark text-white shadow-primary/20' : 'bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary' %>">
+                            Choose <%= plan.name %> &rarr;
+                        </button>
+
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </section>
+
+    <!-- Interactive Compound Yield / ROI Calculator -->
+    <section id="roi-calculator" class="py-20 bg-surface-raised border-y border-surface-border">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
+            
+            <div class="text-center space-y-3">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-gain/10 text-gain text-xs font-bold font-mono">
+                    <span>🧮 LIVE PROFIT SIMULATOR</span>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold font-serif text-content-primary">Simulate Your Investment Earnings</h2>
+                <p class="text-xs sm:text-sm text-content-secondary max-w-xl mx-auto">Adjust capital and duration sliders to calculate estimated daily yield and maturity payout.</p>
+            </div>
+
+            <div class="glass-card rounded-3xl p-8 sm:p-10 border border-surface-border shadow-2xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                <!-- Sliders (7 cols) -->
+                <div class="lg:col-span-7 space-y-6">
+                    
+                    <!-- Capital Slider -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <span class="uppercase text-content-secondary">Investment Capital ($ USD)</span>
+                            <span class="text-primary font-mono text-base" x-text="'$' + Number(calcCapital).toLocaleString()"></span>
+                        </div>
+                        <input type="range" min="500" max="100000" step="500" x-model="calcCapital" class="w-full h-2.5 bg-surface-border rounded-lg appearance-none cursor-pointer accent-primary" />
+                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
+                            <span>$500</span>
+                            <span>$25,000</span>
+                            <span>$50,000</span>
+                            <span>$100,000+</span>
+                        </div>
+                    </div>
+
+                    <!-- Duration Slider -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <span class="uppercase text-content-secondary">Duration Period (Days)</span>
+                            <span class="text-primary font-mono text-base" x-text="calcDurationDays + ' Days'"></span>
+                        </div>
+                        <input type="range" min="7" max="60" step="1" x-model="calcDurationDays" class="w-full h-2.5 bg-surface-border rounded-lg appearance-none cursor-pointer accent-primary" />
+                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
+                            <span>7 Days</span>
+                            <span>14 Days</span>
+                            <span>30 Days</span>
+                            <span>60 Days</span>
+                        </div>
+                    </div>
+
+                    <!-- Tier Selector Pills -->
+                    <div class="space-y-2">
+                        <span class="text-xs font-bold uppercase text-content-secondary block">Select Strategy Tier:</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold font-mono">
+                            <button type="button" @click="calcWeeklyRoi = 12.5; calcDurationDays = 7;" :class="calcWeeklyRoi === 12.5 ? 'bg-primary text-white' : 'bg-surface-overlay text-content-secondary border border-surface-border'" class="p-2.5 rounded-xl transition text-center">
+                                Starter (12.5%)
+                            </button>
+                            <button type="button" @click="calcWeeklyRoi = 25.0; calcDurationDays = 14;" :class="calcWeeklyRoi === 25.0 ? 'bg-primary text-white' : 'bg-surface-overlay text-content-secondary border border-surface-border'" class="p-2.5 rounded-xl transition text-center">
+                                Pro (25.0%)
+                            </button>
+                            <button type="button" @click="calcWeeklyRoi = 45.0; calcDurationDays = 30;" :class="calcWeeklyRoi === 45.0 ? 'bg-primary text-white' : 'bg-surface-overlay text-content-secondary border border-surface-border'" class="p-2.5 rounded-xl transition text-center">
+                                Executive (45.0%)
+                            </button>
+                            <button type="button" @click="calcWeeklyRoi = 65.0; calcDurationDays = 60;" :class="calcWeeklyRoi === 65.0 ? 'bg-primary text-white' : 'bg-surface-overlay text-content-secondary border border-surface-border'" class="p-2.5 rounded-xl transition text-center">
+                                Diamond (65.0%)
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Live Results Card (5 cols) -->
+                <div class="lg:col-span-5 p-6 sm:p-8 rounded-3xl bg-primary text-white space-y-6 shadow-xl relative overflow-hidden">
+                    <div class="space-y-1">
+                        <span class="text-[11px] uppercase tracking-widest text-emerald-200 font-mono block">Estimated Maturity Payout</span>
+                        <p class="text-3xl sm:text-4xl font-extrabold font-serif" x-text="'$' + calcTotalPayout.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></p>
+                    </div>
+
+                    <div class="divide-y divide-white/20 text-xs font-mono space-y-3 pt-2">
+                        <div class="flex justify-between pb-2">
+                            <span class="text-slate-200">Daily Accrued Return:</span>
+                            <strong class="font-bold text-emerald-200" x-text="'+$' + calcDailyProfit.toFixed(2)"></strong>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="text-slate-200">Net Estimated Profit:</span>
+                            <strong class="font-bold text-emerald-300 text-sm" x-text="'+$' + calcTotalNetProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="text-slate-200">Principal Refund:</span>
+                            <strong class="font-bold text-white" x-text="'$' + Number(calcCapital).toLocaleString() + ' (100%)'"></strong>
+                        </div>
+                    </div>
+
+                    <a href="#plans-grid" class="block w-full text-center py-3.5 rounded-xl bg-white hover:bg-slate-100 text-primary font-bold text-xs uppercase tracking-wider shadow-lg transition">
+                        Start Earning Today &rarr;
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Comprehensive Comparison Matrix -->
+    <section class="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+        <div class="text-center space-y-3">
+            <h2 class="text-3xl font-extrabold font-serif text-content-primary">Plan Feature Comparison Matrix</h2>
+            <p class="text-xs text-content-secondary max-w-xl mx-auto">Compare institutional execution standards across all membership tiers.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono bg-surface-raised rounded-3xl border border-surface-border shadow-lg overflow-hidden">
+                <thead class="bg-surface-overlay text-content-primary uppercase font-bold border-b border-surface-border text-[11px]">
+                    <tr>
+                        <th class="p-4">Strategy Feature</th>
+                        <th class="p-4">Bronze Starter</th>
+                        <th class="p-4 text-primary">Silver Pro ★</th>
+                        <th class="p-4">Gold Executive</th>
+                        <th class="p-4 text-[#D4A038]">Diamond Institutional</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border text-content-secondary">
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Minimum Deposit</td>
+                        <td class="p-4 font-bold">$500</td>
+                        <td class="p-4 font-bold text-primary">$5,000</td>
+                        <td class="p-4 font-bold">$20,000</td>
+                        <td class="p-4 font-bold text-[#D4A038]">$100,000</td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Target Weekly Yield</td>
+                        <td class="p-4 text-gain font-bold">12.5%</td>
+                        <td class="p-4 text-gain font-bold">25.0%</td>
+                        <td class="p-4 text-gain font-bold">45.0%</td>
+                        <td class="p-4 text-gain font-bold">65.0%+</td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Trading Duration</td>
+                        <td class="p-4">7 Days</td>
+                        <td class="p-4 font-bold text-primary">14 Days</td>
+                        <td class="p-4">30 Days</td>
+                        <td class="p-4">60 Days</td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Withdrawal Priority</td>
+                        <td class="p-4">Standard (24h)</td>
+                        <td class="p-4 text-primary font-bold">Priority (2h)</td>
+                        <td class="p-4 font-bold">Instant (<15m)</td>
+                        <td class="p-4 text-[#D4A038] font-bold">Dedicated OTC Clearing</td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Wealth Advisory</td>
+                        <td class="p-4">Email Desk</td>
+                        <td class="p-4">24/7 Live Chat</td>
+                        <td class="p-4 font-bold text-content-primary">Senior Account Manager</td>
+                        <td class="p-4 text-[#D4A038] font-bold">Chief Investment Officer Desk</td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-bold text-content-primary font-sans">Hedging & Downside Insurance</td>
+                        <td class="p-4 text-gain font-bold">✓ Included</td>
+                        <td class="p-4 text-gain font-bold">✓ Included</td>
+                        <td class="p-4 text-gain font-bold">✓ Included</td>
+                        <td class="p-4 text-gain font-bold">✓ Included</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 1-Click Plan Activation Modal -->
+    <div x-show="investModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-5">
+            
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">💼</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary" x-text="'Activate ' + (selectedPlan?.name || 'Investment Plan')"></h3>
+                        <span class="text-[10px] text-content-tertiary font-mono" x-text="'Target ROI: +' + (selectedPlan?.weekly_roi || 0) + '% Weekly'"></span>
+                    </div>
+                </div>
+                <button type="button" @click="investModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Alerts -->
+            <div x-show="successMsg" class="p-3 bg-gain/15 border border-gain/30 text-gain rounded-xl text-xs font-mono font-bold" x-text="successMsg" x-cloak></div>
+            <div x-show="errorMsg" class="p-3 bg-loss/15 border border-loss/30 text-loss rounded-xl text-xs font-mono font-bold" x-text="errorMsg" x-cloak></div>
+
+            <form @submit.prevent="submitInvestment()" class="space-y-4 text-xs font-mono">
+                
+                <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                    <div class="flex justify-between text-[11px] text-content-secondary">
+                        <span class="uppercase font-bold">Investment Capital ($ USD)</span>
+                        <span class="text-content-tertiary" x-text="'Min: $' + Number(selectedPlan?.min_deposit || 500).toLocaleString()"></span>
+                    </div>
+                    <input type="number" 
+                           :min="selectedPlan?.min_deposit || 500" 
+                           :max="selectedPlan?.max_deposit || 1000000" 
+                           step="10" 
+                           x-model="investAmount" 
+                           required 
+                           class="w-full bg-white border border-surface-border rounded-xl px-3 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary" />
+                </div>
+
+                <div class="bg-surface-base p-3.5 rounded-2xl border border-surface-border space-y-2 text-[11px] font-mono text-content-secondary">
+                    <div class="flex justify-between">
+                        <span>Strategy Duration:</span>
+                        <strong class="text-content-primary font-bold" x-text="(selectedPlan?.duration_days || 7) + ' Days'"></strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Estimated Maturity Profit:</span>
+                        <strong class="text-gain font-bold" x-text="'+$' + ((investAmount * ((selectedPlan?.weekly_roi || 0) / 7 / 100)) * (selectedPlan?.duration_days || 7)).toFixed(2)"></strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Management Fee:</span>
+                        <strong class="text-primary font-bold">0.00%</strong>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-2 border-t border-surface-border font-sans">
+                    <button type="button" @click="investModal = false" class="px-4 py-2 rounded-xl text-xs text-content-secondary hover:text-content-primary">Cancel</button>
+                    <button type="submit" :disabled="submitting" class="bg-primary hover:bg-primary-dark text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md disabled:opacity-50">
+                        <span x-show="!submitting">Confirm & Activate Plan &rarr;</span>
+                        <span x-show="submitting" x-cloak>Processing...</span>
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+</div>
+
+<%- include('../partials/footer') %>
