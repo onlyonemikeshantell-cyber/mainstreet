@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'tradexedge',
+      name: 'mainstreet-capital-exchange',
       script: 'server.js',
       instances: 1,
       autorestart: true,

@@ -80,6 +80,18 @@ const assetPrices = {
   'UBER': { symbol: 'UBER', name: 'Uber Tech', price: 72.80, change24h: 1.40, prevPrice: 72.80, direction: 'up', source: 'NYSE' },
   'USD': { symbol: 'USD', name: 'US Dollar', price: 1.00, change24h: 0.00, prevPrice: 1.00, direction: 'flat', source: 'Fiat' },
 
+  // Premier Real Estate Investment Trusts (REITs)
+  'PLD': { symbol: 'PLD', name: 'Prologis Inc', category: 'reit', price: 124.50, prevPrice: 124.50, change24h: 0.65, direction: 'up', spread: 0.08, high24h: 126.10, low24h: 123.80, source: 'Live Real Institutional Feed' },
+  'O': { symbol: 'O', name: 'Realty Income Corp', category: 'reit', price: 56.80, prevPrice: 56.80, change24h: 0.42, direction: 'up', spread: 0.05, high24h: 57.30, low24h: 56.40, source: 'Live Real Institutional Feed' },
+  'EQIX': { symbol: 'EQIX', name: 'Equinix Inc', category: 'reit', price: 875.20, prevPrice: 875.20, change24h: 1.15, direction: 'up', spread: 0.15, high24h: 882.00, low24h: 870.50, source: 'Live Real Institutional Feed' },
+  'AMT': { symbol: 'AMT', name: 'American Tower Corp', category: 'reit', price: 225.40, prevPrice: 225.40, change24h: -0.35, direction: 'down', spread: 0.12, high24h: 227.50, low24h: 224.20, source: 'Live Real Institutional Feed' },
+  'SPG': { symbol: 'SPG', name: 'Simon Property Group', category: 'reit', price: 158.30, prevPrice: 158.30, change24h: 0.88, direction: 'up', spread: 0.10, high24h: 160.00, low24h: 157.20, source: 'Live Real Institutional Feed' },
+  'PSA': { symbol: 'PSA', name: 'Public Storage', category: 'reit', price: 312.60, prevPrice: 312.60, change24h: 0.52, direction: 'up', spread: 0.12, high24h: 315.40, low24h: 310.80, source: 'Live Real Institutional Feed' },
+  'DLR': { symbol: 'DLR', name: 'Digital Realty Trust', category: 'reit', price: 154.20, prevPrice: 154.20, change24h: 1.40, direction: 'up', spread: 0.10, high24h: 156.00, low24h: 153.10, source: 'Live Real Institutional Feed' },
+  'WELL': { symbol: 'WELL', name: 'Welltower Inc', category: 'reit', price: 118.90, prevPrice: 118.90, change24h: 0.30, direction: 'up', spread: 0.08, high24h: 120.20, low24h: 118.10, source: 'Live Real Institutional Feed' },
+  'VICI': { symbol: 'VICI', name: 'VICI Properties Inc', category: 'reit', price: 32.40, prevPrice: 32.40, change24h: 0.25, direction: 'up', spread: 0.06, high24h: 32.85, low24h: 32.15, source: 'Live Real Institutional Feed' },
+  'VNQ': { symbol: 'VNQ', name: 'Vanguard Real Estate ETF', category: 'reit', price: 92.10, prevPrice: 92.10, change24h: 0.48, direction: 'up', spread: 0.06, high24h: 93.00, low24h: 91.60, source: 'Live Real Institutional Feed' },
+
   // Institutional Exchange-Traded Funds (ETFs)
   'SPY': { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', category: 'etf', price: 766.15, prevPrice: 769.35, change24h: -0.42, direction: 'down', spread: 0.05, high24h: 770.20, low24h: 764.50, source: 'Live Real Institutional Feed' },
   'QQQ': { symbol: 'QQQ', name: 'Invesco QQQ Trust (Nasdaq 100)', category: 'etf', price: 714.78, prevPrice: 716.43, change24h: -0.23, direction: 'down', spread: 0.05, high24h: 718.50, low24h: 712.10, source: 'Live Real Institutional Feed' },
@@ -143,6 +155,7 @@ async function syncRealCryptoPrices() {
         if (!isNaN(p) && p > 0) {
           assetPrices[target].prevPrice = assetPrices[target].price;
           assetPrices[target].price = p;
+          assetPrices[target].anchorPrice = p;
           assetPrices[target].direction = p >= assetPrices[target].prevPrice ? 'up' : 'down';
           assetPrices[target].source = 'Live Real MEXC Spot';
         }
@@ -167,6 +180,7 @@ async function syncRealForexPrices() {
       const p = +(1 / rates.EUR).toFixed(4);
       assetPrices['EUR/USD'].prevPrice = assetPrices['EUR/USD'].price;
       assetPrices['EUR/USD'].price = p;
+      assetPrices['EUR/USD'].anchorPrice = p;
       assetPrices['EUR/USD'].direction = p >= assetPrices['EUR/USD'].prevPrice ? 'up' : 'down';
       assetPrices['EUR/USD'].source = 'Live Real ECB/Interbank';
     }
@@ -174,6 +188,7 @@ async function syncRealForexPrices() {
       const p = +(1 / rates.GBP).toFixed(4);
       assetPrices['GBP/USD'].prevPrice = assetPrices['GBP/USD'].price;
       assetPrices['GBP/USD'].price = p;
+      assetPrices['GBP/USD'].anchorPrice = p;
       assetPrices['GBP/USD'].direction = p >= assetPrices['GBP/USD'].prevPrice ? 'up' : 'down';
       assetPrices['GBP/USD'].source = 'Live Real ECB/Interbank';
     }
@@ -181,6 +196,7 @@ async function syncRealForexPrices() {
       const p = +rates.JPY.toFixed(2);
       assetPrices['USD/JPY'].prevPrice = assetPrices['USD/JPY'].price;
       assetPrices['USD/JPY'].price = p;
+      assetPrices['USD/JPY'].anchorPrice = p;
       assetPrices['USD/JPY'].direction = p >= assetPrices['USD/JPY'].prevPrice ? 'up' : 'down';
       assetPrices['USD/JPY'].source = 'Live Real ECB/Interbank';
     }
@@ -188,6 +204,7 @@ async function syncRealForexPrices() {
       const p = +rates.CAD.toFixed(4);
       assetPrices['USD/CAD'].prevPrice = assetPrices['USD/CAD'].price;
       assetPrices['USD/CAD'].price = p;
+      assetPrices['USD/CAD'].anchorPrice = p;
       assetPrices['USD/CAD'].direction = p >= assetPrices['USD/CAD'].prevPrice ? 'up' : 'down';
       assetPrices['USD/CAD'].source = 'Live Real ECB/Interbank';
     }
@@ -214,6 +231,16 @@ async function syncRealForexPrices() {
 // 3. LIVE EQUITIES, INDICES & COMMODITIES (Yahoo Finance Direct)
 // ==============================================================================
 const YAHOO_MAP = {
+  'PLD': 'PLD',
+  'O': 'O',
+  'EQIX': 'EQIX',
+  'AMT': 'AMT',
+  'SPG': 'SPG',
+  'PSA': 'PSA',
+  'DLR': 'DLR',
+  'WELL': 'WELL',
+  'VICI': 'VICI',
+  'VNQ': 'VNQ',
   'GC=F': 'XAU/USD',
   'SI=F': 'XAG/USD',
   'CL=F': 'USOIL',
@@ -254,7 +281,7 @@ async function syncRealMarketQuotes() {
   for (const ySym of yahooKeys) {
     try {
       const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TradeXEdge/2.0' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Mainstreet Capital Exchange/2.0' },
         signal: AbortSignal.timeout(4000)
       });
       if (!res.ok) continue;
@@ -292,27 +319,140 @@ syncAllRealFeeds();
 setInterval(syncAllRealFeeds, 15000);
 
 // ==============================================================================
-// 4. SUB-SECOND MICRO-TICKS & ORDER EXECUTION (every 2s)
+// 4. SUB-SECOND HIGH-FREQUENCY TICK JITTER ENGINE (Ornstein-Uhlenbeck Process)
 // ==============================================================================
+
+// High-performance Box-Muller Gaussian normal distribution N(0, 1)
+function gaussianRandom() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// Asset-Class Specific Microstructure Profiles (Precision, Volatility, Spread, Arrival Rate)
+const ASSET_PROFILES = {
+  // Forex Majors: tight interbank spreads, fractional pips, high stability
+  'EUR/USD': { dec: 4, sigma: 0.00003, spread: 0.00012, tickRate: 0.85 },
+  'GBP/USD': { dec: 4, sigma: 0.00004, spread: 0.00015, tickRate: 0.85 },
+  'USD/JPY': { dec: 2, sigma: 0.00005, spread: 0.015,   tickRate: 0.85 },
+  'USD/CHF': { dec: 4, sigma: 0.00003, spread: 0.00014, tickRate: 0.75 },
+  'AUD/USD': { dec: 4, sigma: 0.00004, spread: 0.00014, tickRate: 0.75 },
+  'USD/CAD': { dec: 4, sigma: 0.00004, spread: 0.00015, tickRate: 0.75 },
+
+  // Crypto Majors: high liquidity, rapid quote vibration
+  'BTC':     { dec: 2, sigma: 0.00010, spread: 1.20,    tickRate: 0.95 },
+  'ETH':     { dec: 2, sigma: 0.00012, spread: 0.35,    tickRate: 0.95 },
+  'SOL':     { dec: 2, sigma: 0.00018, spread: 0.06,    tickRate: 0.90 },
+  'BNB':     { dec: 2, sigma: 0.00014, spread: 0.20,    tickRate: 0.85 },
+  'XRP':     { dec: 4, sigma: 0.00020, spread: 0.0006,  tickRate: 0.85 },
+
+  // Crypto Alts & Ecosystems
+  'DOGE':    { dec: 4, sigma: 0.00025, spread: 0.0001,  tickRate: 0.80 },
+  'ADA':     { dec: 4, sigma: 0.00020, spread: 0.0002,  tickRate: 0.75 },
+  'AVAX':    { dec: 4, sigma: 0.00022, spread: 0.0040,  tickRate: 0.75 },
+  'LINK':    { dec: 2, sigma: 0.00015, spread: 0.02,    tickRate: 0.75 },
+  'NEAR':    { dec: 4, sigma: 0.00020, spread: 0.0020,  tickRate: 0.75 },
+  'SUI':     { dec: 4, sigma: 0.00025, spread: 0.0008,  tickRate: 0.80 },
+  'PEPE':    { dec: 8, sigma: 0.00035, spread: 0.00000002, tickRate: 0.85 },
+  'SHIB':    { dec: 8, sigma: 0.00030, spread: 0.00000003, tickRate: 0.80 },
+
+  // Commodities & Precious Metals
+  'XAU/USD': { dec: 2, sigma: 0.00006, spread: 0.30,    tickRate: 0.90 },
+  'XAG/USD': { dec: 2, sigma: 0.00008, spread: 0.02,    tickRate: 0.85 },
+  'USOIL':   { dec: 2, sigma: 0.00010, spread: 0.03,    tickRate: 0.80 },
+
+  // Stock Indices
+  'US30':    { dec: 2, sigma: 0.00004, spread: 1.40,    tickRate: 0.85 },
+  'NAS100':  { dec: 2, sigma: 0.00005, spread: 0.75,    tickRate: 0.90 },
+  'SPX500':  { dec: 2, sigma: 0.00004, spread: 0.35,    tickRate: 0.90 },
+
+  // Equities & Bluechips
+  'NVDA':    { dec: 2, sigma: 0.00010, spread: 0.04,    tickRate: 0.90 },
+  'TSLA':    { dec: 2, sigma: 0.00012, spread: 0.05,    tickRate: 0.90 },
+  'AAPL':    { dec: 2, sigma: 0.00006, spread: 0.03,    tickRate: 0.85 },
+  'MSFT':    { dec: 2, sigma: 0.00006, spread: 0.04,    tickRate: 0.80 },
+  'AMZN':    { dec: 2, sigma: 0.00007, spread: 0.03,    tickRate: 0.80 },
+  'META':    { dec: 2, sigma: 0.00008, spread: 0.05,    tickRate: 0.80 },
+  'SPY':     { dec: 2, sigma: 0.00003, spread: 0.02,    tickRate: 0.90 },
+  'QQQ':     { dec: 2, sigma: 0.00004, spread: 0.02,    tickRate: 0.90 }
+};
+
+// Initialize anchorPrice and order book state on startup
+Object.keys(assetPrices).forEach(sym => {
+  const item = assetPrices[sym];
+  if (!item.anchorPrice) item.anchorPrice = item.price;
+  const prof = ASSET_PROFILES[sym] || (
+    sym.includes('/')
+      ? { dec: 4, spread: 0.00015 }
+      : item.price < 1.0 ? { dec: 4, spread: +(item.price * 0.0006).toFixed(4) } : { dec: 2, spread: +(item.price * 0.0003).toFixed(2) }
+  );
+  const halfSpread = prof.spread / 2;
+  item.bid = +(item.price - halfSpread).toFixed(prof.dec);
+  item.ask = +(item.price + halfSpread).toFixed(prof.dec);
+  item.spread = prof.spread;
+  item.lastTickTime = Date.now();
+});
+
+/**
+ * High-Frequency In-Memory Micro-Tick Processor (Runs every 300ms)
+ * Simulates continuous order book liquidity consumption and quote bounce
+ * with zero database overhead.
+ */
 const tickMarketPrices = () => {
-  // Apply realistic high-frequency interbank spread micro-ticks around genuine market baselines
+  const now = Date.now();
   Object.keys(assetPrices).forEach(sym => {
     if (sym === 'USDT' || sym === 'USD') return;
     const item = assetPrices[sym];
-    // Micro Brownian jitter: +/- 0.03% around true live price
-    const microDelta = (Math.random() * 0.0006 - 0.0003);
-    item.prevPrice = item.price;
-    
-    let dec = 2;
-    if (sym.includes('/') && (sym.includes('EUR') || sym.includes('GBP') || sym.includes('USD'))) dec = 4;
-    if (sym === 'XRP' || sym === 'ADA' || sym === 'DOGE' || sym === 'ARB' || sym === 'MATIC' || sym === 'SUI') dec = 4;
-    if (sym === 'PEPE' || sym === 'SHIB') dec = 8;
-    
-    item.price = +(item.price * (1 + microDelta)).toFixed(dec);
-    item.direction = item.price >= item.prevPrice ? 'up' : 'down';
-  });
+    if (!item || !item.price) return;
 
-  // Sync to database balances so trader net worth reflects real market values
+    if (!item.anchorPrice) item.anchorPrice = item.price;
+    const prof = ASSET_PROFILES[sym] || (
+      sym.includes('/')
+        ? { dec: 4, sigma: 0.00004, spread: 0.00015, tickRate: 0.75 }
+        : item.price < 1.0
+          ? { dec: 4, sigma: 0.00020, spread: +(item.price * 0.0006).toFixed(4), tickRate: 0.75 }
+          : { dec: 2, sigma: 0.00006, spread: +(item.price * 0.0003).toFixed(2), tickRate: 0.80 }
+    );
+
+    // Realistic Poisson tick arrival: active assets tick frequently, illiquid assets tick periodically
+    if (Math.random() > prof.tickRate) return;
+
+    // Ornstein-Uhlenbeck: elastic mean-reversion pull toward real-world anchor baseline
+    const anchor = item.anchorPrice;
+    const displacement = (item.price - anchor) / anchor;
+    // Restoring force: gently pulls price back to center if displaced beyond +/- 0.08%
+    const reversion = -displacement * 0.35;
+
+    // Gaussian Brownian noise with asset-specific micro-volatility
+    const shock = gaussianRandom() * prof.sigma;
+
+    // Composite fractional tick change
+    const delta = reversion + shock;
+
+    const oldPrice = item.price;
+    const rawNewPrice = item.price * (1 + delta);
+    const newPrice = +(rawNewPrice.toFixed(prof.dec));
+
+    item.prevPrice = oldPrice;
+    item.price = newPrice;
+    item.direction = newPrice > oldPrice ? 'up' : (newPrice < oldPrice ? 'down' : (shock >= 0 ? 'up' : 'down'));
+
+    // Dynamic institutional Bid / Ask spreads
+    const halfSpread = prof.spread / 2;
+    item.bid = +(newPrice - halfSpread).toFixed(prof.dec);
+    item.ask = +(newPrice + halfSpread).toFixed(prof.dec);
+    item.spread = prof.spread;
+    item.lastTickTime = now;
+  });
+};
+
+/**
+ * Throttled Database Sync & Order Matching Engine (Runs every 1,500ms)
+ * Decoupled from micro-ticks to ensure zero database lock contention.
+ */
+const persistMarketAndCheckOrders = () => {
+  // 1. Sync to database balances so trader net worth reflects real market values
   try {
     const updateStmt = db.prepare('UPDATE user_crypto_balances SET rate_usd = ? WHERE asset_symbol = ?');
     Object.keys(assetPrices).forEach(sym => {
@@ -320,7 +460,7 @@ const tickMarketPrices = () => {
     });
   } catch(e) {}
 
-  // Auto-Trigger Pending Limit Orders
+  // 2. Auto-Trigger Pending Limit Orders
   try {
     const pendingOrders = db.prepare("SELECT * FROM trades WHERE status = 'PENDING'").all();
     if (pendingOrders.length > 0) {
@@ -348,7 +488,7 @@ const tickMarketPrices = () => {
     }
   } catch(e) {}
 
-  // Automated TP / SL Execution
+  // 3. Automated TP / SL Execution
   try {
     const openTrades = db.prepare("SELECT * FROM trades WHERE status = 'OPEN' AND ((take_profit IS NOT NULL AND take_profit > 0) OR (stop_loss IS NOT NULL AND stop_loss > 0))").all();
     if (openTrades.length > 0) {
@@ -400,7 +540,7 @@ const tickMarketPrices = () => {
     }
   } catch(e) {}
 
-  // Stop-Out Margin Liquidation
+  // 4. Stop-Out Margin Liquidation
   try {
     const usersWithTrades = db.prepare("SELECT DISTINCT user_id FROM trades WHERE status = 'OPEN'").all();
     usersWithTrades.forEach(u => {
@@ -450,7 +590,11 @@ const tickMarketPrices = () => {
   } catch(e) {}
 };
 
-setInterval(tickMarketPrices, 2000);
+// Sub-Second Micro-Ticks: 300ms high-frequency in-memory heartbeat
+setInterval(tickMarketPrices, 300);
+
+// Throttled Database & Order Check: 1,500ms
+setInterval(persistMarketAndCheckOrders, 1500);
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };

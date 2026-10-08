@@ -22,6 +22,11 @@ try {
 
   const sysCols = db.prepare('PRAGMA table_info(system_settings)').all().map(c => c.name);
   if (!sysCols.includes('crypto_verification_mode')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_verification_mode TEXT DEFAULT 'live_blockchain'");
+  if (!sysCols.includes('crypto_webhook_secret')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_webhook_secret TEXT DEFAULT 'wh_sec_mainstreet_2026_live'");
+
+  const smtpCols = db.prepare('PRAGMA table_info(smtp_settings)').all().map(c => c.name);
+  if (!smtpCols.includes('resend_api_key')) db.exec("ALTER TABLE smtp_settings ADD COLUMN resend_api_key TEXT DEFAULT ''");
+  if (!smtpCols.includes('provider')) db.exec("ALTER TABLE smtp_settings ADD COLUMN provider TEXT DEFAULT 'resend'");
 
   // Ensure major ETFs exist in market_settings
   const etfInsert = db.prepare(`
@@ -153,8 +158,8 @@ db.exec(`
     port INTEGER DEFAULT 587,
     user TEXT DEFAULT '',
     pass TEXT DEFAULT '',
-    from_name TEXT DEFAULT 'TradexEdge Broker Support',
-    from_email TEXT DEFAULT 'support@tradexedge.com',
+    from_name TEXT DEFAULT 'Mainstreet Capital Exchange Desk',
+    from_email TEXT DEFAULT 'support@mainstreetcapital.exchange',
     is_active INTEGER DEFAULT 0,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -175,8 +180,8 @@ db.exec(`
   );
 `);
 
-// Ensure storage directories exist
-const kycDir = path.join(__dirname, '..', 'public', 'storage', 'kyc');
+// Ensure storage directories exist (outside public)
+const kycDir = path.join(__dirname, '..', 'storage', 'kyc');
 if (!fs.existsSync(kycDir)) {
   fs.mkdirSync(kycDir, { recursive: true });
 }
@@ -306,16 +311,16 @@ if (gwCount === 0) {
   seedGw.run('Bitcoin Direct', 'BTC', 'Bitcoin Network', 'bc1q9x3d0gq94z4y28r46v72e6m8k2a095jldk9a74', 100.0, 'Send only BTC on Bitcoin Native Network.');
   seedGw.run('Ethereum / USDT (ERC-20)', 'ETH / USDT', 'Ethereum (ERC-20)', '0x71C8366420A09271E59b208F38992D8f0019C45F', 100.0, 'Supports ETH and USDT ERC-20 transfers.');
   seedGw.run('Tether USDT (TRC-20)', 'USDT', 'Tron (TRC-20)', 'TYb9p85Y4Zg48d2mGf2K82J451A08X9D3E', 50.0, 'Fast settlement with lowest network fees.');
-  seedGw.run('Institutional Bank Wire', 'USD', 'SWIFT / FedWire', 'TradexEdge Liquidity Custody Inc - IBAN: US89CITI20001984285728 - BIC: CITIUS33', 1000.0, 'Direct wire transfer. Attach payment wire receipt below.');
+  seedGw.run('Institutional Bank Wire', 'USD', 'SWIFT / FedWire', 'Mainstreet Capital Exchange Liquidity Custody Inc - IBAN: US89CITI20001984285728 - BIC: CITIUS33', 1000.0, 'Direct wire transfer. Attach payment wire receipt below.');
 }
 
 // 15. Platform & System Settings Table
 db.exec(`
   CREATE TABLE IF NOT EXISTS system_settings (
     id INTEGER PRIMARY KEY,
-    site_name TEXT DEFAULT 'TradexEdge',
-    site_title TEXT DEFAULT 'Institutional Multi-Asset Trading & Copy Brokerage',
-    support_email TEXT DEFAULT 'support@tradexedge.com',
+    site_name TEXT DEFAULT 'Mainstreet Capital Exchange',
+    site_title TEXT DEFAULT 'Institutional Multi-Asset Trading & Prime Execution',
+    support_email TEXT DEFAULT 'support@mainstreetcapital.exchange',
     support_phone TEXT DEFAULT '+1 (800) 892-3401',
     office_address TEXT DEFAULT '100 Wall Street, 24th Floor, New York, NY 10005',
     primary_currency TEXT DEFAULT 'USD',
@@ -334,12 +339,20 @@ db.exec(`
   );
 `);
 
-// Seed System Settings row 1 if empty
+// Seed System Settings row 1 if empty or update to Mainstreet Capital Exchange
 const sysCount = db.prepare('SELECT COUNT(*) as count FROM system_settings').get().count;
 if (sysCount === 0) {
   db.prepare(`
     INSERT INTO system_settings (id, site_name, site_title, support_email, support_phone, office_address, primary_currency, default_leverage, default_welcome_bonus, min_deposit, min_withdrawal, max_withdrawal, margin_call_level, stop_out_level, copy_profit_interval, maintenance_mode, auto_credit_deposit, admin_2fa_required)
-    VALUES (1, 'TradexEdge', 'Institutional Multi-Asset Trading & Copy Brokerage', 'support@tradexedge.com', '+1 (800) 892-3401', '100 Wall Street, 24th Floor, New York, NY 10005', 'USD', 100, 10000.00, 50.00, 100.00, 50000.00, 50.0, 20.0, 45, 0, 1, 0)
+    VALUES (1, 'Mainstreet Capital Exchange', 'Institutional Multi-Asset Trading & Prime Execution', 'support@mainstreetcapital.exchange', '+1 (800) 892-3401', '100 Wall Street, 24th Floor, New York, NY 10005', 'USD', 100, 10000.00, 50.00, 100.00, 50000.00, 50.0, 20.0, 45, 0, 1, 0)
+  `).run();
+} else {
+  db.prepare(`
+    UPDATE system_settings 
+    SET site_name = 'Mainstreet Capital Exchange', 
+        site_title = 'Institutional Multi-Asset Trading & Prime Execution', 
+        support_email = 'support@mainstreetcapital.exchange'
+    WHERE id = 1
   `).run();
 }
 
@@ -605,7 +618,36 @@ const ensureUserRetirementAccount = (userId) => {
   }
 };
 
-allExistingUsers.forEach(u => ensureUserRetirementAccount(u.id));
+// 21. User Saved External Crypto Wallets (Address Book & Whitelist)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_saved_wallets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    asset_symbol TEXT NOT NULL,
+    network TEXT NOT NULL,
+    wallet_address TEXT NOT NULL,
+    is_whitelisted INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
+`);
+
+// Helper to seed demo saved wallets for users if none exist
+const ensureUserSavedWallets = (userId) => {
+  const count = db.prepare('SELECT COUNT(*) as count FROM user_saved_wallets WHERE user_id = ?').get(userId).count;
+  if (count === 0) {
+    const insertWallet = db.prepare(`
+      INSERT INTO user_saved_wallets (user_id, label, asset_symbol, network, wallet_address, is_whitelisted)
+      VALUES (?, ?, ?, ?, ?, 1)
+    `);
+    insertWallet.run(userId, 'Ledger Nano X (Cold Vault)', 'BTC', 'Bitcoin Native SegWit', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    insertWallet.run(userId, 'Trezor Vault (ERC-20)', 'USDT', 'Ethereum (ERC-20)', '0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7');
+    insertWallet.run(userId, 'Binance Corporate Payout', 'USDT', 'Tron (TRC-20)', 'TW1Rj1V8r15HkR8mP2eR8z9Yk1T5X8M3Q1');
+  }
+};
+
+allExistingUsers.forEach(u => ensureUserSavedWallets(u.id));
 
 module.exports = db;
 
@@ -615,6 +657,6 @@ const smtpCount = db.prepare('SELECT COUNT(*) as count FROM smtp_settings').get(
 if (smtpCount === 0) {
   db.prepare(`
     INSERT INTO smtp_settings (id, host, port, user, pass, from_name, from_email, is_active)
-    VALUES (1, 'smtp.gmail.com', 587, '', '', 'TradexEdge Broker Support', 'support@tradexedge.com', 0)
+    VALUES (1, 'smtp.gmail.com', 587, '', '', 'Mainstreet Capital Exchange Broker Support', 'support@mainstreetcapitalexchange.com', 0)
   `).run();
 }

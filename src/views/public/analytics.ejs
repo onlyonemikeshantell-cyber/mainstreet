@@ -1,0 +1,190 @@
+<%- include('../partials/header') %>
+
+<div class="min-h-screen bg-[#080A0D] text-slate-100 pb-20">
+    
+    <!-- Hero Header -->
+    <section class="relative py-16 sm:py-24 bg-gradient-to-b from-[#0D1015] via-[#080A0D] to-[#080A0D] border-b border-[#1E2530] text-center overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-500/10 via-transparent to-transparent pointer-events-none"></div>
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 space-y-5">
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 text-sky-400 text-xs font-mono font-bold border border-sky-500/20">
+                <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
+                <span>QUANTITATIVE RISK ENGINE &bull; LIVE TELEMETRY</span>
+            </div>
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                Portfolio Analytics &amp; <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-300">Risk Diagnostics</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                Institutional-grade portfolio stress testing, Value at Risk (VaR), factor beta attribution, and multi-asset correlation matrices.
+            </p>
+        </div>
+    </section>
+
+    <!-- Analytics Dashboard Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-10 space-y-8" x-data="{
+        timeframe: '1Y',
+        stressScenario: 'baseline',
+        get varValue() {
+            if (this.stressScenario === 'fed-hike') return '$3,850';
+            if (this.stressScenario === 'tech-selloff') return '$4,920';
+            if (this.stressScenario === 'oil-surge') return '$2,680';
+            return '$2,140';
+        },
+        get portfolioBeta() {
+            if (this.stressScenario === 'fed-hike') return '0.92';
+            if (this.stressScenario === 'tech-selloff') return '1.14';
+            if (this.stressScenario === 'oil-surge') return '0.78';
+            return '0.84';
+        }
+    }">
+        
+        <!-- Top Key Performance Diagnostics Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+            <div class="p-5 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-1.5 shadow-lg">
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-sans">Portfolio Beta vs SPX</span>
+                <div class="text-2xl sm:text-3xl font-bold text-white" x-text="portfolioBeta">0.84</div>
+                <span class="text-[10px] text-emerald-400">16% lower volatility than SPX</span>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-1.5 shadow-lg">
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-sans">Sharpe Ratio</span>
+                <div class="text-2xl sm:text-3xl font-bold text-sky-400">2.18</div>
+                <span class="text-[10px] text-slate-400">Top 5% risk-adjusted alpha</span>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-1.5 shadow-lg">
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-sans">Max Historical DD</span>
+                <div class="text-2xl sm:text-3xl font-bold text-loss">-11.4%</div>
+                <span class="text-[10px] text-slate-400">Peak-to-trough resilience</span>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-1.5 shadow-lg">
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-sans">Value at Risk (95% 1D)</span>
+                <div class="text-2xl sm:text-3xl font-bold text-white" x-text="varValue">$2,140</div>
+                <span class="text-[10px] text-slate-400">Parametric 95% confidence</span>
+            </div>
+        </div>
+
+        <!-- Stress Testing Scenarios & Interactive Simulation -->
+        <div class="p-6 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1E2530] pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white font-sans">Macroeconomic Stress Testing Engine</h3>
+                    <p class="text-xs text-slate-400 font-sans mt-0.5">Simulate severe market dislocation scenarios against current portfolio asset allocation.</p>
+                </div>
+                <!-- Scenario Selector Buttons -->
+                <div class="flex items-center space-x-1.5 font-mono text-xs">
+                    <button type="button" @click="stressScenario = 'baseline'" :class="stressScenario === 'baseline' ? 'bg-sky-600 text-white font-bold' : 'bg-[#0D1015] text-slate-400 border border-[#1E2530] hover:text-white'" class="px-3 py-1.5 rounded-lg transition">Baseline</button>
+                    <button type="button" @click="stressScenario = 'fed-hike'" :class="stressScenario === 'fed-hike' ? 'bg-sky-600 text-white font-bold' : 'bg-[#0D1015] text-slate-400 border border-[#1E2530] hover:text-white'" class="px-3 py-1.5 rounded-lg transition">+50bps Hike</button>
+                    <button type="button" @click="stressScenario = 'tech-selloff'" :class="stressScenario === 'tech-selloff' ? 'bg-sky-600 text-white font-bold' : 'bg-[#0D1015] text-slate-400 border border-[#1E2530] hover:text-white'" class="px-3 py-1.5 rounded-lg transition">-15% Tech Drop</button>
+                    <button type="button" @click="stressScenario = 'oil-surge'" :class="stressScenario === 'oil-surge' ? 'bg-sky-600 text-white font-bold' : 'bg-[#0D1015] text-slate-400 border border-[#1E2530] hover:text-white'" class="px-3 py-1.5 rounded-lg transition">+25% Oil Shock</button>
+                </div>
+            </div>
+
+            <!-- Stress Testing Metrics Comparison -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+                <div class="p-4 rounded-xl bg-[#080A0D] border border-[#1E2530] space-y-1">
+                    <span class="text-slate-500 block">Simulated Portfolio P&amp;L</span>
+                    <strong class="text-base font-bold" :class="stressScenario === 'baseline' ? 'text-gain' : 'text-loss'" x-text="stressScenario === 'baseline' ? '+$4,280.21 (+3.44%)' : (stressScenario === 'fed-hike' ? '-$3,120.40 (-2.43%)' : (stressScenario === 'tech-selloff' ? '-$6,840.10 (-5.32%)' : '+$1,140.00 (+0.88%)'))"></strong>
+                </div>
+                <div class="p-4 rounded-xl bg-[#080A0D] border border-[#1E2530] space-y-1">
+                    <span class="text-slate-500 block">Estimated Recovery Horizon</span>
+                    <strong class="text-base font-bold text-white" x-text="stressScenario === 'baseline' ? 'Immediate' : (stressScenario === 'fed-hike' ? '14 Trading Days' : (stressScenario === 'tech-selloff' ? '32 Trading Days' : '4 Trading Days'))"></strong>
+                </div>
+                <div class="p-4 rounded-xl bg-[#080A0D] border border-[#1E2530] space-y-1">
+                    <span class="text-slate-500 block">Automated Hedge Action</span>
+                    <strong class="text-base font-bold text-sky-400" x-text="stressScenario === 'baseline' ? 'Delta Neutral' : (stressScenario === 'fed-hike' ? 'Rotate to Short-Duration Treasuries' : (stressScenario === 'tech-selloff' ? 'Buy Put Options on QQQ' : 'Long Energy Basket'))"></strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Correlation Matrix & Factor Attribution -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Multi-Asset Correlation Heatmap -->
+            <div class="p-6 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-4 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white font-sans">Multi-Asset Correlation Heatmap</h3>
+                    <span class="text-[10px] font-mono text-slate-500">90-Day Rolling</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center font-mono text-xs">
+                        <thead>
+                            <tr class="text-slate-500 text-[10px]">
+                                <th class="py-2 text-left">Asset</th>
+                                <th class="py-2">SPX</th>
+                                <th class="py-2">BTC</th>
+                                <th class="py-2">GOLD</th>
+                                <th class="py-2">US10Y</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#1E2530]">
+                            <tr>
+                                <td class="py-2 text-left font-bold text-white">SPX</td>
+                                <td class="py-2 bg-sky-600/30 text-white font-bold">1.00</td>
+                                <td class="py-2 bg-sky-600/15 text-slate-300">0.42</td>
+                                <td class="py-2 bg-emerald-600/15 text-slate-300">-0.12</td>
+                                <td class="py-2 bg-loss/15 text-slate-300">-0.38</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-left font-bold text-white">BTC</td>
+                                <td class="py-2 bg-sky-600/15 text-slate-300">0.42</td>
+                                <td class="py-2 bg-sky-600/30 text-white font-bold">1.00</td>
+                                <td class="py-2 bg-sky-600/10 text-slate-300">0.18</td>
+                                <td class="py-2 bg-loss/10 text-slate-300">-0.24</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-left font-bold text-white">GOLD</td>
+                                <td class="py-2 bg-emerald-600/15 text-slate-300">-0.12</td>
+                                <td class="py-2 bg-sky-600/10 text-slate-300">0.18</td>
+                                <td class="py-2 bg-sky-600/30 text-white font-bold">1.00</td>
+                                <td class="py-2 bg-loss/20 text-slate-300">-0.52</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-left font-bold text-white">US10Y</td>
+                                <td class="py-2 bg-loss/15 text-slate-300">-0.38</td>
+                                <td class="py-2 bg-loss/10 text-slate-300">-0.24</td>
+                                <td class="py-2 bg-loss/20 text-slate-300">-0.52</td>
+                                <td class="py-2 bg-sky-600/30 text-white font-bold">1.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Factor Beta Attribution -->
+            <div class="p-6 rounded-2xl bg-[#11151B] border border-[#1E2530] space-y-4 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white font-sans">Fama-French 5-Factor Attribution</h3>
+                    <span class="text-[10px] font-mono text-slate-500">Trailing 12M</span>
+                </div>
+                <div class="space-y-3 font-mono text-xs">
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-slate-300"><span>Market Beta (Mkt-RF)</span><span class="text-white font-bold">0.84</span></div>
+                        <div class="h-2 rounded-full bg-[#080A0D] overflow-hidden"><div class="h-full bg-sky-500 w-[84%]"></div></div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-slate-300"><span>Size Premium (SMB - Small Cap)</span><span class="text-white font-bold">0.18</span></div>
+                        <div class="h-2 rounded-full bg-[#080A0D] overflow-hidden"><div class="h-full bg-amber-400 w-[18%]"></div></div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-slate-300"><span>Value Premium (HML - High vs Low)</span><span class="text-white font-bold">-0.08</span></div>
+                        <div class="h-2 rounded-full bg-[#080A0D] overflow-hidden"><div class="h-full bg-rose-400 w-[8%]"></div></div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-slate-300"><span>Profitability (RMW - Robust vs Weak)</span><span class="text-white font-bold">0.42</span></div>
+                        <div class="h-2 rounded-full bg-[#080A0D] overflow-hidden"><div class="h-full bg-emerald-400 w-[42%]"></div></div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-slate-300"><span>Investment (CMA - Conservative vs Aggressive)</span><span class="text-white font-bold">0.26</span></div>
+                        <div class="h-2 rounded-full bg-[#080A0D] overflow-hidden"><div class="h-full bg-purple-400 w-[26%]"></div></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<%- include('../partials/footer') %>

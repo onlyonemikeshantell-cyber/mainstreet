@@ -1,13 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-// Helper to save base64 media (image/video) to public/storage/kyc
+// Login brute-force limiter state (in-memory; resets on server restart)
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginAttempts = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, r] of loginAttempts) {
+    if (r.lockedUntil < now && now - r.first > LOGIN_WINDOW_MS) loginAttempts.delete(k);
+  }
+}, 10 * 60 * 1000).unref();
+
+// Helper to save base64 media (image/video) securely to private storage/kyc
 const saveBase64Media = (base64String, prefix, userId) => {
   if (!base64String || typeof base64String !== 'string' || !base64String.includes('base64,')) {
     return null;
   }
   try {
-    const kycDir = path.join(__dirname, '..', '..', 'public', 'storage', 'kyc');
+    const kycDir = path.join(__dirname, '..', '..', 'storage', 'kyc');
     if (!fs.existsSync(kycDir)) {
       fs.mkdirSync(kycDir, { recursive: true });
     }
@@ -27,7 +38,7 @@ const saveBase64Media = (base64String, prefix, userId) => {
     const filename = `${prefix}_user_${userId}_${Date.now()}.${ext}`;
     const filePath = path.join(kycDir, filename);
     fs.writeFileSync(filePath, data);
-    return `/storage/kyc/${filename}`;
+    return `/babyoku/kyc/file/${filename}`;
   } catch (err) {
     console.error('Failed to save base64 media:', err.message);
     return null;
@@ -40,35 +51,10 @@ const router = express.Router();
 // ==============================================================================
 // IN-MEMORY BRUTE FORCE RATE LIMITER & RFC 6238 TOTP ENGINE
 // ==============================================================================
-const failedLoginAttempts = new Map(); // key: ip -> { count, lockUntil }
-
-const checkRateLimit = (ip) => {
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return { allowed: true };
-  const record = failedLoginAttempts.get(ip);
-  if (!record) return { allowed: true };
-  if (record.lockUntil && Date.now() < record.lockUntil) {
-    const remainingSec = Math.ceil((record.lockUntil - Date.now()) / 1000);
-    return { allowed: false, message: `Too many failed login attempts. Please try again in ${remainingSec} seconds.` };
-  }
-  if (record.lockUntil && Date.now() >= record.lockUntil) {
-    failedLoginAttempts.delete(ip);
-    return { allowed: true };
-  }
-  return { allowed: true };
-};
-
-const recordFailedAttempt = (ip) => {
-  const record = failedLoginAttempts.get(ip) || { count: 0, lockUntil: null };
-  record.count += 1;
-  if (record.count >= 5) {
-    record.lockUntil = Date.now() + (5 * 60 * 1000); // 5-minute lockout
-  }
-  failedLoginAttempts.set(ip, record);
-};
-
-const clearFailedAttempts = (ip) => {
-  failedLoginAttempts.delete(ip);
-};
+// IP rate-limiting features removed completely
+const checkRateLimit = () => ({ allowed: true });
+const recordFailedAttempt = () => {};
+const clearFailedAttempts = () => {};
 
 // Base32 Decoding & Standard RFC 6238 TOTP Verification
 const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -135,7 +121,7 @@ const generateCaptcha = (req) => {
 // Helper activity logger
 const logActivity = (userId, action, details, req) => {
   try {
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = null;
     const ua = req.headers['user-agent'] || 'Unknown Browser';
     db.prepare(`
       INSERT INTO activity_logs (user_id, action, ip_address, user_agent, details)
@@ -144,52 +130,8 @@ const logActivity = (userId, action, details, req) => {
   } catch (e) {}
 };
 
-// Helper to send email via SMTP or fallback
-const sendEmail = async (toEmail, subject, htmlBody) => {
-  try {
-    const smtp = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
-    if (smtp && smtp.is_active && smtp.host && smtp.user && smtp.pass) {
-      const transporter = nodemailer.createTransport({
-        host: smtp.host.trim(),
-        port: parseInt(smtp.port) || 587,
-        secure: parseInt(smtp.port) === 465,
-        auth: {
-          user: smtp.user.trim(),
-          pass: smtp.pass.trim()
-        },
-        tls: { rejectUnauthorized: false }
-      });
-
-      const info = await transporter.sendMail({
-        from: `"${smtp.from_name || 'TradexEdge Broker Support'}" <${smtp.from_email || smtp.user}>`,
-        to: toEmail.trim(),
-        subject: subject,
-        html: htmlBody
-      });
-
-      console.log(`Email delivered to ${toEmail} via SMTP. Message ID: ${info.messageId}`);
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-        VALUES (?, 'user', ?, ?, 'sent')
-      `).run(toEmail, subject, htmlBody);
-      return { success: true, info };
-    } else {
-      console.log(`[LOCAL DEV MODE] Password reset email prepared for ${toEmail}. Set up SMTP in /admin to deliver to real inbox.`);
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-        VALUES (?, 'user', ?, ?, 'pending_smtp_config')
-      `).run(toEmail, subject, htmlBody);
-      return { success: true, localOnly: true };
-    }
-  } catch (err) {
-    console.error('Email dispatch error:', err.message);
-    db.prepare(`
-      INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-      VALUES (?, 'user', ?, ?, 'failed')
-    `).run(toEmail, subject, htmlBody + ' [Error: ' + err.message + ']');
-    return { success: false, error: err.message };
-  }
-};
+// Unified Mailer Service (Resend / SMTP / Sandbox)
+const { sendEmail } = require('../services/mailer');
 
 // GET /login
 router.get('/login', (req, res) => {
@@ -198,7 +140,7 @@ router.get('/login', (req, res) => {
     if (user && user.role === 'admin') return res.redirect('/babyoku');
     return res.redirect('/dashboard');
   }
-  res.render('auth/login', { title: 'TradexEdge | Login' });
+  res.render('auth/login', { title: 'Sign In | Mainstreet Capital Exchange' });
 });
 
 // GET /babyoku/login (and alias /admin/login -> /babyoku/login)
@@ -211,7 +153,7 @@ router.get(['/babyoku/login', '/admin/login'], (req, res) => {
     if (user && user.role === 'admin') return res.redirect('/babyoku');
   }
   res.render('auth/admin-login', { 
-    title: 'TradexEdge | Executive Console Login',
+    title: 'Executive Console Login | Mainstreet Capital Exchange',
     loginAction: '/babyoku/login'
   });
 });
@@ -220,46 +162,51 @@ router.get(['/babyoku/login', '/admin/login'], (req, res) => {
 router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   const isAdminPath = req.path.includes('admin') || req.path.includes('babyoku');
   const redirectTarget = isAdminPath ? '/babyoku/login' : '/login';
-  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-  const rateStatus = checkRateLimit(clientIp);
-  if (!rateStatus.allowed) {
-    req.session.flash = { error: rateStatus.message };
-    return res.redirect(redirectTarget);
-  }
-
   const { email, password } = req.body;
   if (!email || !password) {
     req.session.flash = { error: 'Please enter both your email and password.' };
     return res.redirect(redirectTarget);
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
-  if (!user) {
-    recordFailedAttempt(clientIp);
-    req.session.flash = { error: 'Wrong credentials' };
+  const cleanEmail = (email || '').trim().toLowerCase();
+
+  // Brute-force protection: max 5 failed attempts per IP+email per 15 minutes
+  const attemptKey = `${req.ip}|${cleanEmail}`;
+  const now = Date.now();
+  const record = loginAttempts.get(attemptKey);
+  if (record && record.lockedUntil > now) {
+    const mins = Math.ceil((record.lockedUntil - now) / 60000);
+    req.session.flash = { error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.` };
     return res.redirect(redirectTarget);
   }
+  const registerFailure = () => {
+    const r = loginAttempts.get(attemptKey) || { count: 0, first: now, lockedUntil: 0 };
+    if (now - r.first > LOGIN_WINDOW_MS) { r.count = 0; r.first = now; }
+    r.count += 1;
+    if (r.count >= MAX_LOGIN_ATTEMPTS) r.lockedUntil = now + LOGIN_WINDOW_MS;
+    loginAttempts.set(attemptKey, r);
+  };
 
-  const storedHash = user.password || user.password_hash;
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+  const storedHash = user ? (user.password || '') : '';
   let match = false;
   try {
-    if (storedHash.startsWith('$2')) {
-      match = bcrypt.compareSync(password, storedHash);
-    } else {
-      match = (password === storedHash);
-    }
+    match = !!storedHash && storedHash.startsWith('$2') && bcrypt.compareSync(password, storedHash);
   } catch (e) {
-    match = (password === storedHash);
+    match = false;
   }
 
-  if (!match) {
-    recordFailedAttempt(clientIp);
-    req.session.flash = { error: 'Wrong credentials' };
+  // Admin console only admits admin accounts
+  if (match && isAdminPath && user.role !== 'admin') match = false;
+
+  if (!user || !match) {
+    registerFailure();
+    req.session.flash = { error: 'Invalid email or password.' };
     return res.redirect(redirectTarget);
   }
 
   // Clear failed attempts upon successful password match
-  clearFailedAttempts(clientIp);
+  loginAttempts.delete(attemptKey);
 
   // 2FA TOTP Authentication Check
   if (user.two_factor_enabled === 1 && user.two_factor_secret) {
@@ -284,7 +231,7 @@ router.get('/login/2fa', (req, res) => {
   if (!req.session.pending2faUserId) {
     return res.redirect('/login');
   }
-  res.render('auth/login-2fa', { title: 'TradexEdge | Two-Factor Authentication' });
+  res.render('auth/login-2fa', { title: 'Two-Factor Authentication | Mainstreet Capital Exchange' });
 });
 
 // POST /login/2fa -> Verify 6-digit TOTP code
@@ -312,7 +259,7 @@ router.post('/login/2fa', (req, res) => {
   req.session.pending2faUserId = null;
   req.session.pending2faIsAdmin = null;
 
-  logActivity(user.id, 'LOGIN_2FA_SUCCESS', `2FA Authenticated successfully from ${req.ip}`, req);
+  logActivity(user.id, 'LOGIN_2FA_SUCCESS', `2FA Authenticated successfully `, req);
 
   if (isAdminLogin || user.role === 'admin') {
     return res.redirect('/babyoku');
@@ -325,24 +272,24 @@ router.get('/register', (req, res) => {
   if (req.session.userId) return res.redirect('/dashboard');
   const captchaQuestion = generateCaptcha(req);
   res.render('auth/register', { 
-    title: 'TradexEdge | Register',
+    title: 'Open Live Account | Mainstreet Capital Exchange',
     captchaQuestion 
   });
 });
 
-// POST /register with Mandatory ID (Front & Back) + Biometric Video Verification
+// POST /register - Streamlined High-Converting Instant Onboarding
 router.post('/register', (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
     doc_type, doc_number, front_image, back_image, video_data
   } = req.body;
 
-  if (!name || !email || !password || !confirm_password) {
-    req.session.flash = { error: 'Please fill out all required personal credentials.' };
+  if (!name || !email || !password) {
+    req.session.flash = { error: 'Please enter your name, email address, and password.' };
     return res.redirect('/register');
   }
 
-  if (password !== confirm_password) {
+  if (confirm_password && password !== confirm_password) {
     req.session.flash = { error: 'Passwords do not match.' };
     return res.redirect('/register');
   }
@@ -352,61 +299,54 @@ router.post('/register', (req, res) => {
     return res.redirect('/register');
   }
 
-  if (!front_image || !back_image) {
-    req.session.flash = { error: 'Both Front and Back photos of your ID Card are mandatory for registration.' };
-    return res.redirect('/register');
-  }
-
-  if (!video_data) {
-    req.session.flash = { error: 'Biometric liveness video verification recording is mandatory for registration.' };
-    return res.redirect('/register');
-  }
-
   const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
   if (existing) {
-    req.session.flash = { error: 'An account with that email already exists.' };
-    return res.redirect('/register');
+    req.session.flash = { error: 'An account with that email already exists. Please log in.' };
+    return res.redirect('/login');
   }
 
   const hash = bcrypt.hashSync(password, 10);
+  const initialKycStatus = (front_image && back_image) ? 'pending' : 'unverified';
 
   try {
     const result = db.prepare(`
       INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', 'pending', 1)
+      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 1)
     `).run(
       name.trim(),
       email.trim(),
       phone ? phone.trim() : null,
       country ? country.trim() : 'United States',
-      hash
+      hash,
+      initialKycStatus
     );
 
     const newUserId = result.lastInsertRowid;
 
-    // Save ID Front, ID Back, and Biometric Video to Storage
-    const frontPath = saveBase64Media(front_image, 'id_front', newUserId) || '/storage/kyc/default_front.jpg';
-    const backPath = saveBase64Media(back_image, 'id_back', newUserId) || '/storage/kyc/default_back.jpg';
-    const videoPath = saveBase64Media(video_data, 'kyc_video', newUserId) || '/storage/kyc/default_video.webm';
+    // If documents were provided optionally during registration, save them
+    if (front_image && back_image) {
+      const frontPath = saveBase64Media(front_image, 'id_front', newUserId) || '/storage/kyc/default_front.jpg';
+      const backPath = saveBase64Media(back_image, 'id_back', newUserId) || '/storage/kyc/default_back.jpg';
+      const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', newUserId) || '/storage/kyc/default_video.webm') : null;
 
-    // Insert into kyc_documents table
-    db.prepare(`
-      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending')
-    `).run(
-      newUserId,
-      doc_type || 'National ID Card',
-      doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
-      frontPath,
-      backPath,
-      videoPath
-    );
+      db.prepare(`
+        INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', 'manual')
+      `).run(
+        newUserId,
+        doc_type || 'National ID Card',
+        doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
+        frontPath,
+        backPath,
+        videoPath
+      );
+    }
 
     // Initial Welcome Demo Capital ($10,000 USD)
     db.prepare(`
       INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
       VALUES (?, 'bonus', 10000.00, 'USD', 'completed', 'Demo Capital', ?, 'Welcome Trading Bonus Balance')
-    `).run(newUserId, 'TXE-WEL-' + newUserId + '-' + Date.now());
+    `).run(newUserId, 'MCE-WEL-' + newUserId + '-' + Date.now());
 
     // Auto-seed default crypto balance ledger
     try {
@@ -419,38 +359,47 @@ router.post('/register', (req, res) => {
         { symbol: 'USD', name: 'US Dollar', icon: '$', balance: 10000.00, rate: 1.00 }
       ];
       const insertCrypto = db.prepare(`
-        INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd)
+        INSERT OR IGNORE INTO user_crypto_balances (user_id, symbol, name, icon, balance, rate)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
-      defaultCryptos.forEach(c => insertCrypto.run(newUserId, c.symbol, c.name, c.balance, c.icon, c.rate));
-    } catch(e) {}
+      for (const c of defaultCryptos) {
+        insertCrypto.run(newUserId, c.symbol, c.name, c.icon, c.balance, c.rate);
+      }
+    } catch (e) {
+      console.warn('Could not auto-seed crypto balances for user:', e.message);
+    }
 
+    // Set session user & auto-login
     req.session.userId = newUserId;
-
-    logActivity(newUserId, 'REGISTER_KYC_SUBMIT', 'Account registered with Front/Back ID and Biometric Video', req);
-    req.session.flash = { 
-      success: `🎉 Welcome to TradexEdge, ${name.trim()}! Your ID Card (Front & Back) and Biometric Video have been submitted for compliance verification.` 
+    const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
+    req.session.user = {
+      id: fullUser.id,
+      name: fullUser.name,
+      email: fullUser.email,
+      role: fullUser.role,
+      country: fullUser.country,
+      kyc_status: fullUser.kyc_status,
+      demo_balance: fullUser.demo_balance,
+      real_balance: fullUser.real_balance
     };
-    res.redirect('/dashboard');
+
+    req.session.flash = { success: 'Welcome to Mainstreet Capital Exchange! Your account has been created with $10,000 demo capital.' };
+    return res.redirect('/dashboard');
   } catch (err) {
-    console.error('Registration failure:', err);
-    req.session.flash = { error: 'Registration error: ' + err.message };
-    res.redirect('/register');
+    console.error('Registration error:', err);
+    req.session.flash = { error: 'Registration failed: ' + err.message };
+    return res.redirect('/register');
   }
 });
 
-
 // GET /forgot-password
 router.get('/forgot-password', (req, res) => {
-  const resetLink = req.session.lastResetLink || null;
-  req.session.lastResetLink = null;
   res.render('auth/forgot-password', { 
-    title: 'TradexEdge | Forgot Password',
-    resetLink
+    title: 'Forgot Password | Mainstreet Capital Exchange'
   });
 });
 
-// POST /forgot-password -> Generate Token & Dispatch Email
+// POST /forgot-password -> Generate Token & Dispatch Email Securely
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) {
@@ -458,46 +407,60 @@ router.post('/forgot-password', async (req, res) => {
     return res.redirect('/forgot-password');
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
-  if (!user) {
-    req.session.flash = { error: `No trading account found matching ${email}. Please check the spelling or register a new account.` };
-    return res.redirect('/forgot-password');
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+
+  if (user) {
+    // Generate secure 64-character token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+    db.prepare(`
+      INSERT INTO password_resets (email, token, expires_at)
+      VALUES (?, ?, ?)
+    `).run(user.email, token, expiresAt);
+
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const host = forwardedHost || req.get('host') || 'localhost:3333';
+    const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com');
+    const protocol = isHttps ? 'https' : (req.protocol || 'http');
+    const resetLink = `${protocol}://${host}/reset-password?token=${token}`;
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: 48px; object-fit: contain; display: inline-block;" />
+        </div>
+        <h2 style="color: #38BDF8; margin-top: 0; text-align: center;">Password Reset Request</h2>
+        <p>Hello <strong>${user.name}</strong>,</p>
+        <p>We received a request to reset the password for your Mainstreet Capital Exchange trading account.</p>
+        <p style="margin: 25px 0;">
+          <a href="${resetLink}" style="background-color: #0284C7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset My Password</a>
+        </p>
+        <p style="font-size: 12px; color: #94A3B8;">Or copy and paste this link into your browser:</p>
+        <p style="font-size: 11px; color: #38BDF8; word-break: break-all;">${resetLink}</p>
+        <hr style="border: 0; border-top: 1px solid #1E293B; margin: 20px 0;" />
+        <p style="font-size: 11px; color: #64748B;">This link is valid for 60 minutes. If you did not request a password reset, please disregard this email.</p>
+      </div>
+    `;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Mainstreet Capital Exchange Password Reset Request',
+        html: emailHtml,
+        recipientType: 'user'
+      });
+      logActivity(user.id, 'PASSWORD_RESET_REQ', `Password reset token requested for ${user.email}`, req);
+    } catch (e) {
+      console.error('Password reset email dispatch error:', e.message);
+    }
   }
 
-  // Generate 64-character token
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
-
-  db.prepare(`
-    INSERT INTO password_resets (email, token, expires_at)
-    VALUES (?, ?, ?)
-  `).run(user.email, token, expiresAt);
-
-  const protocol = req.protocol || 'http';
-  const host = req.get('host') || 'localhost:3333';
-  const resetLink = `${protocol}://${host}/reset-password?token=${token}`;
-
-  const emailHtml = `
-    <div style="font-family: Arial, sans-serif; background-color: #0D0F14; color: #E2E8F0; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #242938;">
-      <h2 style="color: #C9A646; margin-top: 0;">TradexEdge Password Reset Request</h2>
-      <p>Hello <strong>${user.name}</strong>,</p>
-      <p>We received a request to reset the password for your TradexEdge trading account.</p>
-      <p style="margin: 25px 0;">
-        <a href="${resetLink}" style="background-color: #C9A646; color: #0D0F14; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset My Password</a>
-      </p>
-      <p style="font-size: 12px; color: #94A3B8;">Or copy and paste this link into your browser:</p>
-      <p style="font-size: 11px; color: #C9A646; word-break: break-all;">${resetLink}</p>
-      <hr style="border: 0; border-top: 1px solid #242938; margin: 20px 0;" />
-      <p style="font-size: 11px; color: #64748B;">This link is valid for 60 minutes. If you did not request a password reset, please disregard this email.</p>
-    </div>
-  `;
-
-  await sendEmail(user.email, 'TradexEdge Password Reset Request', emailHtml);
-  logActivity(user.id, 'PASSWORD_RESET_REQ', `Password reset token requested for ${user.email}`, req);
-
-  req.session.lastResetLink = resetLink;
+  // Consistent message to prevent user enumeration & zero cleartext link disclosure
   req.session.flash = { 
-    success: `Password reset request generated for ${user.email}!` 
+    success: 'If a trading account exists with this email address, a password reset link has been dispatched to your inbox.' 
   };
   res.redirect('/forgot-password');
 });
@@ -522,7 +485,7 @@ router.get('/reset-password', (req, res) => {
   }
 
   res.render('auth/reset-password', {
-    title: 'TradexEdge | Reset Password',
+    title: 'Reset Password | Mainstreet Capital Exchange',
     token
   });
 });

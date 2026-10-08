@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION]:', err);
 });
@@ -25,6 +27,20 @@ const retirementRoutes = require('./src/routes/retirement');
 const app = express();
 const PORT = process.env.PORT || 3333;
 
+app.disable('x-powered-by');
+
+// HTTP Security Headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  next();
+});
+
+app.set('trust proxy', 1);
+
 // View engine setup
 app.set('views', path.join(__dirname, 'src', 'views'));
 app.set('view engine', 'ejs');
@@ -39,7 +55,7 @@ app.use(cors());
 
 // Session setup
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'tradexedge_secure_jwt_token_session_2026',
+  secret: process.env.SESSION_SECRET || 'mainstreet_secure_jwt_token_session_2026',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -63,7 +79,7 @@ app.use('/', userRoutes);
 // 404 Handler
 app.use((req, res) => {
   res.status(404).render('public/home', { 
-    title: 'TradexEdge | Page Not Found',
+    title: 'Mainstreet Capital Exchange | Page Not Found',
     flash: { error: 'The requested page could not be located. Redirected to home.' }
   });
 });
@@ -166,5 +182,5 @@ setInterval(() => {
 }, 2500);
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`TradeXEdge application is live at http://localhost:${PORT}`);
+  console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);
 });

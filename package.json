@@ -1,5 +1,5 @@
 {
-  "name": "tradexedge-platform",
+  "name": "mainstreet-capital-exchange",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -20,7 +20,8 @@
     "ejs": "^6.0.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "resend": "^6.32.0"
   },
   "engines": {
     "node": ">=18.0.0"

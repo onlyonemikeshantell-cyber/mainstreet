@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradexEdge | Executive Control Console Login</title>
+    <title><%= typeof title !== 'undefined' ? title : 'Mainstreet Capital Exchange | Executive Control Console Login' %></title>
+    <link rel="shortcut icon" href="/img/brand/favicon-32.png" type="image/png">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,61 +17,108 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#0F6CBD', hover: '#0D5CA3', dark: '#0A477F' },
+                        primary: { DEFAULT: '#0284C7', hover: '#0369A1', dark: '#075985' },
                         gain: '#10B981',
                         loss: '#EF4444',
-                        surface: { base: '#0B0F19', raised: '#111827', overlay: '#1F2937', border: '#374151' }
                     },
                     fontFamily: {
                         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
                         mono: ['"JetBrains Mono"', 'monospace'],
-                        serif: ['Cinzel', 'serif']
+                        serif: ['"Outfit"', 'sans-serif']
                     }
                 }
             }
         }
     </script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        body {
+            background-color: #030712;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.22) 0px, transparent 55%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.16) 0px, transparent 48%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.14) 0px, transparent 52%),
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+        }
+        .luxury-glass-card {
+            background: linear-gradient(135deg, rgba(14, 22, 42, 0.88) 0%, rgba(7, 12, 24, 0.96) 100%);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.95), 0 0 40px rgba(2, 132, 199, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            position: relative;
+        }
+        .luxury-glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.7), transparent);
+        }
+    </style>
 </head>
-<body class="h-full bg-[#070A13] text-gray-100 flex flex-col justify-between font-sans selection:bg-primary selection:text-white">
+<body class="h-full text-slate-100 flex flex-col justify-between font-sans selection:bg-sky-500/30 selection:text-white"
+      x-data="{
+          email: '',
+          password: '',
+          showPass: false,
+          utcClock: '',
+          initClock() {
+              const u = () => { this.utcClock = new Date().toISOString().slice(11, 19) + ' UTC'; };
+              u();
+              setInterval(u, 1000);
+          }
+      }"
+      x-init="initClock()">
 
-    <!-- Top Minimal Security Header -->
-    <header class="p-6 flex items-center justify-between border-b border-gray-800/80">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center text-xl shadow-lg shadow-primary/20">
-                🛡️
-            </div>
+    <!-- Top Security Header -->
+    <header class="p-5 sm:p-6 flex items-center justify-between border-b border-white/[0.08] backdrop-blur-xl bg-black/30">
+        <div class="flex items-center space-x-3.5">
+            <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(2,132,199,0.3)]" />
             <div>
-                <span class="font-serif font-extrabold text-lg text-white tracking-wider block leading-tight">TradexEdge</span>
-                <span class="font-mono text-[10px] text-blue-400 font-bold uppercase tracking-widest">Executive Terminal</span>
+                <span class="font-serif font-extrabold text-base text-white tracking-wide block leading-tight">MAINSTREET CAPITAL</span>
+                <span class="font-mono text-[9px] text-sky-400 font-bold uppercase tracking-widest block">EXECUTIVE PRIME DESK</span>
             </div>
         </div>
-        <div class="flex items-center space-x-2 text-[11px] font-mono text-gray-400 bg-gray-900/90 px-3 py-1.5 rounded-full border border-gray-800">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>RESTRICTED ACCESS • IP MONITORED</span>
+        
+        <div class="flex items-center space-x-3 text-xs font-mono">
+            <div class="hidden sm:flex items-center space-x-2 text-[11px] text-slate-300 bg-white/[0.04] px-3.5 py-1.5 rounded-full border border-white/[0.08]">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]"></span>
+                <span>RESTRICTED ACCESS &bull; FIX 4.4 BRIDGE</span>
+            </div>
+            <div class="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px] text-gray-300 font-bold" x-text="utcClock"></div>
         </div>
     </header>
 
     <!-- Center Card -->
-    <main class="flex-grow flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-gray-900/90 backdrop-blur-xl rounded-3xl p-8 sm:p-10 shadow-2xl border border-gray-800 space-y-6">
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 my-6">
+        <div class="max-w-md w-full luxury-glass-card rounded-3xl p-8 sm:p-10 space-y-7">
             
-            <div class="text-center space-y-2">
-                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/20 text-blue-400 text-[10px] font-bold font-mono border border-primary/30">
-                    <span>SECURITY CLEARANCE REQUIRED</span>
+            <div class="text-center space-y-3">
+                <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-sky-500/10 text-sky-400 text-[10px] font-bold font-mono border border-sky-500/30 shadow-[0_0_15px_rgba(56,189,248,0.2)]">
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span>
+                    <span>EXECUTIVE CLEARANCE REQUIRED</span>
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-white font-serif tracking-tight">Executive Console</h1>
-                <p class="text-xs text-gray-400 leading-relaxed">Enter administrative credentials to access the master institutional management desk.</p>
+                <h1 class="text-2xl sm:text-3xl font-black text-white font-serif tracking-tight">Executive Console</h1>
+                <p class="text-xs text-slate-400 leading-relaxed font-mono">Authenticate master credentials to access the central brokerage management matrix.</p>
             </div>
 
             <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
-                <div class="p-3.5 rounded-xl bg-red-900/30 border border-red-700/50 text-red-300 text-xs font-semibold flex items-center space-x-2">
+                <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs font-semibold flex items-center space-x-2.5 shadow-lg">
                     <span>⚠️</span>
                     <span><%= flash.error %></span>
                 </div>
             <% } %>
 
             <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
-                <div class="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-700/50 text-emerald-300 text-xs font-semibold flex items-center space-x-2">
+                <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs font-semibold flex items-center space-x-2.5 shadow-lg">
                     <span>✓</span>
                     <span><%= flash.success %></span>
                 </div>
@@ -78,43 +128,56 @@
                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
                 <div class="space-y-1.5">
-                    <label class="block uppercase font-bold text-gray-400 font-sans text-[11px]">Administrator Email *</label>
-                    <input type="email" name="email" required placeholder="admin@tradexedge.com" 
-                           class="w-full bg-gray-800/80 border border-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner font-sans text-sm transition" />
+                    <label class="block uppercase font-bold text-slate-400 font-sans text-[11px] tracking-wider">Administrator Identity *</label>
+                    <input type="email" name="email" x-model="email" required placeholder="Administrator email" autocomplete="username" 
+                           class="w-full bg-black/50 border border-white/[0.12] text-white rounded-xl px-4 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 shadow-inner font-sans text-sm transition" />
                 </div>
 
-                <div class="space-y-1.5" x-data="{ showPass: false }">
+                <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <label class="block uppercase font-bold text-gray-400 font-sans text-[11px]">Master Password *</label>
-                        <button type="button" @click="showPass = !showPass" class="text-[10px] text-sky-400 hover:underline font-mono flex items-center space-x-1" title="Spy / Reveal Password">
-                            <span x-text="showPass ? '🙈 Mask' : '👁️ Spy Password'"></span>
+                        <label class="block uppercase font-bold text-slate-400 font-sans text-[11px] tracking-wider">Master Keyphrase *</label>
+                        <button type="button" @click="showPass = !showPass" class="text-[10px] text-sky-400 hover:text-sky-300 font-mono flex items-center space-x-1 cursor-pointer" title="Reveal Password">
+                            <span x-text="showPass ? '🙈 Mask' : '👁️ View Key'"></span>
                         </button>
                     </div>
                     <div class="relative">
-                        <input :type="showPass ? 'text' : 'password'" name="password" required placeholder="••••••••••••" 
-                               class="w-full bg-gray-800/80 border border-gray-700 text-white rounded-xl pl-4 pr-11 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner font-sans text-sm transition" />
-                        <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-sky-400 transition" title="Toggle password visibility (Spy password)">
+                        <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required placeholder="••••••••••••" 
+                               class="w-full bg-black/50 border border-white/[0.12] text-white rounded-xl pl-4 pr-11 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 shadow-inner font-sans text-sm transition" />
+                        <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-sky-400 transition" title="Toggle visibility">
                             <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             <svg x-show="showPass" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
                         </button>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-lg shadow-primary/30 transition transform hover:-translate-y-0.5 font-sans tracking-wide">
-                    Authenticate Console &rarr;
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-primary hover:from-sky-400 hover:to-primary-hover text-white font-extrabold text-xs shadow-xl shadow-sky-500/30 transition transform hover:-translate-y-0.5 font-sans tracking-wide cursor-pointer flex items-center justify-center space-x-2">
+                    <span>⚡ Authenticate Terminal Session</span>
+                    <span>&rarr;</span>
                 </button>
             </form>
 
-            <div class="pt-2 text-center text-[10px] text-gray-500 font-mono">
-                Session protected with SHA-256 HMAC & TLS 1.3 encryption
+            <div class="pt-2 text-center text-[10px] text-slate-500 font-mono space-y-1">
+                <div>Hardware-accelerated TLS 1.3 &bull; SQLite Multi-Threaded Engine</div>
+                <div class="text-slate-600">Session IP and geographic telemetry recorded for security audit.</div>
             </div>
 
         </div>
     </main>
 
-    <!-- Minimal Security Footer -->
-    <footer class="p-6 text-center text-xs text-gray-500 font-mono border-t border-gray-800/80">
-        &copy; 2026 TradeXEdge Institutional Executive Systems • Node ID: TXE-CORE-01
+    <!-- Executive Security Footer -->
+    <footer class="p-6 text-center text-[11px] text-slate-500 font-mono border-t border-white/[0.08] backdrop-blur-xl bg-black/40">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+                &copy; <%= new Date().getFullYear() %> Mainstreet Capital Exchange Inc. &bull; Executive Command Console
+            </div>
+            <div class="flex items-center space-x-3 text-[10px] text-slate-400">
+                <span class="text-emerald-400 flex items-center space-x-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>CORE-NODE-01 ONLINE</span></span>
+                <span>&bull;</span>
+                <span>RESTRICTED ACCESS</span>
+                <span>&bull;</span>
+                <span>ALL RIGHTS RESERVED</span>
+            </div>
+        </div>
     </footer>
 
 </body>

@@ -5,13 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../db');
 
-// Helper to save base64 media (image/video) to public/storage/kyc
+// Helper to save base64 media (image/video) securely to private storage/kyc
 const saveBase64Media = (base64String, prefix, userId) => {
   if (!base64String || typeof base64String !== 'string' || !base64String.includes('base64,')) {
     return null;
   }
   try {
-    const kycDir = path.join(__dirname, '..', '..', 'public', 'storage', 'kyc');
+    const kycDir = path.join(__dirname, '..', '..', 'storage', 'kyc');
     if (!fs.existsSync(kycDir)) {
       fs.mkdirSync(kycDir, { recursive: true });
     }
@@ -31,7 +31,7 @@ const saveBase64Media = (base64String, prefix, userId) => {
     const filename = `${prefix}_user_${userId}_${Date.now()}.${ext}`;
     const filePath = path.join(kycDir, filename);
     fs.writeFileSync(filePath, data);
-    return `/storage/kyc/${filename}`;
+    return `/babyoku/kyc/file/${filename}`;
   } catch (err) {
     console.error('Failed to save base64 media:', err.message);
     return null;
@@ -40,7 +40,7 @@ const saveBase64Media = (base64String, prefix, userId) => {
 
 const { getLivePrices, syncClientLivePrice } = require('../services/livePriceService');
 const { STOCK_BASKETS, STOCK_DIVIDEND_RATES } = require('../services/stockBasketService');
-const { verifyCryptoDeposit } = require('../services/blockchainVerificationService');
+const { verifyCryptoDeposit, checkTransactionStatus } = require('../services/blockchainVerificationService');
 
 // Live Real-Time Market Prices API
 router.get('/api/market/prices', (req, res) => {
@@ -83,18 +83,19 @@ router.get('/api/crypto/session-data', (req, res) => {
   res.json({ success: true, session: getCryptoSessionData() });
 });
 
-// Require Auth Middleware with Seamless Demo Terminal Access
+// Require Auth Middleware
 const requireAuth = (req, res, next) => {
-  if (req.path.startsWith('/babyoku') || req.path.startsWith('/admin')) {
+  if (
+    req.path.startsWith('/babyoku') || 
+    req.path.startsWith('/admin') ||
+    req.path.startsWith('/api/webhooks') ||
+    req.path.startsWith('/api/crypto/verify-status')
+  ) {
     return next();
   }
   if (!req.session.userId) {
-    if (req.path === '/webtrade/app' || req.path === '/trading' || req.path === '/trade' || req.path === '/terminal' || req.path === '/api/user/sync' || req.path === '/api/trade/open' || req.path === '/api/trade/close') {
-      const trader = db.prepare("SELECT id FROM users WHERE role = 'user' ORDER BY id ASC LIMIT 1").get();
-      if (trader) {
-        req.session.userId = trader.id;
-        return next();
-      }
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, error: 'Authentication required. Please log in.' });
     }
     req.session.flash = { error: 'Please log in to access this trading area.' };
     return res.redirect('/login');
@@ -107,7 +108,7 @@ router.use(requireAuth);
 // Helper to log user activity
 const logActivity = (userId, action, details, req) => {
   try {
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = null;
     const ua = req.headers['user-agent'] || 'Unknown Browser';
     db.prepare(`
       INSERT INTO activity_logs (user_id, action, ip_address, user_agent, details)
@@ -164,7 +165,7 @@ router.get('/dashboard', (req, res) => {
   const retirementContributions = db.prepare('SELECT * FROM retirement_contributions WHERE account_id = ? ORDER BY id DESC LIMIT 5').all(retirementAccount.id);
 
   res.render('app/dashboard', {
-    title: 'Trader Dashboard | TradexEdge',
+    title: 'Trader Dashboard | Mainstreet Capital Exchange',
     user,
     openTrades,
     recentTransactions,
@@ -191,7 +192,7 @@ router.get(['/webtrade/app', '/trading', '/trade', '/terminal'], (req, res) => {
   const markets = db.prepare('SELECT * FROM market_settings WHERE is_tradable = 1').all();
 
   res.render('app/webtrader', {
-    title: 'WebTrader Pro Execution Terminal | TradexEdge',
+    title: 'WebTrader Pro Execution Terminal | Mainstreet Capital Exchange',
     user,
     openTrades,
     markets
@@ -211,7 +212,7 @@ router.get('/copy-trading/app', (req, res) => {
   `).all(user.id);
 
   res.render('app/copy-trading-app', {
-    title: 'Copy Trading Portfolio Station | TradexEdge',
+    title: 'Copy Trading Portfolio Station | Mainstreet Capital Exchange',
     user,
     masters,
     mySubscriptions
@@ -286,16 +287,272 @@ router.post('/api/copy-trading/stop', (req, res) => {
 });
 
 // 4. Deposit Station with Dynamic Wallets & Payment Proof Submission
-router.get('/deposit', (req, res) => {
+router.get(['/deposit', '/cashier'], (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const gateways = db.prepare('SELECT * FROM payment_gateways WHERE is_active = 1').all();
   const livePrices = getLivePrices();
   res.render('app/deposit', {
-    title: 'Deposit Funds | TradexEdge Liquidity Desk',
+    title: 'Cashier & Deposit | Mainstreet Capital Exchange',
     user,
     gateways,
-    livePrices
+    livePrices,
+    activeCashierTab: 'deposit'
   });
+});
+
+// Reusable Atomic Helper: Credit User Deposit
+function creditUserDeposit({ userId, creditAmount, onChainResult, gwName, ref, txHash, proofNotes, proofImage, req }) {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  if (!user) throw new Error('User account not found.');
+
+  const generatedRef = ref || ('DEP-' + Math.floor(100000 + Math.random() * 900000));
+  const finalGwName = gwName || (onChainResult?.network ? `${onChainResult.network} (${onChainResult.symbol})` : 'Cryptocurrency Direct');
+
+  const execute = db.transaction(() => {
+    const txDesc = onChainResult && onChainResult.mode === 'live_blockchain'
+      ? `Verified on ${onChainResult.network}: Transferred ${onChainResult.amountCrypto} ${onChainResult.symbol} (${onChainResult.confirmations} confs)`
+      : (proofNotes || `Instant deposit of $${creditAmount.toLocaleString()} via ${finalGwName}`);
+
+    // 1. Record completed transaction
+    db.prepare(`
+      INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, proof_image, status)
+      VALUES (?, 'deposit', ?, 'USD', ?, ?, ?, ?, ?, 'completed')
+    `).run(
+      user.id,
+      creditAmount,
+      finalGwName,
+      generatedRef,
+      txHash || 'Direct Blockchain Confirmation',
+      txDesc,
+      proofImage || null
+    );
+
+    // 2. Immediately credit user's trading cash balance and equity
+    const newBal = Number(user.balance) + creditAmount;
+    const newEquity = Number(user.equity) + creditAmount;
+    db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEquity, user.id);
+
+    // 3. Synchronize USD cash row in user_crypto_balances
+    const usdRow = db.prepare("SELECT id FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = 'USD'").get(user.id);
+    if (usdRow) {
+      db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(creditAmount, usdRow.id);
+    } else {
+      db.prepare(`INSERT INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type) VALUES (?, 'USD', 'US Dollar (Fiat)', ?, '$', 1.0, 'fiat')`).run(user.id, newBal);
+    }
+
+    // 3b. Also synchronize specific crypto balance in portfolio if crypto was deposited
+    const rawCryptoSym = onChainResult?.symbol && onChainResult.symbol !== 'USD' && onChainResult.symbol !== 'TOKEN'
+      ? onChainResult.symbol
+      : null;
+    if (rawCryptoSym) {
+      const livePrices = getLivePrices();
+      const cryptoAmountToAdd = (onChainResult && onChainResult.amountCrypto > 0)
+        ? onChainResult.amountCrypto
+        : +(creditAmount / (livePrices[rawCryptoSym]?.price || 1)).toFixed(6);
+      
+      const cryptoRow = db.prepare("SELECT id FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = ?").get(user.id, rawCryptoSym);
+      if (cryptoRow) {
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(cryptoAmountToAdd, cryptoRow.id);
+      }
+    }
+
+    // 4. In-App Notification
+    const notifMsg = onChainResult && onChainResult.mode === 'live_blockchain'
+      ? `Deposit #${generatedRef} ($${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD) verified on-chain via ${onChainResult.network} (${onChainResult.confirmations} confirmations) and credited instantly.`
+      : `Deposit #${generatedRef} ($${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD via ${finalGwName}) verified and credited to your trading account instantly.`;
+
+    try {
+      db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'deposit')")
+        .run(user.id, 'Deposit Credited Instantly', notifMsg);
+    } catch(ne) {}
+
+    if (req) {
+      logActivity(user.id, 'DEPOSIT_AUTO_CREDITED', `Auto-credited deposit ref ${generatedRef} for $${creditAmount} via ${finalGwName} (Verification: ${onChainResult ? onChainResult.mode : 'standard'})`, req);
+    }
+
+    return {
+      reference: generatedRef,
+      newBalance: newBal,
+      newEquity: newEquity,
+      amount: creditAmount
+    };
+  });
+
+  return execute();
+}
+
+// Real-Time On-Chain Confirmation & Status Poller Endpoint
+router.get('/api/crypto/verify-status', async (req, res) => {
+  const { tx_hash, currency, gateway_id, amount } = req.query;
+  const numAmount = parseFloat(amount) || 0;
+
+  if (!tx_hash) {
+    return res.status(400).json({ success: false, error: 'Transaction hash is required.' });
+  }
+
+  const gateway = gateway_id ? db.prepare('SELECT * FROM payment_gateways WHERE id = ?').get(gateway_id) : null;
+  const expectedAddress = gateway ? gateway.address : null;
+  const targetCurrency = currency || (gateway ? gateway.currency : 'ETH');
+
+  try {
+    const statusResult = await checkTransactionStatus({
+      currency: targetCurrency,
+      txHash: tx_hash,
+      expectedAddress,
+      amountUsd: numAmount
+    });
+
+    // If transaction is confirmed and authenticated user has not yet been credited, auto-credit immediately
+    if (statusResult.status === 'confirmed' && req.session.userId) {
+      const existingCredit = db.prepare("SELECT id FROM transactions WHERE tx_hash = ? AND status = 'completed'").get(tx_hash.trim());
+      if (!existingCredit) {
+        const settings = db.prepare('SELECT auto_credit_deposit FROM system_settings LIMIT 1').get();
+        const shouldAutoCredit = !settings || settings.auto_credit_deposit === 1;
+
+        if (shouldAutoCredit) {
+          const creditAmount = statusResult.usdValuation > 0 ? statusResult.usdValuation : numAmount;
+          if (creditAmount > 0) {
+            const creditData = creditUserDeposit({
+              userId: req.session.userId,
+              creditAmount,
+              onChainResult: statusResult,
+              gwName: gateway ? `${gateway.name} (${gateway.currency})` : `${statusResult.network} Direct`,
+              txHash: tx_hash.trim(),
+              req
+            });
+
+            return res.json({
+              success: true,
+              ...statusResult,
+              isCredited: true,
+              autoCreditedNow: true,
+              newBalance: creditData.newBalance,
+              reference: creditData.reference,
+              message: `Transaction verified on-chain! $${creditAmount.toLocaleString()} USD credited to your balance.`
+            });
+          }
+        }
+      } else {
+        statusResult.isCredited = true;
+      }
+    }
+
+    res.json({
+      success: true,
+      ...statusResult
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Automated External Webhook Ingestion for Block Explorers & Node Watchers
+router.post('/api/webhooks/crypto-deposit', async (req, res) => {
+  const secretHeader = req.headers['x-webhook-secret'] || req.query.secret || req.body.secret;
+  const sysSettings = db.prepare('SELECT crypto_webhook_secret, auto_credit_deposit FROM system_settings LIMIT 1').get();
+  const validSecret = process.env.CRYPTO_WEBHOOK_SECRET || sysSettings?.crypto_webhook_secret || 'wh_sec_mainstreet_2026_live';
+
+  if (!secretHeader || secretHeader !== validSecret) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing webhook secret key.' });
+  }
+
+  const payload = req.body || {};
+  const txHash = (payload.txHash || payload.tx_hash || payload.hash || '').trim();
+  const currency = (payload.currency || payload.symbol || 'ETH').toUpperCase();
+  const recipientAddr = (payload.toAddress || payload.recipient || payload.to || '').toLowerCase();
+  const rawAmount = parseFloat(payload.amount || payload.value) || 0;
+  const targetUserId = payload.userId || payload.user_id || null;
+  const userEmail = payload.email || payload.userEmail || null;
+
+  if (!txHash) {
+    return res.status(400).json({ success: false, error: 'Webhook payload missing required txHash.' });
+  }
+
+  try {
+    // 1. Verify on-chain authenticity
+    const verification = await verifyCryptoDeposit({
+      currency,
+      txHash,
+      expectedAddress: recipientAddr || null,
+      amountUsd: rawAmount
+    });
+
+    // 2. Resolve matching trader
+    let targetUser = null;
+    if (targetUserId) {
+      targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetUserId);
+    } else if (userEmail) {
+      targetUser = db.prepare('SELECT * FROM users WHERE email = ?').get(userEmail);
+    } else if (payload.reference) {
+      const pendingTx = db.prepare("SELECT user_id FROM transactions WHERE reference = ?").get(payload.reference);
+      if (pendingTx) targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(pendingTx.user_id);
+    }
+
+    // Fallback: If not matched to specific user, find user with active pending deposit for this gateway
+    if (!targetUser && recipientAddr) {
+      const matchingGw = db.prepare('SELECT id, name FROM payment_gateways WHERE LOWER(address) = ?').get(recipientAddr);
+      if (matchingGw) {
+        const pendingUserTx = db.prepare(`
+          SELECT user_id, reference FROM transactions 
+          WHERE (method LIKE ? OR description LIKE ?) AND status = 'pending' 
+          ORDER BY id DESC LIMIT 1
+        `).get(`%${matchingGw.name}%`, `%${matchingGw.name}%`);
+        if (pendingUserTx) {
+          targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(pendingUserTx.user_id);
+        }
+      }
+    }
+
+    if (targetUser) {
+      const creditAmount = verification.usdValuation > 0 ? verification.usdValuation : (rawAmount || 100);
+      const creditRes = creditUserDeposit({
+        userId: targetUser.id,
+        creditAmount,
+        onChainResult: verification,
+        gwName: `${verification.network} (${verification.symbol})`,
+        txHash,
+        proofNotes: `Automated on-chain webhook deposit via ${verification.network}`,
+        req
+      });
+
+      return res.json({
+        success: true,
+        event: 'deposit_credited',
+        userId: targetUser.id,
+        userEmail: targetUser.email,
+        amountUsd: creditAmount,
+        cryptoAmount: verification.amountCrypto,
+        symbol: verification.symbol,
+        txHash,
+        newBalance: creditRes.newBalance,
+        reference: creditRes.reference
+      });
+    }
+
+    // If no user found, record unassigned completed deposit for audit
+    db.prepare(`
+      INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, status)
+      VALUES (1, 'deposit', ?, 'USD', ?, ?, ?, ?, 'completed')
+    `).run(
+      verification.usdValuation,
+      `${verification.network} (${verification.symbol})`,
+      'WH-DEP-' + Date.now(),
+      txHash,
+      `Unassigned Webhook Deposit: ${verification.amountCrypto} ${verification.symbol} on ${verification.network}`
+    );
+
+    return res.json({
+      success: true,
+      event: 'deposit_vault_recorded',
+      txHash,
+      amountCrypto: verification.amountCrypto,
+      usdValuation: verification.usdValuation,
+      note: 'Deposit verified and logged to vault liquidity.'
+    });
+
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 // Submit Deposit Request / Proof of Payment (Real On-Chain Verification + Auto-Reflecting)
@@ -355,85 +612,43 @@ router.post('/deposit', async (req, res) => {
   const creditAmount = (onChainResult && onChainResult.usdValuation > 0) ? onChainResult.usdValuation : numAmount;
 
   if (shouldAutoCredit) {
-    // Atomic deposit & instant balance credit
-    const executeDeposit = db.transaction(() => {
-      const txDesc = onChainResult && onChainResult.mode === 'live_blockchain'
-        ? `Verified on ${onChainResult.network}: Transferred ${onChainResult.amountCrypto} ${onChainResult.symbol} (${onChainResult.confirmations} confs)`
-        : (proof_notes || `Instant deposit of $${creditAmount.toLocaleString()} via ${gwName}`);
-
-      // 1. Record completed transaction
-      db.prepare(`
-        INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, proof_image, status)
-        VALUES (?, 'deposit', ?, 'USD', ?, ?, ?, ?, ?, 'completed')
-      `).run(
-        user.id,
+    try {
+      const creditRes = creditUserDeposit({
+        userId: user.id,
         creditAmount,
+        onChainResult,
         gwName,
         ref,
-        tx_hash || 'Direct Blockchain Confirmation',
-        txDesc,
-        proof_image || null
-      );
-
-      // 2. Immediately credit user's trading cash balance and equity
-      const newBal = Number(user.balance) + creditAmount;
-      const newEquity = Number(user.equity) + creditAmount;
-      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEquity, user.id);
-
-      // 3. Synchronize USD cash row in user_crypto_balances
-      const usdRow = db.prepare("SELECT id FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = 'USD'").get(user.id);
-      if (usdRow) {
-        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(creditAmount, usdRow.id);
-      } else {
-        db.prepare(`INSERT INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type) VALUES (?, 'USD', 'US Dollar (Fiat)', ?, '$', 1.0, 'fiat')`).run(user.id, newBal);
-      }
-
-      // 3b. Also synchronize specific crypto balance in portfolio if crypto was deposited
-      const rawCryptoSym = onChainResult ? onChainResult.symbol : (gateway && gateway.currency !== 'USD' ? gateway.currency.replace('-ERC20', '').replace('-TRC20', '') : null);
-      if (rawCryptoSym && rawCryptoSym !== 'USD') {
-        const livePrices = getLivePrices();
-        const cryptoAmountToAdd = (onChainResult && onChainResult.amountCrypto > 0)
-          ? onChainResult.amountCrypto
-          : +(creditAmount / (livePrices[rawCryptoSym]?.price || 1)).toFixed(6);
-        
-        const cryptoRow = db.prepare("SELECT id FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = ?").get(user.id, rawCryptoSym);
-        if (cryptoRow) {
-          db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(cryptoAmountToAdd, cryptoRow.id);
-        }
-      }
-
-      // 4. In-App Notification
-      const notifMsg = onChainResult && onChainResult.mode === 'live_blockchain'
-        ? `Deposit #${ref} ($${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD) verified on-chain via ${onChainResult.network} (${onChainResult.confirmations} confirmations) and credited instantly.`
-        : `Deposit #${ref} ($${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD via ${gwName}) verified and credited to your trading account instantly.`;
-
-      try {
-        db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'deposit')")
-          .run(user.id, 'Deposit Credited Instantly', notifMsg);
-      } catch(ne) {}
-
-      logActivity(user.id, 'DEPOSIT_AUTO_CREDITED', `Auto-credited deposit ref ${ref} for $${creditAmount} via ${gwName} (Verification: ${onChainResult ? onChainResult.mode : 'standard'})`, req);
-    });
-
-    executeDeposit();
-
-    if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
-      return res.json({ 
-        success: true, 
-        reference: ref, 
-        amount: creditAmount, 
-        newBalance: Number(user.balance) + creditAmount, 
-        verification: onChainResult,
-        message: 'Deposit verified and auto-credited to balance instantly!' 
+        txHash,
+        proofNotes,
+        proofImage,
+        req
       });
+
+      if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+        return res.json({ 
+          success: true, 
+          reference: creditRes.reference, 
+          amount: creditAmount, 
+          newBalance: creditRes.newBalance, 
+          verification: onChainResult,
+          message: 'Deposit verified and auto-credited to balance instantly!' 
+        });
+      }
+
+      const successMsg = onChainResult && onChainResult.mode === 'live_blockchain'
+        ? `Deposit #${creditRes.reference} Verified on ${onChainResult.network}! $${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD (${onChainResult.amountCrypto} ${onChainResult.symbol}, ${onChainResult.confirmations} confs) credited to your trading balance.`
+        : `Deposit #${creditRes.reference} Confirmed! $${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD has been credited to your trading balance instantly.`;
+
+      req.session.flash = { success: successMsg };
+      return res.redirect('/dashboard');
+    } catch (crErr) {
+      if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+        return res.status(400).json({ success: false, error: crErr.message });
+      }
+      req.session.flash = { error: crErr.message };
+      return res.redirect('/deposit');
     }
-
-    const successMsg = onChainResult && onChainResult.mode === 'live_blockchain'
-      ? `Deposit #${ref} Verified on ${onChainResult.network}! $${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD (${onChainResult.amountCrypto} ${onChainResult.symbol}, ${onChainResult.confirmations} confs) credited to your trading balance.`
-      : `Deposit #${ref} Confirmed! $${creditAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} USD has been credited to your trading balance instantly.`;
-
-    req.session.flash = { success: successMsg };
-    return res.redirect('/dashboard');
   } else {
     // Manual audit fallback
     db.prepare(`
@@ -468,16 +683,16 @@ router.get('/withdraw', (req, res) => {
   const freeMargin = Math.max(0, user.balance - usedMargin);
 
   res.render('app/withdraw', {
-    title: 'Withdraw Funds | TradexEdge Custody',
+    title: 'Withdraw Funds | Mainstreet Capital Exchange',
     user,
     usedMargin,
-    freeMargin
+    freeMargin,
+    activeCashierTab: 'withdraw'
   });
 });
 
 router.post('/withdraw', (req, res) => {
   const { amount, method, address, notes } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
 
   const numAmount = parseFloat(amount);
   if (isNaN(numAmount) || numAmount <= 0) {
@@ -485,37 +700,336 @@ router.post('/withdraw', (req, res) => {
     return res.redirect('/withdraw');
   }
 
-  // Free Margin Guardrail: Deduct used margin of open positions
-  const openTrades = db.prepare("SELECT lot_size FROM trades WHERE user_id = ? AND status = 'OPEN'").all(user.id);
-  const usedMargin = openTrades.reduce((sum, t) => sum + (t.lot_size * 100), 0);
-  const freeMargin = Math.max(0, user.balance - usedMargin);
+  try {
+    const executeWithdrawal = db.transaction(() => {
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+      if (!user) throw new Error('User not found.');
 
-  if (numAmount > freeMargin) {
-    req.session.flash = { 
-      error: `Withdrawal rejected: Amount ($${numAmount.toLocaleString()}) exceeds your available Free Margin ($${freeMargin.toLocaleString(undefined, {minimumFractionDigits: 2})}). Please close active positions or withdraw a lower amount.` 
-    };
+      // Free Margin Guardrail: Deduct used margin of open positions
+      const openTrades = db.prepare("SELECT lot_size FROM trades WHERE user_id = ? AND status = 'OPEN'").all(user.id);
+      const usedMargin = openTrades.reduce((sum, t) => sum + (t.lot_size * 100), 0);
+      const freeMargin = Math.max(0, user.balance - usedMargin);
+
+      if (numAmount > freeMargin) {
+        throw new Error(`Withdrawal rejected: Amount ($${numAmount.toLocaleString()}) exceeds your available Free Margin ($${freeMargin.toLocaleString(undefined, {minimumFractionDigits: 2})}). Please close active positions or withdraw a lower amount.`);
+      }
+
+      const newBalance = user.balance - numAmount;
+      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+
+      const ref = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, status)
+        VALUES (?, 'withdrawal', ?, 'USD', ?, ?, ?, ?, 'pending')
+      `).run(
+        user.id,
+        numAmount,
+        method || 'Crypto Wallet',
+        ref,
+        address || '',
+        `Withdrawal of $${numAmount.toLocaleString()} to ${address || 'Client account'}`
+      );
+
+      return { ref, user };
+    });
+
+    const { ref, user } = executeWithdrawal();
+    logActivity(user.id, 'WITHDRAW_REQUEST', `Requested withdrawal ref ${ref} for $${numAmount}`, req);
+    req.session.flash = { success: `Withdrawal request #${ref} submitted for institutional clearance.` };
+    return res.redirect('/transactions');
+  } catch (err) {
+    req.session.flash = { error: err.message || 'Error processing withdrawal request.' };
     return res.redirect('/withdraw');
   }
+});
 
-  const newBalance = user.balance - numAmount;
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+// 5.5. Dedicated Multi-Chain Web3 Crypto Wallet & Custody Vault
+router.get(['/wallet', '/wallets', '/crypto-wallet'], (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const livePrices = getLivePrices();
 
-  const ref = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
-  db.prepare(`
-    INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, status)
-    VALUES (?, 'withdrawal', ?, 'USD', ?, ?, ?, ?, 'pending')
-  `).run(
-    user.id,
-    numAmount,
-    method || 'Crypto Wallet',
-    ref,
-    address || '',
-    `Withdrawal of $${numAmount.toLocaleString()} to ${address || 'Client account'}`
-  );
+  // Ensure crypto balances exist
+  let balances = db.prepare(`
+    SELECT * FROM user_crypto_balances 
+    WHERE user_id = ? AND (asset_type = 'crypto' OR asset_symbol IN ('BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'USDC', 'XRP'))
+    ORDER BY balance DESC
+  `).all(user.id);
 
-  logActivity(user.id, 'WITHDRAW_REQUEST', `Requested withdrawal ref ${ref} for $${numAmount}`, req);
-  req.session.flash = { success: `Withdrawal request #${ref} submitted for institutional clearance.` };
-  res.redirect('/transactions');
+  // If none found, ensure default spot assets
+  if (!balances || balances.length === 0) {
+    const defaultSpotAssets = [
+      { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 64800.00, type: 'crypto' },
+      { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3540.00, type: 'crypto' },
+      { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00, type: 'crypto' },
+      { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 148.50, type: 'crypto' },
+      { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 580.00, type: 'crypto' },
+      { symbol: 'USDC', name: 'USD Coin', icon: '💲', balance: 1250.00, rate: 1.00, type: 'crypto' }
+    ];
+    defaultSpotAssets.forEach(a => {
+      db.prepare(`
+        INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(user.id, a.symbol, a.name, a.balance, a.icon, a.rate, a.type);
+    });
+    balances = db.prepare(`
+      SELECT * FROM user_crypto_balances 
+      WHERE user_id = ? AND (asset_type = 'crypto' OR asset_symbol IN ('BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'USDC', 'XRP'))
+      ORDER BY balance DESC
+    `).all(user.id);
+  }
+
+  // Calculate live valuations, institutional metrics, and rates
+  const apyMap = { 'SOL': '6.8%', 'ETH': '3.4%', 'AVAX': '5.5%', 'DOT': '7.2%', 'NEAR': '6.1%', 'ADA': '3.8%' };
+  const categoryMap = {
+    'BTC': 'l1', 'ETH': 'l1', 'SOL': 'l1', 'BNB': 'l1', 'ADA': 'l1', 'AVAX': 'l1', 'DOGE': 'l1', 'LTC': 'l1', 'SUI': 'l1', 'NEAR': 'l1',
+    'MATIC': 'l2', 'ARB': 'l2', 'OP': 'l2',
+    'USDT': 'stables', 'USDC': 'stables',
+    'LINK': 'defi', 'UNI': 'defi', 'AAVE': 'defi', 'DOT': 'l1'
+  };
+  const networkMap = {
+    'BTC': 'Bitcoin Native SegWit',
+    'ETH': 'Ethereum Mainnet (ERC-20)',
+    'USDT': 'Tron (TRC-20) / ERC-20',
+    'USDC': 'Ethereum / Solana SPL',
+    'SOL': 'Solana Mainnet (SPL)',
+    'BNB': 'BNB Smart Chain (BEP-20)',
+    'XRP': 'XRP Ledger (XRPL)',
+    'ADA': 'Cardano Shelley Mainnet',
+    'AVAX': 'Avalanche C-Chain',
+    'DOGE': 'Dogecoin Protocol',
+    'DOT': 'Polkadot Relay Chain',
+    'LINK': 'Ethereum (ERC-20)',
+    'NEAR': 'Near Protocol Mainnet',
+    'SUI': 'Sui Network (Move)',
+    'LTC': 'Litecoin Core MimbleWimble',
+    'MATIC': 'Polygon PoS Network'
+  };
+
+  let totalCryptoValuationUsd = 0;
+  let totalPnl24hUsd = 0;
+
+  const enrichedBalances = balances.map(b => {
+    const lp = livePrices[b.asset_symbol] || {};
+    const rate = lp.price || b.rate_usd || 1.0;
+    const valuation = b.balance * rate;
+    totalCryptoValuationUsd += valuation;
+
+    let chgNum = 1.20;
+    if (typeof lp.change24h === 'number') {
+      chgNum = lp.change24h;
+    } else if (typeof lp.change24h === 'string') {
+      const parsed = parseFloat(lp.change24h.replace('%', ''));
+      if (!isNaN(parsed)) chgNum = parsed;
+    } else {
+      // Default deterministic variation based on symbol hash
+      const code = b.asset_symbol.charCodeAt(0) + (b.asset_symbol.charCodeAt(1) || 0);
+      chgNum = ((code % 15) - 4) * 0.45; // between -1.8% and +4.5%
+    }
+
+    const isPositive = chgNum >= 0;
+    const chgStr = (isPositive ? '+' : '') + chgNum.toFixed(2) + '%';
+    const pnlUsd = valuation * (chgNum / (100 + chgNum));
+    totalPnl24hUsd += pnlUsd;
+
+    // Generate 7-day sparkline coordinates (normalized between 5 and 35 on Y-axis, 0 to 100 on X-axis)
+    const baseTrend = isPositive ? [12, 14, 11, 16, 20, 24, 30] : [28, 26, 29, 22, 18, 15, 10];
+    const jitter = (b.asset_symbol.charCodeAt(0) % 5);
+    const sparkline = baseTrend.map((v, i) => Math.max(4, Math.min(36, v + ((i % 2 === 0 ? jitter : -jitter) * 0.8))));
+
+    return {
+      ...b,
+      current_rate: rate,
+      change24h_num: chgNum,
+      change24h: chgStr,
+      is_positive: isPositive,
+      valuation_usd: valuation,
+      pnl24h_usd: pnlUsd,
+      sparkline,
+      category: categoryMap[b.asset_symbol] || 'l1',
+      network_name: networkMap[b.asset_symbol] || (b.asset_symbol + ' Network'),
+      apy: apyMap[b.asset_symbol] || null,
+      high24h: rate * 1.028,
+      low24h: rate * 0.974
+    };
+  });
+
+  const btcRate = livePrices['BTC']?.price || 65000;
+  const ethRate = livePrices['ETH']?.price || 3500;
+  const totalCryptoValuationBtc = btcRate > 0 ? (totalCryptoValuationUsd / btcRate) : 0;
+  const totalCryptoValuationEth = ethRate > 0 ? (totalCryptoValuationUsd / ethRate) : 0;
+  const overallChangePct = totalCryptoValuationUsd > 0 ? ((totalPnl24hUsd / (totalCryptoValuationUsd - totalPnl24hUsd)) * 100) : 0;
+
+  // Saved whitelisted external payout wallets
+  const savedWallets = db.prepare('SELECT * FROM user_saved_wallets WHERE user_id = ? ORDER BY id DESC').all(user.id);
+
+  // Active deposit gateways for receiving addresses
+  const depositGateways = db.prepare('SELECT * FROM payment_gateways WHERE is_active = 1').all();
+
+  // Crypto on-chain transactions
+  const cryptoTransactions = db.prepare(`
+    SELECT * FROM transactions 
+    WHERE user_id = ? AND (currency != 'USD' OR method LIKE '%crypto%' OR description LIKE '%crypto%' OR description LIKE '%BTC%' OR description LIKE '%ETH%' OR description LIKE '%USDT%')
+    ORDER BY id DESC LIMIT 20
+  `).all(user.id);
+
+  res.render('app/wallet', {
+    title: 'Multi-Chain Web3 Crypto Wallet | Mainstreet Capital Exchange Prime',
+    activeCashierTab: 'wallet',
+    user,
+    cryptoBalances: enrichedBalances,
+    totalCryptoValuationUsd,
+    totalCryptoValuationBtc,
+    totalCryptoValuationEth,
+    totalPnl24hUsd,
+    overallChangePct,
+    savedWallets,
+    depositGateways,
+    cryptoTransactions,
+    livePrices
+  }, (err, html) => {
+    if (err) {
+      console.error('ERROR RENDERING WALLET.EJS:', err);
+      return res.status(500).send('<pre>' + err.stack + '</pre>');
+    }
+    res.send(html);
+  });
+});
+
+// API: Save / Whitelist an External Crypto Wallet (Address Book)
+router.post('/api/wallet/save', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const { label, asset_symbol, network, wallet_address } = req.body;
+
+  if (!label || !asset_symbol || !wallet_address) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, error: 'Please fill in all wallet details.' });
+    }
+    req.session.flash = { error: 'Please enter wallet label, asset, and a valid address.' };
+    return res.redirect('/wallet');
+  }
+
+  const cleanAddress = wallet_address.trim();
+  const cleanLabel = label.trim();
+  const cleanSym = asset_symbol.trim().toUpperCase();
+  const cleanNet = (network || 'Mainnet').trim();
+
+  const result = db.prepare(`
+    INSERT INTO user_saved_wallets (user_id, label, asset_symbol, network, wallet_address, is_whitelisted)
+    VALUES (?, ?, ?, ?, ?, 1)
+  `).run(user.id, cleanLabel, cleanSym, cleanNet, cleanAddress);
+
+  logActivity(user.id, 'WALLET_WHITELIST', `Added whitelisted ${cleanSym} wallet: ${cleanLabel} (${cleanAddress})`, req);
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({
+      success: true,
+      message: 'Crypto wallet saved to address book successfully.',
+      wallet: {
+        id: result.lastInsertRowid,
+        label: cleanLabel,
+        asset_symbol: cleanSym,
+        network: cleanNet,
+        wallet_address: cleanAddress,
+        is_whitelisted: 1
+      }
+    });
+  }
+
+  req.session.flash = { success: `Whitelisted wallet "${cleanLabel}" added to your address book.` };
+  res.redirect('/wallet');
+});
+
+// API: Delete / Remove a Saved Crypto Wallet
+router.post('/api/wallet/delete/:id', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const walletId = req.params.id;
+
+  db.prepare('DELETE FROM user_saved_wallets WHERE id = ? AND user_id = ?').run(walletId, user.id);
+  logActivity(user.id, 'WALLET_REMOVE', `Removed saved wallet #${walletId}`, req);
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Wallet removed from address book.' });
+  }
+
+  req.session.flash = { success: 'Wallet removed from your address book.' };
+  res.redirect('/wallet');
+});
+
+// API: Send / Transfer Crypto to External Wallet
+router.post('/api/wallet/send', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const { asset_symbol, amount, destination_address, network, notes } = req.body;
+
+  const numAmount = parseFloat(amount);
+  const sym = (asset_symbol || '').trim().toUpperCase();
+  const dest = (destination_address || '').trim();
+
+  if (!sym || !dest || isNaN(numAmount) || numAmount <= 0) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid asset, amount, and destination address.' });
+    }
+    req.session.flash = { error: 'Please enter a valid asset, amount, and destination address.' };
+    return res.redirect('/wallet');
+  }
+
+  try {
+    const executeSend = db.transaction(() => {
+      // Check balance in user_crypto_balances
+      const assetRow = db.prepare('SELECT * FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = ?').get(user.id, sym);
+      if (!assetRow || assetRow.balance < numAmount) {
+        const available = assetRow ? assetRow.balance : 0;
+        throw new Error(`Insufficient ${sym} balance. Available: ${available} ${sym}, Requested: ${numAmount} ${sym}.`);
+      }
+
+      // Deduct balance atomically
+      db.prepare('UPDATE user_crypto_balances SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(numAmount, assetRow.id);
+
+      const ref = 'CW-' + Math.floor(100000 + Math.random() * 900000);
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, description, status)
+        VALUES (?, 'withdrawal', ?, ?, ?, ?, ?, ?, 'pending')
+      `).run(
+        user.id,
+        numAmount,
+        sym,
+        `Crypto Wallet (${sym})`,
+        ref,
+        dest,
+        `On-chain withdrawal of ${numAmount} ${sym} to ${dest} (${network || 'Mainnet'})`
+      );
+
+      return ref;
+    });
+
+    const ref = executeSend();
+    logActivity(user.id, 'CRYPTO_SEND', `Dispatched on-chain transfer ref ${ref}: ${numAmount} ${sym} to ${dest}`, req);
+
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.json({
+        success: true,
+        message: `On-chain transfer of ${numAmount} ${sym} dispatched for network clearance. Reference: ${ref}`
+      });
+    }
+
+    req.session.flash = { success: `Transfer of ${numAmount} ${sym} submitted for blockchain broadcast. Ref: ${ref}` };
+    return res.redirect('/wallet');
+  } catch (err) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    req.session.flash = { error: err.message };
+    return res.redirect('/wallet');
+  }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({
+      success: true,
+      message: `On-chain transfer of ${numAmount} ${sym} dispatched for network clearance. Reference: ${ref}`
+    });
+  }
+
+  req.session.flash = { success: `Transfer of ${numAmount} ${sym} submitted for blockchain broadcast. Ref: ${ref}` };
+  res.redirect('/wallet');
 });
 
 // 6. Statement & Transactions
@@ -523,7 +1037,7 @@ router.get('/transactions', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const transactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC').all(user.id);
   res.render('app/transactions', {
-    title: 'Account Statement & Ledger | TradexEdge',
+    title: 'Account Statement & Ledger | Mainstreet Capital Exchange',
     user,
     transactions
   });
@@ -534,18 +1048,135 @@ router.get(['/settings', '/kyc', '/profile', '/account'], (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const kycDocs = db.prepare('SELECT * FROM kyc_documents WHERE user_id = ? ORDER BY id DESC').all(user.id);
   const activities = db.prepare('SELECT * FROM activity_logs WHERE user_id = ? ORDER BY id DESC LIMIT 10').all(user.id);
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
 
   res.render('app/settings', {
-    title: 'Account Settings & Compliance | TradexEdge',
+    title: 'Account Settings & Compliance | Mainstreet Capital Exchange',
     user,
     kycDocs,
-    activities
+    activities,
+    systemSettings
   });
 });
 
-// Toggle 2FA Security
-router.post('/settings/2fa', (req, res) => {
+// Didit KYC - Generate Session
+router.post('/api/kyc/didit/session', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  const sessionId = 'didit_sess_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  
+  const redirectUrl = `https://verify.didit.me/v1/session/${sessionId}?app_id=${encodeURIComponent(systemSettings.didit_app_id || 'mainstreet-exchange')}&user_id=${user.id}`;
+
+  return res.json({
+    success: true,
+    sessionId,
+    url: redirectUrl,
+    mode: systemSettings.didit_mode || 'live',
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email
+    }
+  });
+});
+
+// Didit KYC - Complete Verification
+router.post('/api/kyc/didit/complete', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const {
+    session_id,
+    doc_type = 'Government ID / Passport',
+    doc_number = 'DIDIT-AI-VERIFIED',
+    front_image,
+    back_image,
+    selfie_image,
+    score = 99.4,
+    decision = 'Approved'
+  } = req.body;
+
+  const frontPath = saveBase64Media(front_image, 'didit_front', user.id) || '/storage/kyc/didit_verified_front.png';
+  const backPath = saveBase64Media(back_image, 'didit_back', user.id) || '/storage/kyc/didit_verified_back.png';
+  const selfiePath = saveBase64Media(selfie_image, 'didit_selfie', user.id) || '/storage/kyc/didit_verified_selfie.png';
+
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  // Client submission always queues for compliance review; only verified webhooks or admins approve
+  const status = 'pending';
+
+  // Insert Didit verification record
+  db.prepare(`
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'didit', ?, ?, NULL)
+  `).run(
+    user.id,
+    doc_type,
+    doc_number || ('DIDIT-' + Math.random().toString(36).substring(2, 8).toUpperCase()),
+    frontPath,
+    backPath,
+    selfiePath,
+    status,
+    session_id || ('didit_' + Date.now()),
+    parseFloat(score) || 99.4
+  );
+
+  db.prepare("UPDATE users SET kyc_status = 'pending' WHERE id = ?").run(user.id);
+  try {
+    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
+      .run(user.id, 'Didit KYC Under Review', 'Your biometric identity verification has been received and queued for institutional compliance confirmation.');
+  } catch (e) {}
+  logActivity(user.id, 'KYC_DIDIT_SUBMITTED', `Submitted Didit KYC session ${session_id}`, req);
+
+  req.session.flash = {
+    success: 'Identity documents submitted successfully. Compliance verification is currently processing.'
+  };
+
+  return res.json({
+    success: true,
+    status: 'pending',
+    redirect: '/settings'
+  });
+});
+
+// Didit KYC - Webhook Handler (Protected by HMAC / Secret Verification)
+router.post('/api/kyc/didit/webhook', (req, res) => {
+  const secret = req.headers['x-didit-signature'] || req.headers['x-webhook-secret'] || req.query.secret;
+  const sysSettings = db.prepare('SELECT didit_api_key, crypto_webhook_secret FROM system_settings WHERE id = 1').get() || {};
+  const validSecret = sysSettings.didit_api_key || sysSettings.crypto_webhook_secret || 'wh_sec_mainstreet_2026_live';
+
+  if (!secret || secret !== validSecret) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing webhook signature.' });
+  }
+
+  const { session_id, user_id, status: verificationStatus } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (verificationStatus === 'Approved' || verificationStatus === 'verified') {
+    db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(user.id);
+    db.prepare("UPDATE kyc_documents SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND didit_session_id = ?").run(user.id, session_id);
+    try {
+      db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
+        .run(user.id, 'Didit AI Clearance Confirmed', 'Didit verification webhook confirmed Tier-1 institutional clearance.');
+    } catch(e) {}
+  }
+  return res.json({ success: true, message: 'Webhook authenticated and processed.' });
+});
+
+// Toggle 2FA Security (Requires Password Confirmation to prevent CSRF / Session Hijack)
+router.post('/settings/2fa', (req, res) => {
+  const { password } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+
+  if (!password || !bcrypt.compareSync(password, user.password)) {
+    req.session.flash = { error: 'Incorrect account password. Password verification is required to modify 2FA settings.' };
+    return res.redirect('/settings');
+  }
+
   const newStatus = user.two_factor_enabled ? 0 : 1;
   db.prepare('UPDATE users SET two_factor_enabled = ? WHERE id = ?').run(newStatus, user.id);
 
@@ -570,8 +1201,8 @@ router.post('/settings/kyc', (req, res) => {
   const videoPath = saveBase64Media(video_data, 'kyc_video', user.id) || '/storage/kyc/default_video.webm';
 
   db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', 'manual')
   `).run(user.id, doc_type, doc_number, frontPath, backPath, videoPath);
 
   // Sync user status to pending
@@ -786,20 +1417,55 @@ router.get('/api/user/sync', (req, res) => {
   });
 });
 
-// Live Chat Messages API for User
-router.get('/api/chat/messages', requireAuth, (req, res) => {
-  const messages = db.prepare('SELECT * FROM support_chat_messages WHERE user_id = ? ORDER BY id ASC').all(req.session.userId);
-  res.json({ messages });
+// Live Chat Messages API for User & Guest
+router.get('/api/chat/messages', (req, res) => {
+  let userId = req.session.userId;
+  if (!userId) {
+    if (!req.session.guestChatId) {
+      return res.json({ messages: [], unreadCount: 0 });
+    }
+    userId = req.session.guestChatId;
+  }
+
+  const messages = db.prepare('SELECT * FROM support_chat_messages WHERE user_id = ? ORDER BY id ASC').all(userId);
+  
+  // Calculate unread admin messages
+  const unreadCount = messages.filter(m => m.sender_role === 'admin' && !m.is_read).length;
+
+  res.json({ messages, unreadCount, isGuest: !req.session.userId });
 });
 
-router.post('/api/chat/send', requireAuth, (req, res) => {
-  const { message } = req.body;
+router.post('/api/chat/mark-read', (req, res) => {
+  let userId = req.session.userId || req.session.guestChatId;
+  if (userId) {
+    db.prepare("UPDATE support_chat_messages SET is_read = 1 WHERE user_id = ? AND sender_role = 'admin'").run(userId);
+  }
+  res.json({ success: true });
+});
+
+router.post('/api/chat/send', (req, res) => {
+  const { message, guest_name, guest_email } = req.body;
   if (!message || !message.trim()) return res.json({ success: false });
 
-  db.prepare('INSERT INTO support_chat_messages (user_id, sender_role, message) VALUES (?, ?, ?)')
-    .run(req.session.userId, 'user', message.trim());
+  let userId = req.session.userId;
+  
+  // Handle guest chat session
+  if (!userId) {
+    if (!req.session.guestChatId) {
+      // Allocate high negative ID or store guest info
+      const guestSeed = Math.floor(900000 + Math.random() * 90000);
+      req.session.guestChatId = -guestSeed;
+      req.session.guestName = (guest_name || 'Visitor').trim();
+      req.session.guestEmail = (guest_email || '').trim();
+    }
+    userId = req.session.guestChatId;
+  }
 
-  res.json({ success: true });
+  const cleanMsg = message.trim();
+  db.prepare('INSERT INTO support_chat_messages (user_id, sender_role, message) VALUES (?, ?, ?)')
+    .run(userId, 'user', cleanMsg);
+
+  res.json({ success: true, guestId: userId });
 });
 
 // Instant Multi-Asset Swap & Spot Trade API (Crypto, Stocks, Cash)
@@ -1287,7 +1953,7 @@ router.get('/referrals', requireAuth, (req, res) => {
   referralList.forEach(r => totalCommission += Number(r.commission_earned || 0));
 
   res.render('app/referrals', {
-    title: 'Introducing Broker & Affiliate Portal | TradexEdge',
+    title: 'Introducing Broker & Affiliate Portal | Mainstreet Capital Exchange',
     user,
     referralList,
     totalCommission
@@ -1296,7 +1962,59 @@ router.get('/referrals', requireAuth, (req, res) => {
 
 
 
-module.exports = router;
+
+// -- Dividend Yield Flow ---------------------------------------------------
+router.get('/dividends', requireAuth, (req, res) => {
+  const userId = req.session.userId;
+
+  const dividendMeta = {
+    BTC:  { name: 'Bitcoin',        annualYield: 0.0,  exDate: '2025-09-15', payDate: '2025-10-01', drip: false },
+    ETH:  { name: 'Ethereum',       annualYield: 0.04, exDate: '2025-09-20', payDate: '2025-10-05', drip: true  },
+    AAPL: { name: 'Apple Inc.',     annualYield: 0.0044, exDate: '2025-08-09', payDate: '2025-08-15', drip: false },
+    MSFT: { name: 'Microsoft',      annualYield: 0.0075, exDate: '2025-08-20', payDate: '2025-09-12', drip: true  },
+    TSLA: { name: 'Tesla',          annualYield: 0.0,  exDate: null,          payDate: null,          drip: false },
+    AMZN: { name: 'Amazon',         annualYield: 0.0,  exDate: null,          payDate: null,          drip: false },
+  };
+
+  const balances = db.prepare('SELECT asset_symbol, asset_name, balance, rate_usd FROM user_crypto_balances WHERE user_id = ?').all(userId) || [];
+
+  let totalAnnual = 0;
+  const dividendSchedule = balances.map(b => {
+    const meta = dividendMeta[b.asset_symbol] || { annualYield: 0, exDate: null, payDate: null, drip: false };
+    const value = (b.balance || 0) * (b.rate_usd || 0);
+    const annual = value * meta.annualYield;
+    const monthly = annual / 12;
+    totalAnnual += annual;
+    return {
+      symbol: b.asset_symbol,
+      name: meta.name || b.asset_symbol,
+      balance: b.balance || 0,
+      value,
+      annualYield: (meta.annualYield * 100).toFixed(2),
+      annualIncome: annual.toFixed(2),
+      monthlyIncome: monthly.toFixed(2),
+      exDate: meta.exDate,
+      payDate: meta.payDate,
+      drip: meta.drip,
+    };
+  }).filter(d => parseFloat(d.annualYield) > 0);
+
+  const portfolioValue = balances.reduce((s, b) => s + (b.balance || 0) * (b.rate_usd || 0), 0);
+  const portfolioYield = portfolioValue > 0 ? ((totalAnnual / portfolioValue) * 100).toFixed(2) : '0.00';
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+
+  res.render('app/dividends', {
+    title: 'Dividend Yield Flow | Mainstreet Capital Exchange',
+    activePage: 'dividends',
+    currentPath: '/dividends',
+    user,
+    dividendSchedule,
+    totalAnnual: totalAnnual.toFixed(2),
+    monthlyAvg: (totalAnnual / 12).toFixed(2),
+    portfolioYield,
+  });
+});
 
 // ==============================================================================
 // IN-APP NOTIFICATIONS CENTER API
@@ -1313,3 +2031,23 @@ router.post('/api/notifications/read-all', (req, res) => {
   db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(req.session.userId);
   res.json({ success: true });
 });
+
+
+
+router.post('/api/notifications/:id/read', (req, res) => {
+  if (!req.session.userId) return res.json({ success: false });
+  db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.session.userId);
+  res.json({ success: true });
+});
+
+
+router.post('/api/notifications/test-popup', (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const { title, message, type } = req.body;
+  const insert = db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)');
+  const info = insert.run(userId, title || 'Live Trade Execution', message || 'Market buy order executed for 0.25 BTC at ,400.00.', type || 'trade');
+  res.json({ success: true, id: info.lastInsertRowid });
+});
+
+module.exports = router;

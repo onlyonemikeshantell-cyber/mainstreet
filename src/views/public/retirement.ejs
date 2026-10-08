@@ -93,38 +93,35 @@ function retirementApp() {
 }
 </script>
 
-<div x-data="retirementApp()" class="bg-surface-base text-content-primary">
+<div x-data="retirementApp()" class="bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-200">
     
     <!-- ============================================================================== -->
-    <!-- 1. HERO SECTION: GENERATIONAL WEALTH & TAX-ADVANTAGED TRADING                  -->
+    <!-- 1. HERO SECTION: GENERATIONAL WEALTH & TAX-ADVANTAGED TRADING (APPLE STYLE)   -->
     <!-- ============================================================================== -->
-    <section class="relative py-24 overflow-hidden border-b border-surface-border bg-gradient-to-b from-sky-500/5 via-surface-base to-surface-base">
+    <section class="relative py-24 overflow-hidden border-b border-black/[0.06] dark:border-white/[0.08]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center space-y-6">
             
-            <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold font-mono uppercase tracking-widest shadow-sm">
-                <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
-                <span>Tier-1 Tax-Advantaged Custody</span>
-            </div>
+            <span class="px-3.5 py-1 rounded-full bg-gain/10 text-gain text-xs font-semibold uppercase tracking-wider inline-block">Tier-1 Tax-Advantaged Custody</span>
 
-            <h1 class="text-4xl sm:text-6xl font-extrabold font-serif tracking-tight text-content-primary max-w-4xl mx-auto leading-tight">
-                Build Generational Wealth with <span class="text-primary">Retirement Trading IRAs</span>
+            <h1 class="text-4xl sm:text-6xl font-semibold tracking-[-0.035em] text-[#1d1d1f] dark:text-[#f5f5f7] max-w-4xl mx-auto leading-tight">
+                Build Generational Wealth with <span class="text-gain">Retirement Trading IRAs</span>
             </h1>
 
-            <p class="text-base sm:text-lg text-content-secondary max-w-3xl mx-auto leading-relaxed">
+            <p class="text-base sm:text-lg text-[#86868b] dark:text-[#a1a1a6] max-w-3xl mx-auto leading-relaxed font-normal">
                 Compound your wealth tax-free or tax-deferred. Trade fractional equities, algorithmic thematic baskets, and prime cold-storage Crypto IRAs with zero custodial management fees.
             </p>
 
-            <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
-                <button type="button" @click="openAccountModal('roth_ira')" class="px-8 py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm shadow-xl shadow-primary/25 transition transform hover:-translate-y-0.5">
+            <div class="flex flex-wrap items-center justify-center gap-3.5 pt-4">
+                <button type="button" @click="openAccountModal('roth_ira')" class="px-7 py-3.5 rounded-full bg-gain hover:bg-gain/90 text-white font-medium text-sm shadow-[0_2px_10px_rgba(52,199,89,0.3)] transition active:scale-[0.98]">
                     Open Tax-Free Roth IRA &rarr;
                 </button>
-                <a href="#nest-egg-calc" class="px-8 py-4 rounded-2xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary font-bold text-sm shadow-sm transition">
+                <a href="#nest-egg-calc" class="px-7 py-3.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-sm border border-black/[0.08] dark:border-white/[0.1] transition active:scale-[0.98]">
                     📈 Interactive Nest-Egg Calculator
                 </a>
             </div>
 
             <!-- Trust Disclosures -->
-            <div class="pt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-mono text-content-tertiary">
+            <div class="pt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-mono text-[#86868b] dark:text-[#a1a1a6]">
                 <div class="flex items-center space-x-2">
                     <span class="text-gain text-sm">✓</span>
                     <span>100% Tax-Free Roth Growth</span>
@@ -147,132 +144,124 @@ function retirementApp() {
     </section>
 
     <!-- ============================================================================== -->
-    <!-- 2. 4 RETIREMENT PILLARS & ACCOUNT TYPES                                        -->
+    <!-- 2. 4 RETIREMENT PILLARS & ACCOUNT TYPES (APPLE BENTO)                          -->
     <!-- ============================================================================== -->
-    <section class="py-20 bg-white border-b border-surface-border">
+    <section class="py-24 bg-white dark:bg-[#161617] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             
             <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
-                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono uppercase tracking-wider">STRUCTURED ACCOUNTS</span>
-                <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">Tailored Retirement Vehicles</h2>
-                <p class="text-sm text-content-secondary">Choose the optimal tax-advantaged account structure aligned with your financial timeline and tax strategy.</p>
+                <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider inline-block">Structured Accounts</span>
+                <h2 class="text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">Tailored Retirement Vehicles</h2>
+                <p class="text-sm text-[#86868b] dark:text-[#a1a1a6]">Choose the optimal tax-advantaged account structure aligned with your financial timeline and tax strategy.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 <!-- Pillar 1: Roth IRA -->
-                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-emerald-500/50 shadow-lg transition flex flex-col justify-between group">
+                <div class="apple-card-elevated rounded-[28px] p-7 space-y-5 border border-black/[0.06] dark:border-white/[0.08] hover:border-emerald-500/40 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group bg-white/80 dark:bg-[#1d1d1f]/80 backdrop-blur-2xl">
                     <div class="space-y-4">
-                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-emerald-500/20" style="--icon-glow: #10B981;">
-                            <span class="icon-floating">🌱</span>
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </div>
                         <div>
-                            <span class="text-[10px] font-mono font-bold uppercase text-emerald-600 tracking-wider">Most Popular</span>
-                            <h3 class="text-xl font-bold font-serif text-content-primary">Roth IRA</h3>
+                            <span class="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Most Popular</span>
+                            <h3 class="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">Roth IRA</h3>
                         </div>
-                        <p class="text-xs text-content-secondary leading-relaxed">
-                            Contribute after-tax dollars. All dividend accruals, trading gains, and future retirement withdrawals are <strong>100% tax-free</strong>.
+                        <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+                            Contribute after-tax dollars. All dividend accruals, trading gains, and future retirement withdrawals are <strong class="text-[#1d1d1f] dark:text-[#f5f5f7]">100% tax-free</strong>.
                         </p>
-                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                        <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] space-y-1.5 text-xs font-sans">
                             <div class="flex justify-between">
-                                <span class="text-content-tertiary">2026 Limit:</span>
-                                <span class="font-bold text-content-primary">$7,000 / yr</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-content-tertiary">Tax Benefit:</span>
-                                <span class="font-bold text-gain">Tax-Free Returns</span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6]">Tax Benefit:</span>
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400">Tax-Free Returns</span>
                             </div>
                         </div>
                     </div>
-                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-3 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md transition font-sans">
-                        Select Roth IRA &rarr;
+                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-semibold text-xs shadow-[0_2px_12px_rgba(16,185,129,0.3)] transition active:scale-[0.98] flex items-center justify-center gap-1.5">
+                        <span>Select Roth IRA</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                     </button>
                 </div>
 
                 <!-- Pillar 2: Traditional IRA -->
-                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-sky-500/50 shadow-lg transition flex flex-col justify-between group">
+                <div class="apple-card-elevated rounded-[28px] p-7 space-y-5 border border-black/[0.06] dark:border-white/[0.08] hover:border-blue-500/40 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group bg-white/80 dark:bg-[#1d1d1f]/80 backdrop-blur-2xl">
                     <div class="space-y-4">
-                        <div class="w-12 h-12 rounded-2xl bg-sky-500/15 text-sky-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-sky-500/20" style="--icon-glow: #0284C7;">
-                            <span class="icon-floating">🏛️</span>
+                        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-400/15 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                         </div>
                         <div>
-                            <span class="text-[10px] font-mono font-bold uppercase text-sky-600 tracking-wider">Tax-Deductible</span>
-                            <h3 class="text-xl font-bold font-serif text-content-primary">Traditional IRA</h3>
+                            <span class="text-[10px] font-semibold uppercase text-blue-600 dark:text-blue-400 tracking-wider block">Tax-Deductible</span>
+                            <h3 class="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">Traditional IRA</h3>
                         </div>
-                        <p class="text-xs text-content-secondary leading-relaxed">
+                        <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
                             Deduct contributions from current taxable income. Compounding grows tax-deferred until distribution age.
                         </p>
-                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                        <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] space-y-1.5 text-xs font-sans">
                             <div class="flex justify-between">
-                                <span class="text-content-tertiary">2026 Limit:</span>
-                                <span class="font-bold text-content-primary">$7,000 / yr</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-content-tertiary">Tax Benefit:</span>
-                                <span class="font-bold text-primary">Pre-Tax Deduction</span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6]">Tax Benefit:</span>
+                                <span class="font-semibold text-blue-600 dark:text-blue-400">Pre-Tax Deduction</span>
                             </div>
                         </div>
                     </div>
-                    <button type="button" @click="openAccountModal('traditional_ira')" class="w-full py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition font-sans">
-                        Select Traditional IRA &rarr;
+                    <button type="button" @click="openAccountModal('traditional_ira')" class="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-[0_2px_12px_rgba(37,99,235,0.3)] transition active:scale-[0.98] flex items-center justify-center gap-1.5">
+                        <span>Select Traditional IRA</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                     </button>
                 </div>
 
                 <!-- Pillar 3: 401(k) Rollover Vault -->
-                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-amber-500/50 shadow-lg transition flex flex-col justify-between group">
+                <div class="apple-card-elevated rounded-[28px] p-7 space-y-5 border border-black/[0.06] dark:border-white/[0.08] hover:border-amber-500/40 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group bg-white/80 dark:bg-[#1d1d1f]/80 backdrop-blur-2xl">
                     <div class="space-y-4">
-                        <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-amber-500/20" style="--icon-glow: #F59E0B;">
-                            <span class="icon-floating">🔄</span>
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-400/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                         </div>
                         <div>
-                            <span class="text-[10px] font-mono font-bold uppercase text-amber-600 tracking-wider">Direct Custodial Transfer</span>
-                            <h3 class="text-xl font-bold font-serif text-content-primary">401(k) Rollover</h3>
+                            <span class="text-[10px] font-semibold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Direct Transfer</span>
+                            <h3 class="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">401(k) Rollover</h3>
                         </div>
-                        <p class="text-xs text-content-secondary leading-relaxed">
-                            Roll over an old 401(k) or pension into TradeXEdge with zero tax penalties. Unlock full access to multi-asset alpha.
+                        <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+                            Roll over an old 401(k) or pension into Mainstreet Capital Exchange with zero tax penalties. Unlock full access to multi-asset alpha.
                         </p>
-                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                        <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] space-y-1.5 text-xs font-sans">
                             <div class="flex justify-between">
-                                <span class="text-content-tertiary">Transfer Cap:</span>
-                                <span class="font-bold text-content-primary">Unlimited</span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6]">Transfer Cap:</span>
+                                <span class="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Unlimited</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-content-tertiary">Penalty:</span>
-                                <span class="font-bold text-gain">0.0% Direct Rollover</span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6]">Penalty:</span>
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400">0.0% Direct Rollover</span>
                             </div>
                         </div>
                     </div>
-                    <button type="button" @click="openAccountModal('rollover_401k')" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition font-sans">
-                        Start Rollover &rarr;
+                    <button type="button" @click="openAccountModal('rollover_401k')" class="w-full py-3 rounded-full bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs shadow-[0_2px_12px_rgba(217,119,6,0.3)] transition active:scale-[0.98] flex items-center justify-center gap-1.5">
+                        <span>Start Rollover</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                     </button>
                 </div>
 
                 <!-- Pillar 4: SEP / Solo 401(k) -->
-                <div class="glass-card rounded-3xl p-6 space-y-5 border border-surface-border hover:border-indigo-500/50 shadow-lg transition flex flex-col justify-between group">
+                <div class="apple-card-elevated rounded-[28px] p-7 space-y-5 border border-black/[0.06] dark:border-white/[0.08] hover:border-indigo-500/40 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group bg-white/80 dark:bg-[#1d1d1f]/80 backdrop-blur-2xl">
                     <div class="space-y-4">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-600 flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-indigo-500/20" style="--icon-glow: #6366F1;">
-                            <span class="icon-floating">⚡</span>
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-400/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         </div>
                         <div>
-                            <span class="text-[10px] font-mono font-bold uppercase text-indigo-600 tracking-wider">High-Earner &amp; Business</span>
-                            <h3 class="text-xl font-bold font-serif text-content-primary">SEP / Solo 401(k)</h3>
+                            <span class="text-[10px] font-semibold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block">High-Earner &amp; Business</span>
+                            <h3 class="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">SEP / Solo 401(k)</h3>
                         </div>
-                        <p class="text-xs text-content-secondary leading-relaxed">
+                        <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
                             Designed for entrepreneurs, self-employed contractors, and proprietary traders seeking maximum annual contributions.
                         </p>
-                        <div class="pt-2 border-t border-surface-border space-y-1.5 text-xs font-mono">
+                        <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] space-y-1.5 text-xs font-sans">
                             <div class="flex justify-between">
-                                <span class="text-content-tertiary">2026 Limit:</span>
-                                <span class="font-bold text-indigo-600">Up to $69,000 / yr</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-content-tertiary">Tax Status:</span>
-                                <span class="font-bold text-content-primary">Employer Deductible</span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6]">Tax Status:</span>
+                                <span class="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Employer Deductible</span>
                             </div>
                         </div>
                     </div>
-                    <button type="button" @click="openAccountModal('sep_ira')" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition font-sans">
-                        Select SEP IRA &rarr;
+                    <button type="button" @click="openAccountModal('sep_ira')" class="w-full py-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-[0_2px_12px_rgba(79,70,229,0.3)] transition active:scale-[0.98] flex items-center justify-center gap-1.5">
+                        <span>Select SEP IRA</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                     </button>
                 </div>
 
@@ -282,57 +271,57 @@ function retirementApp() {
     </section>
 
     <!-- ============================================================================== -->
-    <!-- 3. INTERACTIVE RETIREMENT NEST-EGG COMPOUND CALCULATOR                          -->
+    <!-- 3. INTERACTIVE RETIREMENT NEST-EGG COMPOUND CALCULATOR (APPLE STYLE)            -->
     <!-- ============================================================================== -->
-    <section id="nest-egg-calc" class="py-24 bg-surface-base border-b border-surface-border">
+    <section id="nest-egg-calc" class="py-24 bg-[#f5f5f7] dark:bg-[#000000] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             
             <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
-                <span class="px-3 py-1 rounded-full bg-gain/10 text-gain text-xs font-bold font-mono uppercase tracking-wider">EXPONENTIAL WEALTH SIMULATION</span>
-                <h2 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif">Retirement Trajectory Calculator</h2>
-                <p class="text-sm text-content-secondary">Simulate your compound retirement nest egg based on your age, monthly contribution, and portfolio yield.</p>
+                <span class="px-3.5 py-1 rounded-full bg-gain/10 text-gain text-xs font-semibold uppercase tracking-wider inline-block">Exponential Wealth Simulation</span>
+                <h2 class="text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">Retirement Trajectory Calculator</h2>
+                <p class="text-sm text-[#86868b] dark:text-[#a1a1a6]">Simulate your compound retirement nest egg based on your age, monthly contribution, and portfolio yield.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 
                 <!-- Left: Control Sliders -->
-                <div class="lg:col-span-6 glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-surface-border shadow-xl">
+                <div class="lg:col-span-6 apple-card-elevated rounded-[28px] p-6 sm:p-8 space-y-6 border border-black/[0.06] dark:border-white/[0.08] bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl shadow-xl">
                     
                     <!-- Current Age & Target Age -->
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <div class="flex justify-between text-xs font-mono">
-                                <span class="text-content-secondary font-sans font-bold">Current Age</span>
-                                <span class="font-bold text-primary" x-text="currentAge + ' yrs'"></span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6] font-sans">Current Age</span>
+                                <span class="font-semibold text-primary dark:text-primary-light" x-text="currentAge + ' yrs'"></span>
                             </div>
-                            <input type="range" min="18" max="70" x-model.number="currentAge" class="w-full accent-primary cursor-pointer" />
+                            <input type="range" min="18" max="70" x-model.number="currentAge" class="w-full accent-primary h-1.5 bg-black/[0.08] dark:bg-white/[0.15] rounded-full cursor-pointer" />
                         </div>
                         <div class="space-y-2">
                             <div class="flex justify-between text-xs font-mono">
-                                <span class="text-content-secondary font-sans font-bold">Retire Age</span>
-                                <span class="font-bold text-emerald-600" x-text="retireAge + ' yrs'"></span>
+                                <span class="text-[#86868b] dark:text-[#a1a1a6] font-sans">Retire Age</span>
+                                <span class="font-semibold text-gain" x-text="retireAge + ' yrs'"></span>
                             </div>
-                            <input type="range" min="45" max="80" x-model.number="retireAge" class="w-full accent-emerald-500 cursor-pointer" />
+                            <input type="range" min="45" max="80" x-model.number="retireAge" class="w-full accent-gain h-1.5 bg-black/[0.08] dark:bg-white/[0.15] rounded-full cursor-pointer" />
                         </div>
                     </div>
 
                     <!-- Initial Capital / Starting Balance -->
                     <div class="space-y-2">
                         <div class="flex justify-between text-xs font-mono">
-                            <span class="text-content-secondary font-sans font-bold">Current Starting Balance</span>
-                            <span class="font-bold text-content-primary" x-text="'$' + initialNestEgg.toLocaleString()"></span>
+                            <span class="text-[#86868b] dark:text-[#a1a1a6] font-sans">Current Starting Balance</span>
+                            <span class="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="'$' + initialNestEgg.toLocaleString()"></span>
                         </div>
-                        <input type="range" min="1000" max="250000" step="1000" x-model.number="initialNestEgg" class="w-full accent-primary cursor-pointer" />
+                        <input type="range" min="1000" max="250000" step="1000" x-model.number="initialNestEgg" class="w-full accent-primary h-1.5 bg-black/[0.08] dark:bg-white/[0.15] rounded-full cursor-pointer" />
                     </div>
 
                     <!-- Monthly Contribution -->
                     <div class="space-y-2">
                         <div class="flex justify-between text-xs font-mono">
-                            <span class="text-content-secondary font-sans font-bold">Monthly Contribution</span>
-                            <span class="font-bold text-gain text-sm" x-text="'$' + monthlyContribution.toLocaleString() + ' / mo'"></span>
+                            <span class="text-[#86868b] dark:text-[#a1a1a6] font-sans">Monthly Contribution</span>
+                            <span class="font-semibold text-gain text-sm" x-text="'$' + monthlyContribution.toLocaleString() + ' / mo'"></span>
                         </div>
-                        <input type="range" min="50" max="4000" step="25" x-model.number="monthlyContribution" class="w-full accent-gain cursor-pointer" />
-                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
+                        <input type="range" min="50" max="4000" step="25" x-model.number="monthlyContribution" class="w-full accent-gain h-1.5 bg-black/[0.08] dark:bg-white/[0.15] rounded-full cursor-pointer" />
+                        <div class="flex justify-between text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-mono">
                             <span>$50/mo</span>
                             <span>$583/mo ($7k IRS Cap)</span>
                             <span>$4,000/mo</span>
@@ -342,12 +331,12 @@ function retirementApp() {
                     <!-- Expected Annual Return Rate (%) -->
                     <div class="space-y-2">
                         <div class="flex justify-between text-xs font-mono">
-                            <span class="text-content-secondary font-sans font-bold">Expected Annual Portfolio Return</span>
-                            <span class="font-bold text-indigo-600 text-sm" x-text="expectedReturnRate + '% / yr'"></span>
+                            <span class="text-[#86868b] dark:text-[#a1a1a6] font-sans">Expected Annual Portfolio Return</span>
+                            <span class="font-semibold text-indigo-500 text-sm" x-text="expectedReturnRate + '% / yr'"></span>
                         </div>
-                        <input type="range" min="4.0" max="20.0" step="0.5" x-model.number="expectedReturnRate" class="w-full accent-indigo-600 cursor-pointer" />
-                        <div class="flex justify-between text-[10px] text-content-tertiary font-mono">
-                            <span>4% (Conservative Bonds)</span>
+                        <input type="range" min="4.0" max="20.0" step="0.5" x-model.number="expectedReturnRate" class="w-full accent-indigo-500 h-1.5 bg-black/[0.08] dark:bg-white/[0.15] rounded-full cursor-pointer" />
+                        <div class="flex justify-between text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-mono">
+                            <span>4% (Conservative)</span>
                             <span>9.5% (S&P 500 Historical)</span>
                             <span>20% (Thematic Alpha)</span>
                         </div>
@@ -355,53 +344,53 @@ function retirementApp() {
 
                 </div>
 
-                <!-- Right: Projected Results Display Card -->
-                <div class="lg:col-span-6 glass-card rounded-3xl p-7 sm:p-10 space-y-6 border-2 border-gain/20 bg-gradient-to-br from-white via-gain/5 to-white shadow-2xl relative overflow-hidden">
+                <!-- Right: Projected Results Display Card (Apple Glass) -->
+                <div class="lg:col-span-6 apple-card-elevated rounded-[28px] p-7 sm:p-10 space-y-6 border border-gain/30 bg-white/90 dark:bg-[#161617]/90 backdrop-blur-2xl shadow-xl relative overflow-hidden">
                     
-                    <div class="flex items-center justify-between border-b border-surface-border pb-4">
+                    <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-4">
                         <div>
-                            <span class="text-[10px] font-bold font-mono uppercase tracking-widest text-gain">ESTIMATED AT AGE <span x-text="retireAge"></span></span>
-                            <h3 class="text-xl font-bold font-serif text-content-primary">Projected Total Nest Egg</h3>
+                            <span class="text-[10px] font-semibold font-mono uppercase tracking-wider text-gain">ESTIMATED AT AGE <span x-text="retireAge"></span></span>
+                            <h3 class="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Projected Total Nest Egg</h3>
                         </div>
-                        <div class="w-12 h-12 rounded-2xl bg-gain/15 text-gain flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-gain/20" style="--icon-glow: #10B981;">
-                            <span class="icon-floating">💰</span>
+                        <div class="w-12 h-12 rounded-2xl bg-gain/10 text-gain flex items-center justify-center text-2xl">
+                            💰
                         </div>
                     </div>
 
                     <!-- Hero Number -->
                     <div class="space-y-1">
-                        <p class="text-4xl sm:text-5xl font-extrabold font-serif text-content-primary font-mono tracking-tight"
+                        <p class="text-4xl sm:text-5xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] font-mono tracking-tight"
                            x-text="'$' + projectedNestEgg.toLocaleString()"></p>
-                        <p class="text-xs text-content-secondary">
-                            Compounding horizon: <strong class="font-mono text-content-primary" x-text="yearsToRetire + ' years'"></strong>
+                        <p class="text-xs text-[#86868b] dark:text-[#a1a1a6]">
+                            Compounding horizon: <strong class="font-mono text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="yearsToRetire + ' years'"></strong>
                         </p>
                     </div>
 
                     <!-- Breakdown Cards -->
                     <div class="grid grid-cols-2 gap-3 text-xs font-mono">
-                        <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm">
-                            <span class="text-[10px] text-content-tertiary uppercase block">Your Deposits</span>
-                            <span class="text-base font-bold text-content-primary" x-text="'$' + totalContributed.toLocaleString()"></span>
+                        <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06]">
+                            <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase block">Your Deposits</span>
+                            <span class="text-base font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="'$' + totalContributed.toLocaleString()"></span>
                         </div>
-                        <div class="p-3.5 rounded-2xl bg-white border border-gain/30 shadow-sm">
-                            <span class="text-[10px] text-gain uppercase font-bold block">Compound Interest</span>
-                            <span class="text-base font-bold text-gain" x-text="'+$' + compoundGains.toLocaleString()"></span>
+                        <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-gain/30">
+                            <span class="text-[10px] text-gain uppercase font-semibold block">Compound Interest</span>
+                            <span class="text-base font-semibold text-gain" x-text="'+$' + compoundGains.toLocaleString()"></span>
                         </div>
                     </div>
 
                     <!-- Monthly Income Potential (4% Rule) -->
-                    <div class="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-1 text-xs">
+                    <div class="p-4 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/20 space-y-1 text-xs">
                         <div class="flex items-center justify-between font-mono">
-                            <span class="text-primary font-bold">Estimated Monthly Retirement Payout:</span>
-                            <span class="text-lg font-extrabold text-primary font-serif" x-text="'$' + estimatedMonthlyRetirementIncome.toLocaleString() + ' / mo'"></span>
+                            <span class="text-primary dark:text-primary-light font-medium">Estimated Monthly Retirement Payout:</span>
+                            <span class="text-lg font-semibold text-primary dark:text-primary-light" x-text="'$' + estimatedMonthlyRetirementIncome.toLocaleString() + ' / mo'"></span>
                         </div>
-                        <p class="text-[11px] text-content-secondary leading-normal">
+                        <p class="text-[11px] text-[#86868b] dark:text-[#a1a1a6] leading-normal">
                             Based on the standard 4% perpetual withdrawal framework for endless lifetime liquidity.
                         </p>
                     </div>
 
-                    <!-- Action Button -->
-                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-4 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-sm shadow-xl shadow-gain/20 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2">
+                    <!-- Action Button (Apple Pill) -->
+                    <button type="button" @click="openAccountModal('roth_ira')" class="w-full py-3.5 rounded-full bg-gain hover:bg-gain/90 text-white font-medium text-sm shadow-[0_2px_8px_rgba(52,199,89,0.3)] transition active:scale-[0.98] flex items-center justify-center space-x-2">
                         <span>Open Your Retirement Account Now &rarr;</span>
                     </button>
 
@@ -413,47 +402,47 @@ function retirementApp() {
     </section>
 
     <!-- ============================================================================== -->
-    <!-- MODAL: 1-CLICK OPEN RETIREMENT ACCOUNT                                         -->
+    <!-- MODAL: 1-CLICK OPEN RETIREMENT ACCOUNT (APPLE SQUIRCLE)                         -->
     <!-- ============================================================================== -->
-    <div x-show="openModal" class="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4" x-cloak>
-        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-surface-border shadow-2xl" @click.outside="openModal = false">
+    <div x-show="openModal" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-md flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white/95 dark:bg-[#1d1d1f]/95 rounded-[28px] p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-black/[0.08] dark:border-white/[0.1] shadow-2xl backdrop-blur-2xl" @click.outside="openModal = false">
             
-            <div class="flex justify-between items-center border-b border-surface-border pb-3">
-                <div class="flex items-center space-x-2">
+            <div class="flex justify-between items-center border-b border-black/[0.06] dark:border-white/[0.08] pb-3.5">
+                <div class="flex items-center space-x-2.5">
                     <span class="text-xl">🛡️</span>
-                    <h3 class="font-bold text-base font-serif text-content-primary">Open Retirement IRA Account</h3>
+                    <h3 class="font-semibold text-base text-[#1d1d1f] dark:text-[#f5f5f7]">Open Retirement IRA Account</h3>
                 </div>
-                <button type="button" @click="openModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
+                <button type="button" @click="openModal = false" class="w-8 h-8 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.1] text-[#86868b] dark:text-[#a1a1a6] flex items-center justify-center text-lg">&times;</button>
             </div>
 
             <div class="space-y-4 text-xs font-sans">
                 <div>
-                    <label class="block uppercase font-semibold text-content-secondary mb-1">Select IRA Structure *</label>
-                    <select x-model="modalIraType" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-xs shadow-sm">
+                    <label class="block font-medium text-[#86868b] dark:text-[#a1a1a6] mb-1">Select IRA Structure *</label>
+                    <select x-model="modalIraType" class="w-full bg-white dark:bg-[#161617] border border-black/[0.08] dark:border-white/[0.1] text-[#1d1d1f] dark:text-[#f5f5f7] rounded-xl px-4 py-2.5 outline-none font-medium text-xs shadow-xs">
                         <option value="roth_ira">Roth IRA (100% Tax-Free Returns)</option>
                         <option value="traditional_ira">Traditional IRA (Pre-Tax Deduction)</option>
                         <option value="rollover_401k">401(k) Rollover Vault (Direct Custodial Transfer)</option>
-                        <option value="sep_ira">SEP / Solo 401(k) (Up to $69,000 / yr)</option>
+                        <option value="sep_ira">SEP / Solo 401(k) (Employer Deductible)</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block uppercase font-semibold text-content-secondary mb-1">Designated Beneficiary (Optional)</label>
-                    <input type="text" x-model="beneficiaryName" placeholder="e.g. Spouse / Trust / Family Member" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none text-xs" />
-                    <span class="text-[10px] text-content-tertiary font-mono">You can update your beneficiaries anytime in Account Settings.</span>
+                    <label class="block font-medium text-[#86868b] dark:text-[#a1a1a6] mb-1">Designated Beneficiary (Optional)</label>
+                    <input type="text" x-model="beneficiaryName" placeholder="e.g. Spouse / Trust / Family Member" class="w-full bg-white dark:bg-[#161617] border border-black/[0.08] dark:border-white/[0.1] text-[#1d1d1f] dark:text-[#f5f5f7] rounded-xl px-4 py-2.5 outline-none text-xs" />
+                    <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-mono mt-1 block">You can update your beneficiaries anytime in Account Settings.</span>
                 </div>
 
-                <div class="p-3 bg-surface-overlay rounded-xl border border-surface-border text-[11px] text-content-secondary leading-relaxed">
-                    By confirming, TradeXEdge will establish a segregated, tax-advantaged retirement sub-account under your primary user profile with automated DRIP compounding.
+                <div class="p-3.5 bg-black/[0.02] dark:bg-white/[0.04] rounded-2xl border border-black/[0.04] dark:border-white/[0.06] text-[11px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+                    By confirming, Mainstreet Capital Exchange will establish a segregated, tax-advantaged retirement sub-account under your primary user profile with automated DRIP compounding.
                 </div>
 
-                <div x-show="openError" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-bold" x-text="openError"></div>
-                <div x-show="openSuccess" class="p-3 rounded-xl bg-gain/10 border border-gain/30 text-gain text-xs font-bold" x-text="openSuccess"></div>
+                <div x-show="openError" class="p-3 rounded-2xl bg-loss/10 border border-loss/30 text-loss text-xs font-medium" x-text="openError"></div>
+                <div x-show="openSuccess" class="p-3 rounded-2xl bg-gain/10 border border-gain/30 text-gain text-xs font-medium" x-text="openSuccess"></div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-2 font-sans">
-                <button type="button" @click="openModal = false" class="px-4 py-2 rounded-xl bg-surface-overlay text-content-secondary font-bold text-xs">Cancel</button>
-                <button type="button" @click="submitOpenAccount()" :disabled="openSubmitting" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center space-x-1.5">
+            <div class="flex justify-end gap-2.5 pt-2 border-t border-black/[0.06] dark:border-white/[0.08] font-sans">
+                <button type="button" @click="openModal = false" class="px-5 py-2.5 rounded-full text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] text-xs">Cancel</button>
+                <button type="button" @click="submitOpenAccount()" :disabled="openSubmitting" class="px-6 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-xs shadow-xs transition disabled:opacity-50 flex items-center space-x-1.5 active:scale-[0.98]">
                     <span x-text="openSubmitting ? 'Provisioning...' : 'Open Retirement IRA &rarr;'"></span>
                 </button>
             </div>

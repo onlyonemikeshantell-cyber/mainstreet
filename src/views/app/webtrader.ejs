@@ -220,7 +220,8 @@ function webTraderApp() {
             this.updateClocks();
             this.pollPrices();
             setInterval(() => this.updateClocks(), 1000);
-            setInterval(() => this.pollPrices(), 2000);
+            setInterval(() => this.pollPrices(), 800);
+            setInterval(() => this.synthesizeClientTick(), 350);
             setInterval(() => this.syncServerState(), 3000);
             this.calculatePnL();
             this.$nextTick(() => {
@@ -325,21 +326,54 @@ function webTraderApp() {
                 .then(data => {
                     if (data && data.success && data.prices) {
                         const p = data.prices;
-                        // Synchronize every available market rate
+                        // Synchronize every available market rate with sub-second direction & spread
                         Object.keys(p).forEach(k => {
                             const quote = p[k];
                             if (quote && quote.price) {
-                                if (!this.rates[k]) {
-                                    this.rates[k] = { price: quote.price, high: +(quote.price * 1.015).toFixed(2), low: +(quote.price * 0.985).toFixed(2) };
-                                } else {
-                                    this.rates[k].price = quote.price;
-                                }
+                                const old = this.rates[k];
+                                const oldPrice = old ? old.price : quote.price;
+                                const dir = quote.direction || (quote.price > oldPrice ? 'up' : (quote.price < oldPrice ? 'down' : 'flat'));
+                                
+                                this.rates[k] = {
+                                    ...quote,
+                                    high: old ? Math.max(old.high || quote.price, quote.price) : +(quote.price * 1.015).toFixed(2),
+                                    low: old ? Math.min(old.low || quote.price, quote.price) : +(quote.price * 0.985).toFixed(2),
+                                    direction: dir,
+                                    prevPrice: oldPrice,
+                                    bid: quote.bid || quote.price,
+                                    ask: quote.ask || quote.price,
+                                    spread: quote.spread || 0.05
+                                };
                             }
                         });
                         this.syncPrices();
                         this.calculatePnL();
                     }
                 }).catch(function(e) {});
+        },
+
+        synthesizeClientTick() {
+            if (!this.rates || !this.rates[this.activeSymbol]) return;
+            const item = this.rates[this.activeSymbol];
+            const isForex = this.activeSymbol.includes('/') && !this.activeSymbol.includes('JPY');
+            const isMeme = this.activeSymbol === 'PEPE' || this.activeSymbol === 'SHIB';
+            const dec = isForex ? 4 : (isMeme ? 8 : 2);
+            
+            // Micro-Brownian tick perturbation between poll intervals
+            const microDelta = (Math.random() * 0.00016 - 0.00008);
+            const oldPrice = item.price;
+            const newPrice = +(item.price * (1 + microDelta)).toFixed(dec);
+
+            if (newPrice !== oldPrice) {
+                item.prevPrice = oldPrice;
+                item.price = newPrice;
+                item.direction = newPrice >= oldPrice ? 'up' : 'down';
+                const halfSpread = (item.spread || 0.05) / 2;
+                item.bid = +(newPrice - halfSpread).toFixed(dec);
+                item.ask = +(newPrice + halfSpread).toFixed(dec);
+                this.syncPrices();
+                this.calculatePnL();
+            }
         },
 
         selectSymbol(symbol, spread) {
@@ -437,11 +471,23 @@ function webTraderApp() {
         },
 
         syncPrices() {
-            const current = (this.rates[this.activeSymbol] && this.rates[this.activeSymbol].price) ? this.rates[this.activeSymbol].price : 64820.50;
-            const spreadDelta = (this.activeSpread * 0.1);
-            this.bidPrice = current;
+            const quote = this.rates[this.activeSymbol] || { price: 64820.50, bid: 64820.00, ask: 64821.20 };
+            const current = quote.price || 64820.50;
+            const isForex = this.activeSymbol.includes('/') && !this.activeSymbol.includes('JPY');
+            const isMeme = this.activeSymbol === 'PEPE' || this.activeSymbol === 'SHIB';
+            const dec = isForex ? 4 : (isMeme ? 8 : 2);
+
+            this.bidPrice = quote.bid !== undefined ? quote.bid : +(current - (this.activeSpread * 0.05)).toFixed(dec);
+            this.askPrice = quote.ask !== undefined ? quote.ask : +(current + (this.activeSpread * 0.05)).toFixed(dec);
             if (this.orderMode === 'market') this.limitPrice = current;
-            this.askPrice = +(current + spreadDelta).toFixed(this.activeSymbol.includes('USD') && !this.activeSymbol.includes('BTC') && !this.activeSymbol.includes('ETH') && !this.activeSymbol.includes('SOL') && !this.activeSymbol.includes('BNB') && !this.activeSymbol.includes('XAU') ? 4 : 2);
+        },
+
+        formatQuotePrice(val) {
+            const num = Number(val || 0);
+            if (num >= 1000) return num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (num >= 1) return num.toFixed(2);
+            if (num < 0.0001 && num > 0) return num.toFixed(8);
+            return num.toFixed(4);
         },
 
         getPrice(symbol) {
@@ -852,15 +898,20 @@ function webTraderApp() {
                             @click="selectSymbol(m.symbol, m.spread)"
                             :class="activeSymbol === m.symbol ? 'bg-primary/10 border-l-4 border-primary' : 'hover:bg-surface-overlay'"
                             class="w-full text-left p-2.5 transition flex items-center justify-between">
-                        <div>
-                            <div class="flex items-center space-x-1.5">
-                                <span class="font-bold text-xs text-content-primary block" x-text="m.symbol"></span>
-                                <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <span class="shrink-0" x-html="getInstrumentLogo(m.symbol, m.category, 'w-6 h-6')"></span>
+                            <div class="min-w-0">
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-xs text-content-primary block truncate" x-text="m.symbol"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gain shrink-0"></span>
+                                </div>
+                                <span class="text-[10px] text-content-tertiary capitalize truncate max-w-[100px] block" x-text="m.name"></span>
                             </div>
-                            <span class="text-[10px] text-content-tertiary capitalize truncate max-w-[100px] block" x-text="m.name"></span>
                         </div>
-                        <div class="text-right font-mono text-xs">
-                            <span class="text-gain font-semibold block" x-text="getPrice(m.symbol)"></span>
+                        <div class="text-right font-mono text-xs shrink-0 ml-2">
+                            <span class="font-semibold block transition-colors duration-200" 
+                                  :class="rates[m.symbol]?.direction === 'down' ? 'text-loss' : 'text-gain'" 
+                                  x-text="getPrice(m.symbol)"></span>
                             <span class="text-[10px] text-content-tertiary" x-text="m.spread + ' pips'"></span>
                         </div>
                     </button>
@@ -919,7 +970,10 @@ function webTraderApp() {
                         <h2 class="font-bold text-sm font-serif text-content-primary">Order Execution Ticket</h2>
                         <span class="text-[10px] text-content-secondary font-mono">1:100 Leverage STP</span>
                     </div>
-                    <span class="text-xs font-mono text-primary font-bold px-2.5 py-0.5 rounded-full bg-primary/10" x-text="activeSymbol"></span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="shrink-0" x-html="getInstrumentLogo(activeSymbol, '', 'w-5 h-5')"></span>
+                        <span class="text-xs font-mono text-primary font-bold px-2 py-0.5 rounded-full bg-primary/10" x-text="activeSymbol"></span>
+                    </div>
                 </div>
 
                 <!-- Order Mode Tabs: Market vs Limit -->
@@ -956,7 +1010,7 @@ function webTraderApp() {
                             :class="orderType === 'BUY' ? 'bg-gain text-white shadow-lg shadow-gain/20' : 'bg-surface-overlay text-gain border border-gain/30'"
                             class="py-3 rounded-xl font-bold text-xs uppercase transition flex flex-col items-center">
                         <span>BUY / LONG</span>
-                        <span class="text-[11px] font-mono" x-text="'$' + askPrice.toFixed(2)"></span>
+                        <span class="text-[11px] font-mono" x-text="'$' + formatQuotePrice(askPrice)"></span>
                     </button>
 
                     <button type="button" 
@@ -964,7 +1018,7 @@ function webTraderApp() {
                             :class="orderType === 'SELL' ? 'bg-loss text-white shadow-lg shadow-loss/20' : 'bg-surface-overlay text-loss border border-loss/30'"
                             class="py-3 rounded-xl font-bold text-xs uppercase transition flex flex-col items-center">
                         <span>SELL / SHORT</span>
-                        <span class="text-[11px] font-mono" x-text="'$' + bidPrice.toFixed(2)"></span>
+                        <span class="text-[11px] font-mono" x-text="'$' + formatQuotePrice(bidPrice)"></span>
                     </button>
                 </div>
 
@@ -1094,7 +1148,12 @@ function webTraderApp() {
                     <template x-for="pos in positions" :key="pos.id">
                         <tr>
                             <td class="py-2.5 text-content-secondary" x-text="'#TRD-' + pos.id"></td>
-                            <td class="py-2.5 font-bold text-content-primary" x-text="pos.symbol"></td>
+                            <td class="py-2.5 font-bold text-content-primary">
+                                <div class="flex items-center space-x-2">
+                                    <span class="shrink-0" x-html="getInstrumentLogo(pos.symbol, '', 'w-5 h-5')"></span>
+                                    <span x-text="pos.symbol"></span>
+                                </div>
+                            </td>
                             <td class="py-2.5 font-bold" :class="pos.type === 'BUY' ? 'text-gain' : 'text-loss'" x-text="pos.type"></td>
                             <td class="py-2.5 text-content-secondary" x-text="pos.lot_size"></td>
                             <td class="py-2.5 text-content-secondary" x-text="'$' + Number(pos.open_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
@@ -1135,7 +1194,12 @@ function webTraderApp() {
                     <template x-for="pnd in pendingOrders" :key="pnd.id">
                         <tr>
                             <td class="py-2.5 text-content-secondary" x-text="'#LMT-' + pnd.id"></td>
-                            <td class="py-2.5 font-bold text-content-primary" x-text="pnd.symbol"></td>
+                            <td class="py-2.5 font-bold text-content-primary">
+                                <div class="flex items-center space-x-2">
+                                    <span class="shrink-0" x-html="getInstrumentLogo(pnd.symbol, '', 'w-5 h-5')"></span>
+                                    <span x-text="pnd.symbol"></span>
+                                </div>
+                            </td>
                             <td class="py-2.5 font-bold" :class="pnd.type === 'BUY' ? 'text-gain' : 'text-loss'" x-text="pnd.type + ' LIMIT'"></td>
                             <td class="py-2.5 text-content-secondary" x-text="pnd.lot_size + ' Lots'"></td>
                             <td class="py-2.5 font-bold text-primary" x-text="'$' + Number(pnd.open_price).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>

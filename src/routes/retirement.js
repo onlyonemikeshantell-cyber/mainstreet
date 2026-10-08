@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { distributeQuarterlyDividends } = require('../services/dripService');
 const { STOCK_BASKETS } = require('../services/stockBasketService');
 
@@ -24,7 +24,7 @@ const spotPrices = {
 // GET /retirement (Public Showcase & Interactive Nest-Egg Calculator)
 router.get('/retirement', (req, res) => {
   res.render('public/retirement', {
-    title: 'TradexEdge | Institutional Retirement Accounts (IRAs & 401k)',
+    title: 'Institutional Retirement Accounts (IRAs & 401k) | Mainstreet Capital Exchange',
     user: req.user || null
   });
 });
@@ -127,54 +127,58 @@ router.post('/api/retirement/contribute', requireAuth, (req, res) => {
       return res.status(400).json({ success: false, error: 'Please specify a valid contribution amount.' });
     }
 
-    const account = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);
-    if (!account) {
-      return res.status(404).json({ success: false, error: 'Retirement account not found.' });
-    }
+    const executeContribution = db.transaction(() => {
+      const account = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);
+      if (!account) {
+        throw new Error('Retirement account not found.');
+      }
 
-    // Check IRS Annual Contribution Cap
-    const remainingLimit = account.annual_limit - account.total_contributed;
-    if (contributeAmount > remainingLimit) {
-      return res.status(400).json({
-        success: false,
-        error: `Contribution of $${contributeAmount.toLocaleString()} exceeds your remaining 2026 tax-year limit ($${remainingLimit.toLocaleString()}).`
-      });
-    }
+      // Check IRS Annual Contribution Cap
+      const remainingLimit = account.annual_limit - account.total_contributed;
+      if (contributeAmount > remainingLimit) {
+        throw new Error(`Contribution of $${contributeAmount.toLocaleString()} exceeds your remaining 2026 tax-year limit ($${remainingLimit.toLocaleString()}).`);
+      }
 
-    // Check main balance
-    const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
-    if (user.balance < contributeAmount) {
-      return res.status(400).json({
-        success: false,
-        error: `Insufficient available cash ($${user.balance.toFixed(2)} USD). Please fund your trading balance first.`
-      });
-    }
+      // Check main balance
+      const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
+      if (!user || user.balance < contributeAmount) {
+        throw new Error(`Insufficient available cash ($${user ? user.balance.toFixed(2) : 0} USD). Please fund your trading balance first.`);
+      }
 
-    // Execute atomic transfer
-    db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ?').run(contributeAmount, contributeAmount, userId);
-    db.prepare('UPDATE retirement_accounts SET balance = balance + ?, equity = equity + ?, total_contributed = total_contributed + ? WHERE id = ?').run(contributeAmount, contributeAmount, contributeAmount, account.id);
+      // Execute atomic transfer
+      db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ?').run(contributeAmount, contributeAmount, userId);
+      db.prepare('UPDATE retirement_accounts SET balance = balance + ?, equity = equity + ?, total_contributed = total_contributed + ? WHERE id = ?').run(contributeAmount, contributeAmount, contributeAmount, account.id);
 
-    // Record contribution ledger
-    db.prepare(`
-      INSERT INTO retirement_contributions (account_id, user_id, amount, source_type, tax_year, notes)
-      VALUES (?, ?, ?, ?, 2026, 'Annual IRA Contribution')
-    `).run(account.id, userId, contributeAmount, source_type || 'cash_balance');
+      // Record contribution ledger
+      db.prepare(`
+        INSERT INTO retirement_contributions (account_id, user_id, amount, source_type, tax_year, notes)
+        VALUES (?, ?, ?, ?, 2026, 'Annual IRA Contribution')
+      `).run(account.id, userId, contributeAmount, source_type || 'cash_balance');
 
-    // Record user transaction
-    db.prepare(`
-      INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
-      VALUES (?, 'transfer', ?, 'USD', 'completed', 'Internal Transfer', ?, ?)
-    `).run(userId, contributeAmount, 'TXE-IRA-' + Date.now(), `Contribution to Retirement Account #${account.account_number}`);
+      // Record user transaction
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
+        VALUES (?, 'transfer', ?, 'USD', 'completed', 'Internal Transfer', ?, ?)
+      `).run(userId, contributeAmount, 'TXE-IRA-' + Date.now(), `Contribution to Retirement Account #${account.account_number}`);
+
+      return {
+        accountNumber: account.account_number,
+        newRetirementBalance: account.balance + contributeAmount,
+        newTotalContributed: account.total_contributed + contributeAmount
+      };
+    });
+
+    const result = executeContribution();
 
     res.json({
       success: true,
-      message: `Successfully contributed $${contributeAmount.toLocaleString()} USD to your Retirement Account (#${account.account_number}).`,
-      newRetirementBalance: account.balance + contributeAmount,
-      newTotalContributed: account.total_contributed + contributeAmount
+      message: `Successfully contributed $${contributeAmount.toLocaleString()} USD to your Retirement Account (#${result.accountNumber}).`,
+      newRetirementBalance: result.newRetirementBalance,
+      newTotalContributed: result.newTotalContributed
     });
   } catch (err) {
-    console.error('Error contributing to retirement:', err);
-    res.status(500).json({ success: false, error: 'Internal error processing retirement contribution.' });
+    console.error('Error contributing to retirement:', err.message);
+    res.status(400).json({ success: false, error: err.message || 'Internal error processing retirement contribution.' });
   }
 });
 
@@ -351,9 +355,9 @@ router.get('/api/retirement/statement', requireAuth, (req, res) => {
       .reduce((sum, c) => sum + c.amount, 0);
 
     const statement = {
-      institution: 'TradeXEdge Prime Custody Ltd',
+      institution: 'Mainstreet Capital Exchange Prime Custody Ltd',
       regulatoryJurisdiction: 'Institutional Segregated Custodial Depository',
-      custodianCode: 'TXE-IRA-SEC-5498',
+      custodianCode: 'MCE-IRA-SEC-5498',
       statementDate: new Date().toISOString().split('T')[0],
       taxYear: 2026,
       accountInfo: {
@@ -393,8 +397,8 @@ router.get('/api/retirement/statement', requireAuth, (req, res) => {
   }
 });
 
-// POST /api/retirement/drip/trigger (Trigger instant quarterly dividend accrual and automated DRIP)
-router.post('/api/retirement/drip/trigger', requireAuth, (req, res) => {
+// POST /api/retirement/drip/trigger (Admin Only - Trigger quarterly dividend accrual and automated DRIP)
+router.post('/api/retirement/drip/trigger', requireAdmin, (req, res) => {
   try {
     const userId = req.session.userId;
     const account = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);

@@ -1,0 +1,421 @@
+<!-- ============================================================================== -->
+<!-- MAINSTREET CAPITAL EXCHANGE NOTIFICATION CENTER & TOAST POP-UP ENGINE          -->
+<!-- ============================================================================== -->
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('notificationCenter', () => ({
+        open: false,
+        filter: 'all', // 'all' | 'unread'
+        notifications: [],
+        unreadCount: 0,
+        loading: false,
+        toasts: [],
+
+        init() {
+            this.fetchNotifications();
+            // Poll for fresh notifications every 15 seconds
+            setInterval(() => this.fetchNotifications(true), 15000);
+
+            // Global trigger available anywhere in app scripts
+            window.showNotificationToast = (title, message, type = 'system') => {
+                this.addToast({
+                    id: 'custom-' + Date.now(),
+                    title,
+                    message,
+                    type,
+                    created_at: 'Just now'
+                });
+            };
+
+            // Global trigger to create backend notification + pop-up
+            window.sendTestNotification = (title, message, type = 'trade') => {
+                this.addToast({
+                    id: 'test-' + Date.now(),
+                    title: title || 'Trade Executed',
+                    message: message || 'Market order filled for 0.50 BTC/USD at $88,450.00.',
+                    type: type || 'trade',
+                    created_at: 'Just now'
+                });
+            };
+        },
+
+        sendTestToast() {
+            const samples = [
+                { title: 'Deposit Credited Instantly', message: 'Fedwire wire transfer #STP-94827 ($25,000.00 USD) cleared and credited to your trading balance.', type: 'deposit' },
+                { title: 'Limit Order Executed', message: 'Bought 0.35 BTC/USD at $88,250.00. Position opened in Spot Multi-Chain Vault.', type: 'trade' },
+                { title: 'Quarterly Dividend Paid', message: 'Dividend distribution of $142.50 for Apple Inc. (AAPL) credited. DRIP reinvestment active.', type: 'dividend' },
+                { title: 'Institutional Security Passed', message: 'Hardware 2FA authentication verified from trusted terminal.', type: 'security' }
+            ];
+            const pick = samples[Math.floor(Math.random() * samples.length)];
+            this.addToast(pick);
+        },
+
+        async fetchNotifications(isPoll = false) {
+            try {
+                const res = await fetch('/api/notifications');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const existingIds = new Set(this.notifications.map(n => n.id));
+                const freshUnread = (data.notifications || []).filter(n => !existingIds.has(n.id) && n.is_read === 0);
+
+                this.notifications = data.notifications || [];
+                this.unreadCount = data.unreadCount || 0;
+
+                // When new notification arrives while user is on page, pop up real-time toast!
+                if (isPoll && freshUnread.length > 0) {
+                    freshUnread.slice(0, 2).forEach(item => this.addToast(item));
+                } else if (!isPoll && this.unreadCount > 0 && !sessionStorage.getItem('txe_welcome_toast_shown')) {
+                    // Show latest unread toast once upon page entry
+                    sessionStorage.setItem('txe_welcome_toast_shown', 'true');
+                    const latest = this.notifications.find(n => n.is_read === 0);
+                    if (latest) {
+                        setTimeout(() => this.addToast(latest), 1000);
+                    }
+                }
+            } catch (err) {
+                console.error('[NotificationCenter] Error polling:', err);
+            }
+        },
+
+        get filteredNotifications() {
+            if (this.filter === 'unread') {
+                return this.notifications.filter(n => n.is_read === 0);
+            }
+            return this.notifications;
+        },
+
+        async markAllRead() {
+            try {
+                await fetch('/api/notifications/read-all', { method: 'POST' });
+                this.unreadCount = 0;
+                this.notifications.forEach(n => n.is_read = 1);
+            } catch (err) {
+                console.error('[NotificationCenter] Mark all read failed:', err);
+            }
+        },
+
+        async markSingleRead(item, event) {
+            if (event) event.stopPropagation();
+            if (item.is_read === 1) return;
+            try {
+                await fetch('/api/notifications/' + item.id + '/read', { method: 'POST' });
+                item.is_read = 1;
+                this.unreadCount = Math.max(0, this.unreadCount - 1);
+            } catch (err) {
+                console.error('[NotificationCenter] Mark single read failed:', err);
+            }
+        },
+
+        addToast(item) {
+            const toastId = item.id || ('toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4));
+            
+            // Avoid duplicate active toasts
+            if (this.toasts.some(t => t.id === toastId)) return;
+
+            const toast = {
+                id: toastId,
+                title: item.title,
+                message: item.message,
+                type: item.type || 'system',
+                time: this.formatTime(item.created_at),
+                rawTime: item.created_at,
+                visible: true
+            };
+
+            // Play subtle modern synthesizer chime if audio context permitted
+            this.playChime(item.type);
+
+            this.toasts.unshift(toast);
+
+            // Limit to maximum 3 concurrent toasts on screen
+            if (this.toasts.length > 3) {
+                this.toasts.pop();
+            }
+
+            // Auto dismiss toast after 6 seconds
+            setTimeout(() => {
+                this.dismissToast(toastId);
+            }, 6000);
+        },
+
+        dismissToast(id) {
+            this.toasts = this.toasts.filter(t => t.id !== id);
+        },
+
+        playChime(type) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                if (ctx.state === 'suspended') return;
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                
+                // Frequency based on category
+                let freq = 880; // A5 default
+                if (type === 'deposit' || type === 'dividend') freq = 1046.50; // C6
+                else if (type === 'trade') freq = 987.77; // B5
+                
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.04, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            } catch(e) {
+                // Audio autoplay policy handled silently
+            }
+        },
+
+        getTypeMeta(type) {
+            switch (type) {
+                case 'deposit':
+                    return {
+                        icon: '💰',
+                        label: 'Deposit',
+                        badgeClass: 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20',
+                        accentClass: 'border-l-4 border-l-emerald-500'
+                    };
+                case 'trade':
+                    return {
+                        icon: '📈',
+                        label: 'Execution',
+                        badgeClass: 'bg-blue-500/10 text-blue-500 dark:text-sky-400 border-blue-500/20',
+                        accentClass: 'border-l-4 border-l-blue-500'
+                    };
+                case 'dividend':
+                    return {
+                        icon: '💵',
+                        label: 'Dividend',
+                        badgeClass: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20',
+                        accentClass: 'border-l-4 border-l-amber-500'
+                    };
+                case 'kyc':
+                case 'security':
+                    return {
+                        icon: '🛡️',
+                        label: 'Security',
+                        badgeClass: 'bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20',
+                        accentClass: 'border-l-4 border-l-violet-500'
+                    };
+                default:
+                    return {
+                        icon: '⚡',
+                        label: 'System',
+                        badgeClass: 'bg-slate-500/10 text-slate-500 dark:text-slate-300 border-slate-500/20',
+                        accentClass: 'border-l-4 border-l-slate-400'
+                    };
+            }
+        },
+
+        formatTime(dateStr) {
+            if (!dateStr || dateStr === 'Just now') return 'Just now';
+            try {
+                const date = new Date(dateStr.replace(' ', 'T') + 'Z');
+                const now = new Date();
+                const diffMs = now - date;
+                const diffSec = Math.floor(diffMs / 1000);
+                if (diffSec < 60) return 'Just now';
+                const diffMin = Math.floor(diffSec / 60);
+                if (diffMin < 60) return `${diffMin}m ago`;
+                const diffHr = Math.floor(diffMin / 60);
+                if (diffHr < 24) return `${diffHr}h ago`;
+                const diffDays = Math.floor(diffHr / 24);
+                return `${diffDays}d ago`;
+            } catch (e) {
+                return dateStr;
+            }
+        }
+    }));
+});
+</script>
+
+<!-- NOTIFICATION BELL & CENTER DROPDOWN -->
+<div x-data="notificationCenter" class="relative shrink-0" @click.outside="open = false">
+
+    <!-- Header Bell Trigger Button -->
+    <button type="button" 
+            @click="open = !open" 
+            class="relative p-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08] text-content-primary dark:text-white transition flex items-center justify-center cursor-pointer select-none group"
+            title="Institutional Notification Center">
+        <svg class="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-primary dark:group-hover:text-sky-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        
+        <!-- Pulsing Red/Rose Unread Pill Badge -->
+        <span x-show="unreadCount > 0" 
+              class="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-[#161617] animate-pulse"
+              x-text="unreadCount > 9 ? '9+' : unreadCount"
+              style="display: none;">
+        </span>
+    </button>
+
+    <!-- Frosted Dropdown Panel -->
+    <div x-show="open" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-2 scale-95"
+         class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white/95 dark:bg-[#18191c]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-2xl p-0 z-50 overflow-hidden select-none"
+         style="display: none;">
+
+        <!-- Dropdown Top Bar -->
+        <div class="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02]">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-xs text-content-primary dark:text-white">Notifications</span>
+                <span x-show="unreadCount > 0" 
+                      class="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                      x-text="`${unreadCount} unread`">
+                </span>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button type="button" 
+                        x-show="unreadCount > 0"
+                        @click="markAllRead()" 
+                        class="text-[11px] text-primary dark:text-sky-400 hover:underline font-medium cursor-pointer">
+                    Mark all read
+                </button>
+                <button type="button"
+                        @click="open = false" 
+                        class="text-content-tertiary hover:text-content-primary dark:hover:text-white text-sm">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Pill Tabs -->
+        <div class="px-4 py-2 border-b border-black/[0.04] dark:border-white/[0.06] flex items-center space-x-1.5 text-xs bg-black/[0.01] dark:bg-white/[0.01]">
+            <button type="button" 
+                    @click="filter = 'all'" 
+                    :class="filter === 'all' ? 'bg-primary text-white font-semibold shadow-xs' : 'text-content-secondary dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5'" 
+                    class="px-2.5 py-1 rounded-lg text-[11px] transition">
+                All
+            </button>
+            <button type="button" 
+                    @click="filter = 'unread'" 
+                    :class="filter === 'unread' ? 'bg-primary text-white font-semibold shadow-xs' : 'text-content-secondary dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5'" 
+                    class="px-2.5 py-1 rounded-lg text-[11px] transition flex items-center space-x-1">
+                <span>Unread</span>
+                <span x-show="unreadCount > 0" class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            </button>
+            <button type="button" 
+                    @click="sendTestToast()" 
+                    class="ml-auto px-2 py-0.5 rounded-lg text-[10px] font-semibold text-primary dark:text-sky-400 bg-primary/10 dark:bg-sky-400/10 hover:bg-primary/20 dark:hover:bg-sky-400/20 transition flex items-center space-x-1 cursor-pointer select-none"
+                    title="Send immediate live pop-up notification">
+                <span>⚡</span>
+                <span>Send Pop-up</span>
+            </button>
+        </div>
+
+        <!-- Notification Feed List -->
+        <div class="max-h-80 overflow-y-auto divide-y divide-black/[0.04] dark:divide-white/[0.06] text-xs">
+            <template x-for="item in filteredNotifications" :key="item.id">
+                <div @click="markSingleRead(item)"
+                     :class="item.is_read === 0 ? 'bg-primary/[0.03] dark:bg-sky-500/[0.04]' : ''"
+                     class="p-3.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition flex items-start space-x-3 cursor-pointer group relative">
+                    
+                    <!-- Category Icon Glyph -->
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 border"
+                         :class="getTypeMeta(item.type).badgeClass">
+                        <span x-text="getTypeMeta(item.type).icon"></span>
+                    </div>
+
+                    <!-- Notification Body -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-content-primary dark:text-white truncate" x-text="item.title"></span>
+                            <span class="text-[10px] text-content-tertiary dark:text-neutral-500 font-mono ml-2 shrink-0" x-text="formatTime(item.created_at)"></span>
+                        </div>
+                        <p class="text-[11px] text-content-secondary dark:text-neutral-300 mt-0.5 leading-relaxed line-clamp-2" x-text="item.message"></p>
+                    </div>
+
+                    <!-- Unread Glow Dot -->
+                    <div x-show="item.is_read === 0" class="w-2 h-2 rounded-full bg-primary dark:bg-sky-400 shrink-0 self-center"></div>
+                </div>
+            </template>
+
+            <!-- Empty State -->
+            <div x-show="filteredNotifications.length === 0" class="py-12 text-center text-content-tertiary dark:text-neutral-500">
+                <div class="text-2xl mb-1">📭</div>
+                <p class="text-xs font-medium">No notifications to display</p>
+                <p class="text-[10px] opacity-75 mt-0.5">All market and account alerts are caught up</p>
+            </div>
+        </div>
+
+        <!-- Footer Direct Link -->
+        <div class="p-2.5 bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.06] dark:border-white/[0.08] text-center">
+            <a href="/transactions" class="text-[11px] font-semibold text-content-secondary hover:text-primary dark:text-neutral-400 dark:hover:text-white transition flex items-center justify-center space-x-1">
+                <span>View Full Activity Log &amp; Statements</span>
+                <span>&rarr;</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- REAL-TIME FLOATING POP-UP / TOAST NOTIFICATION CONTAINER                       -->
+    <!-- ============================================================================== -->
+    <div class="fixed top-18 right-4 sm:right-6 z-[1000] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div x-show="toast.visible"
+                 x-transition:enter="transition ease-out duration-300 transform"
+                 x-transition:enter-start="opacity-0 translate-x-8 scale-95"
+                 x-transition:enter-end="opacity-100 translate-x-0 scale-100"
+                 x-transition:leave="transition ease-in duration-200 transform"
+                 x-transition:leave-start="opacity-100 translate-x-0 scale-100"
+                 x-transition:leave-end="opacity-0 translate-x-8 scale-95"
+                 class="pointer-events-auto w-full rounded-2xl bg-white/95 dark:bg-[#1a1b1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-2xl p-4 overflow-hidden relative group">
+                
+                <!-- Category Accent Bar -->
+                <div class="flex items-start space-x-3">
+                    <!-- Icon badge -->
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 border"
+                         :class="getTypeMeta(toast.type).badgeClass">
+                        <span x-text="getTypeMeta(toast.type).icon"></span>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0 pr-4">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-[9px] uppercase font-mono font-bold tracking-wider px-1.5 py-0.2 rounded"
+                                  :class="getTypeMeta(toast.type).badgeClass"
+                                  x-text="getTypeMeta(toast.type).label">
+                            </span>
+                            <span class="text-[10px] text-content-tertiary dark:text-neutral-500 font-mono" x-text="toast.time"></span>
+                        </div>
+                        <h4 class="text-xs font-bold text-content-primary dark:text-white mt-1 leading-snug" x-text="toast.title"></h4>
+                        <p class="text-[11px] text-content-secondary dark:text-neutral-300 mt-0.5 leading-relaxed line-clamp-2" x-text="toast.message"></p>
+                    </div>
+
+                    <!-- Dismiss 'X' Button -->
+                    <button type="button" 
+                            @click="dismissToast(toast.id)" 
+                            class="text-content-tertiary hover:text-content-primary dark:hover:text-white p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Animated Auto-Dismiss Timeout Progress Indicator -->
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-black/[0.04] dark:bg-white/[0.06]">
+                    <div class="h-full bg-primary dark:bg-sky-400 animate-[shrink_6s_linear_forwards] origin-left"></div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+</div>
+
+<style>
+@keyframes shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+</style>

@@ -4,8 +4,10 @@ const { getLivePrices } = require('./livePriceService');
 // Public reliable RPC and explorer endpoints with automatic failover
 const ETH_RPCS = [
   'https://ethereum-rpc.publicnode.com',
+  'https://cloudflare-eth.com',
   'https://1rpc.io/eth',
-  'https://rpc.ankr.com/eth'
+  'https://rpc.ankr.com/eth',
+  'https://eth.llamarpc.com'
 ];
 
 // Helper for Ethereum JSON-RPC calls
@@ -121,7 +123,7 @@ async function verifyBitcoinTransaction(txHash, expectedRecipient = null) {
   try {
     const res = await fetch(`https://blockchain.info/rawtx/${normalizedHash}?format=json`, {
       signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Mozilla/5.0 TradeXEdge/1.0' }
+      headers: { 'User-Agent': 'Mozilla/5.0 Mainstreet Capital Exchange/1.0' }
     });
     if (res.ok) {
       txData = await res.json();
@@ -133,7 +135,7 @@ async function verifyBitcoinTransaction(txHash, expectedRecipient = null) {
     try {
       const res2 = await fetch(`https://api.blockchair.com/bitcoin/dashboards/transaction/${normalizedHash}`, {
         signal: AbortSignal.timeout(8000),
-        headers: { 'User-Agent': 'Mozilla/5.0 TradeXEdge/1.0' }
+        headers: { 'User-Agent': 'Mozilla/5.0 Mainstreet Capital Exchange/1.0' }
       });
       if (res2.ok) {
         const d = await res2.json();
@@ -356,9 +358,299 @@ async function verifyCryptoDeposit({ currency, txHash, expectedAddress, amountUs
   };
 }
 
+// 5. Non-throwing Live Status & Confirmation Inspector
+async function checkTransactionStatus({ currency, txHash, expectedAddress, amountUsd }) {
+  const normHash = (txHash || '').trim();
+  if (!normHash) {
+    return { status: 'idle', message: 'Enter or submit transaction hash to monitor.' };
+  }
+
+  // 1. Double spend / already credited check
+  const existingTx = db.prepare("SELECT id, user_id, amount, status, created_at FROM transactions WHERE tx_hash = ?").get(normHash);
+  if (existingTx && existingTx.status === 'completed') {
+    return {
+      status: 'already_credited',
+      verified: true,
+      isCredited: true,
+      transactionId: existingTx.id,
+      amount: existingTx.amount,
+      message: `Transaction ${normHash.slice(0, 14)}... has already been verified and credited (Ref: #${existingTx.id}).`
+    };
+  }
+
+  // 2. Demo simulation hash
+  const sysSettings = db.prepare('SELECT crypto_verification_mode FROM system_settings LIMIT 1').get();
+  const mode = sysSettings?.crypto_verification_mode || 'live_blockchain';
+  const isDemoBypass = normHash.startsWith('0xDEMO') || normHash.startsWith('TEST-') || normHash.startsWith('DEV-') || mode === 'demo_instant';
+
+  if (isDemoBypass) {
+    const livePrices = getLivePrices();
+    const curUpper = (currency || 'USD').toUpperCase();
+    let simCrypto = parseFloat(amountUsd) || 500;
+    if (curUpper.includes('BTC')) simCrypto = +(simCrypto / (livePrices['BTC']?.price || 64800)).toFixed(6);
+    else if (curUpper.includes('ETH')) simCrypto = +(simCrypto / (livePrices['ETH']?.price || 3500)).toFixed(5);
+    else if (curUpper.includes('SOL')) simCrypto = +(simCrypto / (livePrices['SOL']?.price || 148)).toFixed(4);
+    else if (curUpper.includes('USDT') || curUpper.includes('USDC')) simCrypto = +simCrypto.toFixed(2);
+
+    return {
+      status: 'confirmed',
+      verified: true,
+      confirmations: 12,
+      requiredConfirmations: 1,
+      network: 'Simulation Sandbox',
+      symbol: currency || 'USD',
+      amountCrypto: simCrypto,
+      usdValuation: parseFloat(amountUsd) || 500,
+      txHash: normHash,
+      message: 'Verified via Simulation Sandbox'
+    };
+  }
+
+  // 3. Live on-chain status
+  const currUpper = (currency || '').toUpperCase();
+  const livePrices = getLivePrices();
+
+  // A. Bitcoin
+  if (currUpper.includes('BTC')) {
+    const cleanHash = normHash.startsWith('0x') ? normHash.slice(2) : normHash;
+    try {
+      const res = await fetch(`https://mempool.space/api/tx/${cleanHash}`, {
+        signal: AbortSignal.timeout(6000),
+        headers: { 'User-Agent': 'Mozilla/5.0 Mainstreet Capital Exchange/1.0' }
+      });
+      if (res.ok) {
+        const tx = await res.json();
+        let totalSatoshis = 0;
+        let recipient = '';
+        if (tx.vout && tx.vout.length > 0) {
+          if (expectedAddress) {
+            const m = tx.vout.find(v => v.scriptpubkey_address && v.scriptpubkey_address.toLowerCase() === expectedAddress.toLowerCase());
+            if (m) {
+              totalSatoshis = m.value;
+              recipient = m.scriptpubkey_address;
+            }
+          }
+          if (totalSatoshis === 0) {
+            totalSatoshis = tx.vout[0].value;
+            recipient = tx.vout[0].scriptpubkey_address || 'Bitcoin Output';
+          }
+        }
+        const btcAmount = totalSatoshis / 1e8;
+        const btcPrice = livePrices['BTC']?.price || 64800;
+        const usdVal = +(btcAmount * btcPrice).toFixed(2);
+
+        if (!tx.status || !tx.status.confirmed) {
+          return {
+            status: 'in_mempool',
+            verified: false,
+            confirmations: 0,
+            requiredConfirmations: 1,
+            network: 'Bitcoin Mainnet',
+            symbol: 'BTC',
+            amountCrypto: btcAmount,
+            usdValuation: usdVal || parseFloat(amountUsd) || 100,
+            txHash: cleanHash,
+            recipient,
+            message: 'Detected in Bitcoin Mempool. Awaiting block inclusion...'
+          };
+        } else {
+          let confs = 1;
+          try {
+            const tipRes = await fetch('https://mempool.space/api/blocks/tip/height', { signal: AbortSignal.timeout(4000) });
+            if (tipRes.ok) {
+              const tip = await tipRes.json();
+              confs = Math.max(1, tip - tx.status.block_height + 1);
+            }
+          } catch(e) {}
+          return {
+            status: 'confirmed',
+            verified: true,
+            confirmations: confs,
+            requiredConfirmations: 1,
+            network: 'Bitcoin Mainnet',
+            symbol: 'BTC',
+            amountCrypto: btcAmount,
+            usdValuation: usdVal || parseFloat(amountUsd) || 100,
+            txHash: cleanHash,
+            blockNumber: tx.status.block_height,
+            recipient,
+            message: `Confirmed on Bitcoin Mainnet with ${confs} block confirmations.`
+          };
+        }
+      }
+    } catch(e) {}
+
+    try {
+      const btcRes = await verifyBitcoinTransaction(cleanHash, expectedAddress);
+      const btcPrice = livePrices['BTC']?.price || 64800;
+      return {
+        status: 'confirmed',
+        verified: true,
+        ...btcRes,
+        requiredConfirmations: 1,
+        usdValuation: +(btcRes.amountCrypto * btcPrice).toFixed(2)
+      };
+    } catch(err) {
+      return {
+        status: 'not_found',
+        verified: false,
+        confirmations: 0,
+        requiredConfirmations: 1,
+        network: 'Bitcoin Mainnet',
+        txHash: cleanHash,
+        message: err.message || 'Transaction not found on Bitcoin network yet.'
+      };
+    }
+  }
+
+  // B. Tron
+  if (currUpper.includes('TRC') || currUpper.includes('TRON') || (currUpper.includes('USDT') && /^[a-fA-F0-9]{64}$/.test(normHash) && !normHash.startsWith('0x'))) {
+    try {
+      const tronRes = await verifyTronTransaction(normHash, expectedAddress);
+      return {
+        status: 'confirmed',
+        verified: true,
+        ...tronRes,
+        requiredConfirmations: 12,
+        usdValuation: tronRes.symbol === 'USDT' ? tronRes.amountCrypto : +(tronRes.amountCrypto * 0.15).toFixed(2)
+      };
+    } catch(err) {
+      if (!/^[a-fA-F0-9]{64}$/.test(normHash)) {
+        return {
+          status: 'not_found',
+          verified: false,
+          confirmations: 0,
+          requiredConfirmations: 12,
+          network: 'Tron (TRC-20)',
+          txHash: normHash,
+          message: err.message || 'Transaction not found on Tron network.'
+        };
+      }
+    }
+  }
+
+  // C. Ethereum / EVM (ETH, USDT ERC-20, USDC)
+  const ethCleanHash = normHash.startsWith('0x') ? normHash : '0x' + normHash;
+  if (!/^0x([A-Fa-f0-9]{64})$/.test(ethCleanHash)) {
+    return {
+      status: 'invalid_format',
+      verified: false,
+      message: 'Invalid transaction hash format. Expected a 66-character 0x... hex string.'
+    };
+  }
+
+  try {
+    const [tx, receipt, latestBlockHex] = await Promise.all([
+      callEthRpc('eth_getTransactionByHash', [ethCleanHash]),
+      callEthRpc('eth_getTransactionReceipt', [ethCleanHash]),
+      callEthRpc('eth_blockNumber', [])
+    ]);
+
+    if (!tx) {
+      return {
+        status: 'not_found',
+        verified: false,
+        confirmations: 0,
+        requiredConfirmations: 1,
+        network: 'Ethereum Mainnet',
+        txHash: ethCleanHash,
+        message: 'Transaction not yet found on Ethereum nodes. Monitoring mempool...'
+      };
+    }
+
+    if (!receipt) {
+      return {
+        status: 'in_mempool',
+        verified: false,
+        confirmations: 0,
+        requiredConfirmations: 1,
+        network: 'Ethereum Mainnet',
+        sender: tx.from,
+        recipient: tx.to,
+        txHash: ethCleanHash,
+        message: 'Detected in Ethereum Mempool! Awaiting block inclusion...'
+      };
+    }
+
+    if (receipt.status !== '0x1') {
+      return {
+        status: 'reverted',
+        verified: false,
+        confirmations: 0,
+        requiredConfirmations: 1,
+        network: 'Ethereum Mainnet',
+        sender: tx.from,
+        recipient: tx.to,
+        txHash: ethCleanHash,
+        message: 'Transaction reverted/failed on-chain. Funds were not transferred.'
+      };
+    }
+
+    const currentBlock = parseInt(latestBlockHex, 16);
+    const txBlock = parseInt(receipt.blockNumber, 16);
+    const confirmations = Math.max(1, currentBlock - txBlock);
+
+    const isErc20 = tx.input && tx.input.startsWith('0xa9059cbb') && tx.input.length >= 138;
+    let symbol = 'ETH';
+    let amountCrypto = 0;
+    let recipient = (tx.to || '').toLowerCase();
+
+    if (isErc20) {
+      const contract = (tx.to || '').toLowerCase();
+      recipient = '0x' + tx.input.slice(34, 74).toLowerCase();
+      const rawAmountHex = tx.input.slice(74, 138);
+      const rawAmount = BigInt('0x' + rawAmountHex);
+      if (contract === '0xdac17f958d2ee523a2206206994597c13d831ec7') {
+        symbol = 'USDT';
+        amountCrypto = Number(rawAmount) / 1e6;
+      } else if (contract === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48') {
+        symbol = 'USDC';
+        amountCrypto = Number(rawAmount) / 1e6;
+      } else {
+        symbol = 'TOKEN';
+        amountCrypto = Number(rawAmount) / 1e18;
+      }
+    } else {
+      symbol = 'ETH';
+      amountCrypto = parseInt(tx.value, 16) / 1e18;
+    }
+
+    let usdValuation = 0;
+    if (symbol === 'USDT' || symbol === 'USDC') usdValuation = amountCrypto;
+    else if (symbol === 'ETH') usdValuation = +(amountCrypto * (livePrices['ETH']?.price || 3540)).toFixed(2);
+    else usdValuation = parseFloat(amountUsd) || +(amountCrypto * 3500).toFixed(2);
+
+    return {
+      status: 'confirmed',
+      verified: true,
+      confirmations,
+      requiredConfirmations: 1,
+      network: 'Ethereum Mainnet',
+      symbol,
+      amountCrypto,
+      usdValuation,
+      sender: tx.from,
+      recipient,
+      blockNumber: txBlock,
+      txHash: ethCleanHash,
+      message: `Confirmed on Ethereum Mainnet with ${confirmations} block confirmation(s)!`
+    };
+  } catch(err) {
+    return {
+      status: 'rpc_error',
+      verified: false,
+      confirmations: 0,
+      network: 'Ethereum Mainnet',
+      txHash: ethCleanHash,
+      message: `RPC node response: ${err.message}. Retrying...`
+    };
+  }
+}
+
 module.exports = {
   verifyCryptoDeposit,
   verifyEthereumTransaction,
   verifyBitcoinTransaction,
-  verifyTronTransaction
+  verifyTronTransaction,
+  checkTransactionStatus
 };

@@ -1,6 +1,6 @@
-# TradeXEdge — Multi-Asset Trading Platform (Atom-for-Atom Clone)
+# Mainstreet Capital Exchange — Multi-Asset Trading Platform
 
-A full-stack, institutional-grade multi-asset trading platform cloned 1:1 atom-for-atom from **tradexedge.com**.
+A full-stack, institutional-grade multi-asset trading platform for **Mainstreet Capital Exchange** (mainstreetcapitalexchange.com).
 
 ---
 
@@ -14,7 +14,7 @@ The server is actively running in the background at:
 ## 🎨 Frontend Architecture
 - **Exact UI & Palette**: Faithfully replicated using Tailwind CSS custom colors (`#0D0F14` surface base, `#161A23` raised, `#1C2127` overlay, `#2A2F36` border, `#C9A646` primary gold) and typography (`Poppins`, `Merriweather`).
 - **Reactive Interactions**: Powered by Alpine.js for dropdown menus, auto-rotating hero sliders, tab switchers, mobile navigation drawer, real-time calculation modals, and interactive order submission.
-- **Embedded Trading Engines**: Live TradingView Ticker Tape, Advanced Real-Time Charting Station, Market Screener, and Depth-of-Market widgets.
+- **Embedded Trading Engines**: Live TradingView Ticker Tape, Advanced Real-Time Charting Station, Market Screener, Depth-of-Market widgets, and AI Financial Copilot.
 - **Brand & Vector Assets**: Localized vector SVGs, partner badges (AWS, Cloudflare, Jumio, Ledger), and high-resolution trading desk visuals.
 
 ---
@@ -32,8 +32,8 @@ The server is actively running in the background at:
 
 | Role | Email / Username | Password | Initial Balance |
 | :--- | :--- | :--- | :--- |
-| **Demo Trader** | `trader@tradexedge.com` / `trader` | `Trader123!` | $25,000.00 USD |
-| **Administrator** | `admin@tradexedge.com` / `admin` | `Admin123!` | $50,000.00 USD |
+| **Demo Trader** | `trader@mainstreetcapitalexchange.com` / `trader` | `Trader123!` | $25,000.00 USD |
+| **Administrator** | `admin@mainstreetcapitalexchange.com` / `admin` | `Admin123!` | $50,000.00 USD |
 
 ---
 

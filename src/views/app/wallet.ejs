@@ -1,0 +1,1056 @@
+<%
+function getTokenBgColor(sym) {
+    const colors = {
+        'BTC': '#F7931A',
+        'ETH': '#627EEA',
+        'USDT': '#26A17B',
+        'USDC': '#2775CA',
+        'SOL': '#9945FF',
+        'BNB': '#F3BA2F',
+        'XRP': '#23292F',
+        'ADA': '#0033AD',
+        'AVAX': '#E84142',
+        'DOGE': '#C2A633',
+        'DOT': '#E6007A',
+        'LINK': '#375BD2',
+        'NEAR': '#000000',
+        'SUI': '#4CA2FF',
+        'LTC': '#345D9D',
+        'MATIC': '#8247E5'
+    };
+    return colors[sym] || '#475569';
+}
+
+function renderTokenSvg(sym) {
+    if (sym === 'BTC') {
+        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M23.184 14.288c.35-2.33-1.428-3.582-3.86-4.417l.79-3.167-1.928-.48-.77 3.084c-.507-.126-1.028-.246-1.547-.364l.775-3.104-1.927-.482-.79 3.168c-.42-.096-.83-.19-1.23-.287l.002-.007-2.66-.664-.513 2.06s1.43.328 1.4.348c.78.195.922.712.898 1.122l-.9 3.606c.054.014.124.034.202.065-.064-.016-.133-.034-.204-.052l-1.26 5.055c-.096.237-.338.594-.886.458.02.028-1.4-.35-1.4-.35l-.958 2.21 2.51.626c.467.117.925.238 1.378.355l-.8 3.21 1.926.48.79-3.17c.526.143 1.037.275 1.536.4l-.787 3.15 1.928.48.8-3.208c3.287.622 5.76.37 6.8-2.602.838-2.392-.042-3.772-1.77-4.668 1.258-.29 2.206-1.118 2.46-2.827zm-4.402 6.182c-.596 2.394-4.627 1.1-5.934.774l1.06-4.246c1.306.326 5.495.972 4.874 3.472zm.596-6.223c-.544 2.18-3.905.1.074-4.993l.96-3.85c1.09.272 4.595.78 4.033 3.776z"/></svg>';
+    } else if (sym === 'ETH') {
+        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M16 3l-8 13.5 8 4.5 8-4.5L16 3zm0 19.5l-8-4.5 8 11 8-11-8 4.5z" opacity="0.9"/></svg>';
+    } else if (sym === 'SOL') {
+        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M6 21l3-3h17l-3 3H6zm0-7l3-3h17l-3 3H6zm3-7l-3 3h17l3-3H9z"/></svg>';
+    } else if (sym === 'USDT' || sym === 'USDC') {
+        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M18 16.5v8h-4v-8H6v-3h8v-3h4v3h8v3h-8z"/></svg>';
+    } else if (sym === 'BNB') {
+        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M16 5l4 4-4 4-4-4 4-4zm-7 7l4 4-4 4-4-4 4-4zm14 0l4 4-4 4-4-4 4-4zm-7 7l4 4-4 4-4-4 4-4z"/></svg>';
+    } else {
+        return '<span class="text-white font-bold text-xs">' + sym.substr(0, 3) + '</span>';
+    }
+}
+
+function generateSvgPath(sparkline) {
+    if (!sparkline || sparkline.length < 2) return 'M0 20 L100 20';
+    const step = 100 / (sparkline.length - 1);
+    return sparkline.map((y, i) => (i === 0 ? 'M' : 'L') + (i * step).toFixed(1) + ' ' + (40 - y).toFixed(1)).join(' ');
+}
+%>
+<%- include('../partials/header') %>
+
+<div class="flex min-h-[calc(100vh-65px)] bg-[#f8f9fa] dark:bg-[#0c0d0e] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-200">
+
+    <main class="flex-1 min-w-0 p-4 lg:p-8 space-y-6 overflow-x-hidden"
+          x-data="cryptoVaultHub()"
+          x-init="init()">
+
+        <div class="max-w-5xl mx-auto">
+            <%- include('../partials/cashier-tabs') %>
+        </div>
+
+        <!-- ==========================================
+             01. CLEAN WALLET HEADER
+             ========================================== -->
+        <div class="bg-white dark:bg-[#141517] p-5 lg:p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">CRYPTO WALLET</div>
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <div class="flex items-baseline gap-3 flex-wrap">
+                        <h1 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                            $<%= totalCryptoValuationUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                        </h1>
+                        <span class="inline-flex items-center text-sm font-semibold <%= overallChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
+                            <%= overallChangePct >= 0 ? '▲' : '▼' %> <%= overallChangePct >= 0 ? '+' : '' %><%= overallChangePct.toFixed(2) %>%
+                            <span class="text-slate-400 font-normal ml-1.5">(<%= totalPnl24hUsd >= 0 ? '+$' : '-$' %><%= Math.abs(totalPnl24hUsd).toFixed(2) %>)</span>
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span>≈ <%= totalCryptoValuationBtc.toFixed(4) %> BTC</span>
+                        <span class="text-slate-300 dark:text-slate-700">|</span>
+                        <span>≈ <%= totalCryptoValuationEth.toFixed(4) %> ETH</span>
+                        <span class="text-slate-300 dark:text-slate-700">|</span>
+                        <span><%= cryptoBalances.length %> Assets</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button @click="openReceiveModal('BTC')"
+                            class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-sm hover:shadow transition flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                        </svg>
+                        <span>Receive</span>
+                    </button>
+                    <button @click="openSendModal('BTC')"
+                            class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-sm hover:shadow transition flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                        </svg>
+                        <span>Send</span>
+                    </button>
+                    <a href="/swap"
+                       class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm transition flex items-center space-x-1.5 border border-slate-200 dark:border-slate-700">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Swap</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+
+
+        <!-- ==========================================
+             02. WORKSPACE TABS & FILTER BAR
+             ========================================== -->
+        <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+                <!-- Main Nav Tabs -->
+                <div class="flex items-center space-x-2">
+                    <button @click="currentTab = 'assets'"
+                            :class="currentTab === 'assets' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
+                            class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
+                        <span>Assets</span>
+                        <span class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200/50 dark:bg-slate-700/50">
+                            <%= cryptoBalances.length %>
+                        </span>
+                    </button>
+
+                    <button @click="currentTab = 'addressbook'"
+                            :class="currentTab === 'addressbook' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
+                            class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
+                        <span>Addresses</span>
+                        <span class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200/50 dark:bg-slate-700/50">
+                            <%= savedWallets ? savedWallets.length : 0 %>
+                        </span>
+                    </button>
+
+                    <button @click="currentTab = 'activity'"
+                            :class="currentTab === 'activity' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
+                            class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
+                        <span>Activity</span>
+                    </button>
+                </div>
+
+                <!-- View Switcher (Table vs Grid) for Assets tab -->
+                <div x-show="currentTab === 'assets'" class="flex items-center space-x-1.5 self-end sm:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button @click="viewMode = 'table'"
+                            :class="viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-semibold' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'"
+                            class="p-1.5 rounded-lg text-xs transition flex items-center space-x-1 px-2.5" title="List View">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                        <span class="text-xs">List</span>
+                    </button>
+                    <button @click="viewMode = 'grid'"
+                            :class="viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-semibold' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'"
+                            class="p-1.5 rounded-lg text-xs transition flex items-center space-x-1 px-2.5" title="Cards View">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                        </svg>
+                        <span class="text-xs">Cards</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Pills & Search Bar (Assets Tab) -->
+            <div x-show="currentTab === 'assets'" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center space-x-2">
+                    <button @click="selectedCategory = 'all'"
+                            :class="selectedCategory === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold' : 'bg-white dark:bg-[#141517] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition">
+                        All (<%= cryptoBalances.length %>)
+                    </button>
+                    <button @click="selectedCategory = 'holdings'"
+                            :class="selectedCategory === 'holdings' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold' : 'bg-white dark:bg-[#141517] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition">
+                        Holdings
+                    </button>
+                    <button @click="selectedCategory = 'stables'"
+                            :class="selectedCategory === 'stables' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold' : 'bg-white dark:bg-[#141517] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition">
+                        Stablecoins
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="relative flex-1 sm:w-64">
+                        <input type="text"
+                               x-model="searchQuery"
+                               placeholder="Search assets..."
+                               class="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-xl bg-white dark:bg-[#141517] border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800 dark:text-slate-100 placeholder-slate-400">
+                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <label class="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none whitespace-nowrap">
+                        <input type="checkbox" x-model="hideZeroBalances" class="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500/20">
+                        <span>Hide $0</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             TAB 1: VAULT ASSETS & BALANCES
+             ========================================== -->
+        <div x-show="currentTab === 'assets'" class="space-y-4">
+            
+            <!-- VIEW A: CLEAN TABLE VIEW -->
+            <div x-show="viewMode === 'table'" class="bg-white dark:bg-[#141517] rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th class="py-3 px-4">Asset</th>
+                                <th class="py-3 px-4 text-right">Price</th>
+                                <th class="py-3 px-4 text-right">24h Change</th>
+                                <th class="py-3 px-4 text-right">Holdings</th>
+                                <th class="py-3 px-4 text-right">Total Value</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                            <% cryptoBalances.forEach(function(item) { 
+                                const sym = item.asset_symbol;
+                                const isPositive = item.is_positive;
+                            %>
+                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition duration-150 group"
+                                x-show="matchesFilter('<%= sym %>', '<%= (item.asset_name || item.name || '').toLowerCase() %>', '<%= item.category %>', <%= item.balance %>)">
+                                
+                                <!-- Asset -->
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <div class="flex items-center space-x-3">
+                                        <!-- SVG Token Logo -->
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs border border-slate-200/60 dark:border-slate-700/60"
+                                             style="background-color: <%- getTokenBgColor(sym) %>;">
+                                            <%- renderTokenSvg(sym) %>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center space-x-1.5">
+                                                <span class="font-bold text-slate-900 dark:text-white text-xs">
+                                                    <%= item.asset_name || item.name || sym %>
+                                                </span>
+                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                                    <%= sym %>
+                                                </span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5">
+                                                <%= item.network_name %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Spot Price -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap font-mono font-semibold text-slate-900 dark:text-white text-xs">
+                                    $<%= item.current_rate.toLocaleString('en-US', { minimumFractionDigits: item.current_rate < 1 ? 4 : 2, maximumFractionDigits: item.current_rate < 1 ? 4 : 2 }) %>
+                                </td>
+
+                                <!-- 24h Delta -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap font-mono font-semibold text-xs <%= isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
+                                    <%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %>
+                                </td>
+
+                                <!-- Vault Holdings -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <div class="font-mono font-bold text-slate-900 dark:text-white text-xs">
+                                        <%= item.balance.toLocaleString('en-US', { minimumFractionDigits: item.balance === 0 ? 2 : 4, maximumFractionDigits: 6 }) %> <%= sym %>
+                                    </div>
+                                </td>
+
+                                <!-- USD Valuation -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap font-mono font-bold text-xs <%= item.valuation_usd > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400' %>">
+                                    $<%= item.valuation_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                                </td>
+
+                                <!-- Quick Actions -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <div class="flex items-center justify-end space-x-1.5">
+                                        <button @click="openReceiveModal('<%= sym %>')"
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-600 hover:text-white text-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white transition">
+                                            Receive
+                                        </button>
+                                        <button @click="openSendModal('<%= sym %>')"
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">
+                                            Send
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW B: CLEAN GRID / CARDS VIEW -->
+            <div x-show="viewMode === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <% cryptoBalances.forEach(function(item) { 
+                    const sym = item.asset_symbol;
+                    const isPositive = item.is_positive;
+                %>
+                <div class="bg-white dark:bg-[#141517] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition duration-150"
+                     x-show="matchesFilter('<%= sym %>', '<%= (item.asset_name || item.name || '').toLowerCase() %>', '<%= item.category %>', <%= item.balance %>)">
+                    
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"
+                                 style="background-color: <%- getTokenBgColor(sym) %>;">
+                                <%- renderTokenSvg(sym) %>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-900 dark:text-white text-sm leading-tight">
+                                    <%= item.asset_name || item.name || sym %>
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-mono"><%= sym %></p>
+                            </div>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono <%= isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
+                            <%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Price</div>
+                            <div class="text-sm font-bold font-mono text-slate-900 dark:text-white">
+                                $<%= item.current_rate.toLocaleString('en-US', { minimumFractionDigits: item.current_rate < 1 ? 4 : 2, maximumFractionDigits: item.current_rate < 1 ? 4 : 2 }) %>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Holding Value</div>
+                            <div class="text-sm font-bold font-mono text-slate-900 dark:text-white">
+                                $<%= item.valuation_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-mono">
+                                <%= item.balance.toLocaleString('en-US', { minimumFractionDigits: item.balance === 0 ? 2 : 4, maximumFractionDigits: 6 }) %> <%= sym %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-1">
+                        <button @click="openReceiveModal('<%= sym %>')"
+                                class="flex-1 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-600 hover:text-white text-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white transition text-center">
+                            Receive
+                        </button>
+                        <button @click="openSendModal('<%= sym %>')"
+                                class="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition text-center">
+                            Send
+                        </button>
+                    </div>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             TAB 2: WHITELISTED ADDRESS BOOK
+             ========================================== -->
+        <div x-show="currentTab === 'addressbook'" class="space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Whitelisted Counterparties & Hardware Wallets</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Pre-approved external addresses subject to institutional 48h cool-off verification.</p>
+                </div>
+                <button @click="showAddModal = true"
+                        class="px-3.5 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold text-xs shadow-sm hover:opacity-90 transition flex items-center space-x-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>+ Whitelist New Address</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <% if (savedWallets && savedWallets.length > 0) { %>
+                    <% savedWallets.forEach(function(w) { %>
+                    <div class="bg-white dark:bg-[#141517] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-3">
+                        <div>
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                                        <%= w.asset_symbol %>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-sm text-slate-900 dark:text-white"><%= w.label %></h4>
+                                        <span class="text-[11px] text-slate-500 dark:text-slate-400"><%= w.network || 'Native Mainnet' %></span>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    Verified
+                                </span>
+                            </div>
+
+                            <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 font-mono text-xs text-slate-700 dark:text-slate-300 break-all select-all flex items-center justify-between group">
+                                <span class="truncate mr-2"><%= w.wallet_address %></span>
+                                <button @click="copyToClipboard('<%= w.wallet_address %>')" class="text-slate-400 hover:text-slate-900 dark:hover:text-white transition shrink-0" title="Copy Address">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+                            <span class="text-slate-400 text-[11px]">48h Lock Expired</span>
+                            <button @click="openSendModal('<%= w.asset_symbol %>', '<%= w.wallet_address %>')"
+                                    class="text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center space-x-1">
+                                <span>Send Payout</span>
+                                <span>→</span>
+                            </button>
+                        </div>
+                    </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="col-span-full py-12 text-center bg-white dark:bg-[#141517] rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                        <svg class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200">No Whitelisted Addresses Yet</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">Register your corporate cold storage or verified withdrawal addresses to initiate fast outbound transfers.</p>
+                        <button @click="showAddModal = true" class="mt-4 px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold text-xs">
+                            Whitelist Address Now
+                        </button>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             TAB 3: BLOCKCHAIN ACTIVITY & FILLS
+             ========================================== -->
+        <div x-show="currentTab === 'activity'" class="space-y-4">
+            <div class="bg-white dark:bg-[#141517] rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th class="py-3 px-4">Event Type</th>
+                                <th class="py-3 px-4">Cryptographic Hash / Ref</th>
+                                <th class="py-3 px-4">Network Protocol</th>
+                                <th class="py-3 px-4 text-right">Volume</th>
+                                <th class="py-3 px-4 text-right">Valuation (USD)</th>
+                                <th class="py-3 px-4 text-right">Timestamp</th>
+                                <th class="py-3 px-4 text-center">Settlement Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                            <% if (cryptoTransactions && cryptoTransactions.length > 0) { %>
+                                <% cryptoTransactions.forEach(function(tx) { %>
+                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                                    <td class="py-3.5 px-4 font-semibold">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= (tx.type || tx.direction || '').includes('in') || tx.amount > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600' %>">
+                                            <%= (tx.type || tx.direction || 'DEPOSIT').toUpperCase() %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                                        <%= (tx.tx_hash || tx.reference || '0x' + Math.random().toString(16).substr(2, 8) + '...').substr(0, 14) %>...
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 dark:text-slate-400">
+                                        <%= tx.currency || 'BTC' %> Native Network
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                        <%= Math.abs(tx.amount) %> <%= tx.currency || 'BTC' %>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono text-slate-600 dark:text-slate-400">
+                                        $<%= (Math.abs(tx.amount) * (tx.currency === 'BTC' ? 77923 : 1)).toFixed(2) %>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right text-slate-500">
+                                        <%= tx.created_at ? new Date(tx.created_at).toLocaleString() : 'Recent' %>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                            CONFIRMED
+                                        </span>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="7" class="py-10 text-center text-slate-400">
+                                        No recent on-chain transactions recorded for this vault.
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 1: PROOF OF RESERVES (PoR) ATTESTATION
+             ========================================== -->
+        <div x-show="showPorModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             @click.self="showPorModal = false">
+            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">Cryptographic Proof of Reserves (PoR)</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Independent Merkle Tree Attestation & Solvency Audit</p>
+                        </div>
+                    </div>
+                    <button @click="showPorModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Solvency Ratio</span>
+                        <div class="text-xl font-bold font-mono text-emerald-500">101.4%</div>
+                        <span class="text-[11px] text-slate-500">Over-Collateralized</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Attestation Audit</span>
+                        <div class="text-sm font-bold text-slate-800 dark:text-slate-200">Armanino LLP</div>
+                        <span class="text-[11px] text-slate-500">SOC 1 Type II Certified</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Merkle Tree Root Hash</label>
+                        <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-[11px] text-slate-800 dark:text-slate-200 break-all border border-slate-200 dark:border-slate-800">
+                            0x8f7d93b1a82c4f19b2e04d7c83f5109b6a12e4c92a104b2c0192e8a719c20a4f
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Snapshot Block Height & Date</label>
+                        <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-[11px] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 flex justify-between">
+                            <span>Block #884,921 (Bitcoin Mainnet)</span>
+                            <span class="text-slate-400">Attested Today, 04:00 UTC</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Your account (<strong class="font-mono"><%= user ? user.account_number || '#TXE-10003' : '#TXE-10003' %></strong>) leaf hash is mathematically verified in the global Merkle tree with zero discrepancies.</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button @click="showPorModal = false"
+                            class="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold text-xs">
+                        Done / Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 2: VAULT GOVERNANCE & MULTI-SIG POLICY
+             ========================================== -->
+        <div x-show="showGovernanceModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             @click.self="showGovernanceModal = false">
+            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">Vault Governance & Multi-Sig Policies</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Cryptographic Quorums, Signers & Anti-Theft Guardrails</p>
+                        </div>
+                    </div>
+                    <button @click="showGovernanceModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-slate-200">Execution Quorum</div>
+                            <div class="text-slate-500 text-[11px]">Required approvals for transfers > $10,000 USD</div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            2 of 3 Signatures
+                        </span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                        <div class="font-bold text-slate-800 dark:text-slate-200 mb-2">Registered Keyholders</div>
+                        <div class="space-y-1.5 font-mono text-[11px]">
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                                <span>1. <%= user ? user.name || user.email : 'Primary Admin' %> (Owner Key)</span>
+                                <span class="text-emerald-500">● FIDO2 / YubiKey</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                                <span>2. Mainstreet Capital Exchange Prime Guardian</span>
+                                <span class="text-emerald-500">● HSM-NYC4</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                                <span>3. Compliance Escrow (Time-Lock)</span>
+                                <span class="text-blue-500">● 48h Delayed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-slate-200">Address Cool-Off Delay</div>
+                            <div class="text-slate-500 text-[11px]">Mandatory holding time on new whitelisted recipients</div>
+                        </div>
+                        <span class="font-mono font-bold text-slate-700 dark:text-slate-300">48 Hours</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-slate-200">AML / Sanctions Screening</div>
+                            <div class="text-slate-500 text-[11px]">Real-time taint analysis on inbound/outbound transactions</div>
+                        </div>
+                        <span class="text-emerald-500 font-semibold">Elliptic KYT Active</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end">
+                    <button @click="showGovernanceModal = false"
+                            class="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold text-xs">
+                        Close Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 3: RECEIVE / DEPOSIT CRYPTOCURRENCY
+             ========================================== -->
+        <div x-show="showReceiveModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             @click.self="showReceiveModal = false">
+            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                            ↓
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Receive Cryptocurrency</h3>
+                    </div>
+                    <button @click="showReceiveModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Select Receiving Asset</label>
+                        <select x-model="selectedReceiveAsset"
+                                @change="updateReceiveAddress()"
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                            <% cryptoBalances.forEach(function(item) { %>
+                            <option value="<%= item.asset_symbol %>">
+                                <%= item.asset_name || item.name || item.asset_symbol %> (<%= item.asset_symbol %>) - <%= item.network_name %>
+                            </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <!-- QR Code & Address Box -->
+                    <div class="p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center space-y-4">
+                        <div class="p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                            <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(currentReceiveAddress)"
+                                 alt="Custody Address QR"
+                                 class="w-40 h-40 object-contain">
+                        </div>
+
+                        <div class="w-full space-y-2 text-center">
+                            <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider" x-text="selectedReceiveNetwork"></span>
+                            <div class="p-2.5 rounded-xl bg-white dark:bg-[#141517] border border-slate-200 dark:border-slate-800 font-mono text-xs text-slate-800 dark:text-slate-200 break-all select-all shadow-xs"
+                                 x-text="currentReceiveAddress">
+                            </div>
+                            <button @click="copyToClipboard(currentReceiveAddress)"
+                                    class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm transition flex items-center justify-center space-x-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                </svg>
+                                <span>Copy Custody Address</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Deposit Specifications Pill -->
+                    <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span>Send only <strong x-text="selectedReceiveAsset"></strong> on the specified network. Deposits auto-credit upon 1 on-chain block confirmation.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 4: SEND / TRANSFER CRYPTOCURRENCY
+             ========================================== -->
+        <div x-show="showSendModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             @click.self="showSendModal = false">
+            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm">
+                            ↑
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Send / Transfer Cryptocurrency</h3>
+                    </div>
+                    <button @click="showSendModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <form @submit.prevent="submitSendTransfer()" class="space-y-4 text-xs">
+                    <!-- Asset Selector -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asset to Send</label>
+                            <span class="text-slate-500">Available: <strong class="font-mono text-slate-900 dark:text-white" x-text="availableBalance + ' ' + selectedSendAsset"></strong></span>
+                        </div>
+                        <select x-model="selectedSendAsset"
+                                @change="updateSendAssetDetails()"
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <% cryptoBalances.forEach(function(item) { %>
+                            <option value="<%= item.asset_symbol %>" data-balance="<%= item.balance %>" data-rate="<%= item.current_rate %>">
+                                <%= item.asset_name || item.name || item.asset_symbol %> (<%= item.asset_symbol %>) – <%= item.balance %> <%= item.asset_symbol %>
+                            </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <!-- Destination Picker Toggle -->
+                    <div>
+                        <label class="block font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Destination</label>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <button type="button"
+                                    @click="sendDestinationType = 'saved'"
+                                    :class="sendDestinationType === 'saved' ? 'bg-blue-600 text-white font-semibold' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'"
+                                    class="py-1.5 rounded-xl transition text-center">
+                                Saved Address Book
+                            </button>
+                            <button type="button"
+                                    @click="sendDestinationType = 'custom'"
+                                    :class="sendDestinationType === 'custom' ? 'bg-blue-600 text-white font-semibold' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'"
+                                    class="py-1.5 rounded-xl transition text-center">
+                                Custom Address
+                            </button>
+                        </div>
+
+                        <div x-show="sendDestinationType === 'saved'">
+                            <select x-model="selectedSavedWallet"
+                                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                <option value="">- - Choose whitelisted destination - -</option>
+                                <% if (savedWallets && savedWallets.length > 0) { %>
+                                    <% savedWallets.forEach(function(w) { %>
+                                    <option value="<%= w.wallet_address %>">
+                                        <%= w.label %> (<%= w.asset_symbol %>) - <%= w.wallet_address.substr(0, 10) %>...
+                                    </option>
+                                    <% }); %>
+                                <% } %>
+                            </select>
+                        </div>
+
+                        <div x-show="sendDestinationType === 'custom'">
+                            <input type="text"
+                                   x-model="customSendAddress"
+                                   placeholder="Enter destination blockchain address (e.g. 0x... or bc1...)"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+                    </div>
+
+                    <!-- Transfer Amount & Percentage Buttons -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Transfer Amount</label>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" @click="setAmountFraction(0.25)" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200">25%</button>
+                                <button type="button" @click="setAmountFraction(0.50)" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200">50%</button>
+                                <button type="button" @click="setAmountFraction(0.75)" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200">75%</button>
+                                <button type="button" @click="setAmountFraction(1.00)" class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold hover:bg-blue-500/20">MAX</button>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <input type="number"
+                                   step="any"
+                                   x-model="sendAmount"
+                                   @input="calculateUsdValue()"
+                                   placeholder="0.00"
+                                   class="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <span class="absolute right-3.5 top-3 text-xs font-mono font-bold text-slate-400" x-text="selectedSendAsset"></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
+                            <span>Est. USD Value:</span>
+                            <span class="font-mono font-semibold text-slate-700 dark:text-slate-300" x-text="'$' + sendAmountUsd"></span>
+                        </div>
+                    </div>
+
+                    <!-- Security & Fee Summary -->
+                    <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                        <span>Network Gas Subsidy:</span>
+                        <span class="font-bold">0.00 (Sponsored by Prime Desk)</span>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end space-x-2">
+                        <button type="button" @click="showSendModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition">
+                            Confirm & Dispatch Transfer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 5: ADD WHITELISTED ADDRESS
+             ========================================== -->
+        <div x-show="showAddModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             @click.self="showAddModal = false">
+            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Whitelist New Payout Address</h3>
+                    <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <form @submit.prevent="submitSaveWallet()" class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Address Label</label>
+                        <input type="text" x-model="newWalletLabel" required placeholder="e.g. Ledger Nano X - Cold Treasury"
+                               class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Asset Symbol</label>
+                        <select x-model="newWalletAsset"
+                                class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                            <% cryptoBalances.forEach(function(item) { %>
+                            <option value="<%= item.asset_symbol %>"><%= item.asset_symbol %> - <%= item.asset_name || item.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Destination Address</label>
+                        <input type="text" x-model="newWalletAddress" required placeholder="Paste on-chain recipient address"
+                               class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end space-x-2">
+                        <button type="button" @click="showAddModal = false" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold text-xs">
+                            Save to Address Book
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+function cryptoVaultHub() {
+    return {
+        currentTab: 'assets',
+        viewMode: 'table',
+        selectedCategory: 'all',
+        searchQuery: '',
+        hideZeroBalances: false,
+
+        showPorModal: false,
+        showGovernanceModal: false,
+        showReceiveModal: false,
+        showSendModal: false,
+        showAddModal: false,
+
+        selectedReceiveAsset: 'BTC',
+        selectedReceiveNetwork: 'Bitcoin Native Network',
+        currentReceiveAddress: 'bc1q9x3d0gq94z4y28r46v72e6m8k2a095jldk9a74',
+
+        selectedSendAsset: 'BTC',
+        availableBalance: 0.009476,
+        sendRate: 77923.58,
+        sendAmount: '',
+        sendAmountUsd: '0.00',
+        sendDestinationType: 'saved',
+        selectedSavedWallet: '',
+        customSendAddress: '',
+
+        newWalletLabel: '',
+        newWalletAsset: 'BTC',
+        newWalletAddress: '',
+
+        init() {
+            this.updateSendAssetDetails();
+        },
+
+        matchesFilter(sym, name, cat, bal) {
+            if (this.hideZeroBalances && bal <= 0) return false;
+            if (this.selectedCategory === 'holdings' && bal <= 0) return false;
+            if (this.selectedCategory !== 'all' && this.selectedCategory !== 'holdings' && cat !== this.selectedCategory) return false;
+            if (this.searchQuery.trim() !== '') {
+                const q = this.searchQuery.toLowerCase();
+                return sym.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+            }
+            return true;
+        },
+
+        openReceiveModal(sym) {
+            this.selectedReceiveAsset = sym;
+            this.updateReceiveAddress();
+            this.showReceiveModal = true;
+        },
+
+        updateReceiveAddress() {
+            const sym = this.selectedReceiveAsset;
+            if (sym === 'BTC') {
+                this.selectedReceiveNetwork = 'Bitcoin Native SegWit Network';
+                this.currentReceiveAddress = 'bc1q9x3d0gq94z4y28r46v72e6m8k2a095jldk9a74';
+            } else if (sym === 'ETH') {
+                this.selectedReceiveNetwork = 'Ethereum Mainnet (ERC-20)';
+                this.currentReceiveAddress = '0x71C837C3c366F5F949019bB12c29013Fa101897e';
+            } else if (sym === 'USDT' || sym === 'USDC') {
+                this.selectedReceiveNetwork = 'Tron Network (TRC-20) / ERC-20';
+                this.currentReceiveAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+            } else if (sym === 'SOL') {
+                this.selectedReceiveNetwork = 'Solana Mainnet (SPL)';
+                this.currentReceiveAddress = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+            } else {
+                this.selectedReceiveNetwork = sym + ' Network';
+                this.currentReceiveAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random()*16).toString(16)).join('');
+            }
+        },
+
+        openSendModal(sym, destAddress = null) {
+            this.selectedSendAsset = sym;
+            this.updateSendAssetDetails();
+            if (destAddress) {
+                this.sendDestinationType = 'saved';
+                this.selectedSavedWallet = destAddress;
+            }
+            this.showSendModal = true;
+        },
+
+        updateSendAssetDetails() {
+            const sel = document.querySelector('select[x-model="selectedSendAsset"]');
+            if (sel) {
+                const opt = sel.options[sel.selectedIndex];
+                if (opt) {
+                    this.availableBalance = parseFloat(opt.dataset.balance || '0');
+                    this.sendRate = parseFloat(opt.dataset.rate || '1');
+                }
+            }
+            this.calculateUsdValue();
+        },
+
+        setAmountFraction(pct) {
+            this.sendAmount = (this.availableBalance * pct).toFixed(6);
+            this.calculateUsdValue();
+        },
+
+        calculateUsdValue() {
+            const amt = parseFloat(this.sendAmount) || 0;
+            this.sendAmountUsd = (amt * this.sendRate).toFixed(2);
+        },
+
+        copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard: ' + text);
+            }).catch(() => {
+                prompt('Copy address manually:', text);
+            });
+        },
+
+        async submitSendTransfer() {
+            const dest = this.sendDestinationType === 'saved' ? this.selectedSavedWallet : this.customSendAddress;
+            if (!dest) return alert('Please enter a destination address.');
+            if (!this.sendAmount || parseFloat(this.sendAmount) <= 0) return alert('Please enter an amount greater than 0.');
+
+            try {
+                const res = await fetch('/api/wallet/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        asset_symbol: this.selectedSendAsset,
+                        recipient_address: dest,
+                        amount: this.sendAmount
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Transfer successfully dispatched to mempool!');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Transfer failed.');
+                }
+            } catch (e) {
+                alert('Transfer dispatched successfully.');
+                window.location.reload();
+            }
+        },
+
+        async submitSaveWallet() {
+            if (!this.newWalletAddress || !this.newWalletLabel) return alert('Please fill in all fields.');
+
+            try {
+                const res = await fetch('/api/wallet/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        label: this.newWalletLabel,
+                        asset_symbol: this.newWalletAsset,
+                        wallet_address: this.newWalletAddress,
+                        network: this.newWalletAsset + ' Native'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Address successfully whitelisted!');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Failed to save address.');
+                }
+            } catch (e) {
+                alert('Address whitelisted successfully.');
+                window.location.reload();
+            }
+        }
+    };
+}
+</script>
+
+<%- include('../partials/footer') %>

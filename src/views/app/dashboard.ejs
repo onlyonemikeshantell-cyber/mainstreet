@@ -17,7 +17,8 @@ function dashboardPortfolioApp() {
         basketInvestAmount: 100,
         activeTab: 'holdings',
         assetFilter: 'owned', // 'owned' | 'all' | 'equity' | 'crypto'
-        showOnboardingRoadmap: true,
+        showOnboardingRoadmap: <%= (user.kyc_status === 'verified' || Number(user.balance) > 0) ? 'false' : 'true' %>,
+        onboardingExpanded: false,
         selectedAccountMode: 'standard', // 'standard' | 'retirement'
         retirementContributeModal: false,
         retirementContributeAmount: 1000,
@@ -30,7 +31,7 @@ function dashboardPortfolioApp() {
         retirementError: '',
         hideZeroBalances: true,
         searchQuery: '',
-        viewMode: 'grid',
+        viewMode: 'table',
         chartTimeframe: '30D',
         selectedStockSymbol: 'AAPL',
         investMode: 'usd', // 'usd' | 'shares'
@@ -46,6 +47,8 @@ function dashboardPortfolioApp() {
         discoverModal: false,
         discoverSearch: '',
         discoverFilter: 'all',
+        liveOpenTrades: <%- JSON.stringify(openTrades || []) %>,
+        flashStates: {},
         allTradableCatalog: <%- JSON.stringify(typeof tradableMarkets !== 'undefined' ? tradableMarkets : []) %>,
         liquidateAllModal: false,
         hazardCountdown: 6,
@@ -54,7 +57,97 @@ function dashboardPortfolioApp() {
 
         init() {
             this.fetchLiveMarketRates();
-            setInterval(() => this.fetchLiveMarketRates(), 2500);
+            setInterval(() => this.fetchLiveMarketRates(), 1000);
+
+            // Smooth scroll helper to navigate effortlessly to any dashboard section
+            const scrollToSection = (targetId) => {
+                setTimeout(() => {
+                    const el = document.getElementById(targetId) || 
+                               document.getElementById('dashboard-' + targetId) || 
+                               document.getElementById('dashboard-tabs');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 80);
+            };
+
+            // Handle URL Hash navigation from Command Sidepanel & direct links
+            const handleHash = () => {
+                const hash = window.location.hash.replace('#', '');
+                if (!hash) return;
+                
+                let targetScroll = null;
+                if (hash === 'cfd' || hash === 'positions') {
+                    this.activeTab = 'positions';
+                    targetScroll = 'positions';
+                } else if (hash === 'strategies' || hash === 'copy') {
+                    this.activeTab = 'copy';
+                    targetScroll = 'copy';
+                } else if (hash === 'baskets') {
+                    this.activeTab = 'baskets';
+                    targetScroll = 'baskets';
+                } else if (hash === 'activity' || hash === 'history') {
+                    this.activeTab = 'history';
+                    targetScroll = 'history';
+                } else if (hash === 'holdings') {
+                    this.activeTab = 'holdings';
+                    targetScroll = 'holdings';
+                } else if (hash === 'dividends') {
+                    this.activeTab = 'holdings';
+                    targetScroll = 'dividends';
+                } else if (hash === 'retirement') {
+                    this.selectedAccountMode = 'retirement';
+                    this.activeTab = 'retirement';
+                    targetScroll = 'retirement';
+                } else if (hash === 'swap') {
+                    this.swapModal = true;
+                } else if (hash === 'spot') {
+                    this.buyStockModal = true;
+                }
+
+                if (targetScroll) {
+                    scrollToSection(targetScroll);
+                }
+            };
+            handleHash();
+            window.addEventListener('hashchange', handleHash);
+            window.addEventListener('switch-dashboard-tab', (e) => {
+                if (e.detail && e.detail.tab) {
+                    const tab = e.detail.tab;
+                    let targetScroll = null;
+                    if (tab === 'cfd' || tab === 'positions') {
+                        this.activeTab = 'positions';
+                        targetScroll = 'positions';
+                    } else if (tab === 'strategies' || tab === 'copy') {
+                        this.activeTab = 'copy';
+                        targetScroll = 'copy';
+                    } else if (tab === 'baskets') {
+                        this.activeTab = 'baskets';
+                        targetScroll = 'baskets';
+                    } else if (tab === 'activity' || tab === 'history') {
+                        this.activeTab = 'history';
+                        targetScroll = 'history';
+                    } else if (tab === 'holdings') {
+                        this.activeTab = 'holdings';
+                        targetScroll = 'holdings';
+                    } else if (tab === 'dividends') {
+                        this.activeTab = 'holdings';
+                        targetScroll = 'dividends';
+                    } else if (tab === 'retirement') {
+                        this.selectedAccountMode = 'retirement';
+                        this.activeTab = 'retirement';
+                        targetScroll = 'retirement';
+                    } else if (tab === 'swap') {
+                        this.swapModal = true;
+                    } else if (tab === 'spot') {
+                        this.buyStockModal = true;
+                    }
+
+                    if (targetScroll) {
+                        scrollToSection(targetScroll);
+                    }
+                }
+            });
         },
 
         fetchLiveMarketRates() {
@@ -62,12 +155,43 @@ function dashboardPortfolioApp() {
                 .then(r => r.json())
                 .then(d => {
                     if (d) {
-                        if (d.livePrices) this.rates = d.livePrices;
+                        if (d.livePrices) {
+                            const newRates = d.livePrices;
+                            // Check directional movement & flash state
+                            Object.keys(newRates).forEach(sym => {
+                                const oldP = this.rates[sym]?.price;
+                                const newP = newRates[sym]?.price;
+                                if (oldP && newP && oldP !== newP) {
+                                    this.flashStates[sym] = newP > oldP ? 'up' : 'down';
+                                    setTimeout(() => {
+                                        if (this.flashStates[sym]) delete this.flashStates[sym];
+                                    }, 750);
+                                }
+                            });
+                            this.rates = newRates;
+                        }
                         if (d.userBalances) this.userBalances = d.userBalances;
                         if (d.balance !== undefined) this.cashBalance = Number(d.balance);
+                        if (d.openTrades) this.liveOpenTrades = d.openTrades;
                         this.recalcPortfolioNetWorth();
                     }
                 }).catch(e => {});
+        },
+
+        flashClass(sym) {
+            const dir = this.flashStates[sym] || (this.rates[sym]?.direction);
+            if (this.flashStates[sym] === 'up') return 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30 transition-all duration-300';
+            if (this.flashStates[sym] === 'down') return 'bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/30 transition-all duration-300';
+            return 'transition-all duration-500';
+        },
+
+        getTradePnL(t) {
+            const curP = this.rates[t.symbol]?.price;
+            if (!curP) return Number(t.profit_loss || 0);
+            const diff = t.type === 'BUY' ? (curP - t.open_price) : (t.open_price - curP);
+            const isForex = t.symbol && t.symbol.includes('/') && !t.symbol.includes('BTC') && !t.symbol.includes('ETH');
+            const multiplier = isForex ? 100000 : 1;
+            return +(diff * Number(t.lot_size || 0.1) * multiplier).toFixed(2);
         },
 
         recalcPortfolioNetWorth() {
@@ -78,6 +202,11 @@ function dashboardPortfolioApp() {
                         const rate = this.rates[b.asset_symbol]?.price || b.rate_usd || 1;
                         total += (Number(b.balance) * rate);
                     }
+                });
+            }
+            if (this.liveOpenTrades && this.liveOpenTrades.length > 0) {
+                this.liveOpenTrades.forEach(t => {
+                    total += this.getTradePnL(t);
                 });
             }
             <% if (typeof copySubscriptions !== 'undefined' && copySubscriptions) { %>
@@ -617,767 +746,343 @@ function dashboardPortfolioApp() {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-7">
         
         <!-- ============================================================================== -->
-        <!-- 1. USER-FRIENDLY HEADER & INSTANT ACTIONS BAR                                  -->
+        <!-- 1. SIMPLIFIED PORTFOLIO OVERVIEW HERO                                          -->
         <!-- ============================================================================== -->
-        <div class="glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 bg-gradient-to-r from-surface-raised via-white to-surface-raised">
+        <div class="glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-sm space-y-5">
             
-            <!-- User Profile & Status Pill -->
-            <div class="flex items-center space-x-4">
-                <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-2xl font-bold font-serif shadow-inner">
-                    <%= user.name.charAt(0).toUpperCase() %>
-                </div>
-                <div class="space-y-1">
-                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <h1 class="text-xl sm:text-2xl font-extrabold text-content-primary font-serif">Welcome, <%= user.name %></h1>
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase bg-gain/15 text-gain border border-gain/20 flex items-center space-x-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                            <span><%= user.kyc_status === 'verified' ? '✓ Verified Trader' : 'Standard Tier' %></span>
-                        </span>
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase bg-primary/10 text-primary border border-primary/20">
-                            <%= user.balance >= 100000 ? '👑 Diamond VIP' : (user.balance >= 25000 ? '🥇 Gold VIP' : '🥈 Silver Trader') %>
+            <!-- Top Row: Balance Headline & Core Action Buttons -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[11px] font-mono font-medium text-content-tertiary uppercase tracking-wider">Total Portfolio Value</span>
+                        <span class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-gain/10 border border-gain/20 text-[10px] font-mono text-gain">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
+                            <span>1s Live STP Sync</span>
                         </span>
                     </div>
-                    <div class="flex flex-wrap items-center gap-3 pt-1">
-                        <p class="text-xs text-content-secondary">Account ID: <strong class="font-mono text-content-primary">#<%= 10000 + user.id %></strong> &bull; STP Routing</p>
-                        
-                        <!-- DUAL ACCOUNT MODE SWITCHER -->
-                        <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border font-mono text-[11px] shadow-inner">
-                            <button type="button" @click="selectedAccountMode = 'standard'; if (activeTab === 'retirement') activeTab = 'holdings'"
-                                    :class="selectedAccountMode === 'standard' ? 'bg-white text-content-primary font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'"
-                                    class="px-2.5 py-1 rounded-lg transition flex items-center space-x-1.5">
-                                <span class="w-2 h-2 rounded-full bg-primary"></span>
-                                <span>Standard Trading</span>
-                            </button>
-                            <button type="button" @click="selectedAccountMode = 'retirement'; activeTab = 'retirement'"
-                                    :class="selectedAccountMode === 'retirement' ? 'bg-gradient-to-r from-gain to-emerald-600 text-white font-bold shadow-sm' : 'text-content-secondary hover:text-content-primary'"
-                                    class="px-2.5 py-1 rounded-lg transition flex items-center space-x-1.5">
-                                <span class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
-                                <span>Retirement IRA</span>
-                                <span class="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">TAX-FREE</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Instant User Actions with 3D Motion Badges -->
-            <div class="flex flex-wrap items-center gap-2.5">
-                <a href="/deposit" class="px-4 py-2 rounded-2xl bg-gradient-to-r from-gain to-emerald-600 hover:from-gain/90 hover:to-emerald-500 text-white font-bold text-xs shadow-lg shadow-gain/25 transition flex items-center space-x-2 group transform hover:-translate-y-0.5">
-                    <div class="w-5 h-5 rounded-lg bg-white/20 text-white flex items-center justify-center icon-3d-badge" style="--icon-glow: #10B981;">
-                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                    </div>
-                    <span>Deposit</span>
-                </a>
-                <a href="/webtrade/app" class="px-4 py-2 rounded-2xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-dark hover:to-blue-700 text-white font-bold text-xs shadow-lg shadow-primary/25 transition flex items-center space-x-2 group transform hover:-translate-y-0.5">
-                    <div class="w-5 h-5 rounded-lg bg-white/20 text-white flex items-center justify-center icon-3d-badge" style="--icon-glow: #0284C7;">
-                        <svg class="w-3 h-3 icon-floating" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-                    </div>
-                    <span>Live Terminal</span>
-                </a>
-                <button type="button" @click="swapModal = true" class="px-4 py-2 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-2 shadow-sm group transform hover:-translate-y-0.5">
-                    <div class="w-5 h-5 rounded-lg bg-indigo-500/20 text-indigo-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #6366F1;">
-                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                    </div>
-                    <span>Instant Swap</span>
-                </button>
-                <a href="/withdraw" class="px-4 py-2 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-2 shadow-sm group transform hover:-translate-y-0.5">
-                    <div class="w-5 h-5 rounded-lg bg-rose-500/20 text-rose-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F43F5E;">
-                        <svg class="w-3 h-3 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                    </div>
-                    <span>Withdraw</span>
-                </a>
-            </div>
-
-        </div>
-
-        <!-- ====================================================================== -->
-        <!-- TRADER ONBOARDING ROADMAP & COMPLIANCE READINESS CHECKLIST               -->
-        <!-- ====================================================================== -->
-        <div x-show="showOnboardingRoadmap" class="glass-card rounded-3xl p-6 border-2 border-primary/20 bg-gradient-to-r from-white via-sky-50/25 to-white shadow-lg space-y-4 relative overflow-hidden" x-cloak>
-            
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border/80 pb-4">
-                <div class="flex items-center space-x-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-primary/20 icon-3d-badge">
-                        <span class="icon-floating">🚀</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <h3 class="text-base font-bold font-serif text-content-primary">Trader Onboarding &amp; Account Readiness</h3>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-primary/10 text-primary border border-primary/20">Institutional STP Active</span>
-                        </div>
-                        <p class="text-xs text-content-secondary font-sans">Complete the recommended steps to unlock maximum leverage, instant withdrawals, and automated strategy replication.</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center space-x-3 shrink-0">
-                    <div class="text-right font-mono text-xs">
-                        <span class="text-[10px] text-content-tertiary uppercase block">Readiness</span>
-                        <span class="font-extrabold text-primary text-sm"><%= (user.kyc_status === 'verified' ? 80 : 60) %>% Complete</span>
-                    </div>
-                    <button type="button" @click="showOnboardingRoadmap = false" class="p-1.5 rounded-xl hover:bg-surface-overlay text-content-tertiary hover:text-content-primary transition text-lg" title="Dismiss Checklist">&times;</button>
-                </div>
-            </div>
-
-            <!-- 4-Step Interactive Checklist Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
-                
-                <!-- Step 1: Account Created & Demo Credited -->
-                <div class="p-3.5 rounded-2xl bg-white border border-gain/30 shadow-sm flex items-start space-x-3">
-                    <span class="w-6 h-6 rounded-full bg-gain text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
-                    <div>
-                        <strong class="text-content-primary font-sans block font-bold">1. Account Activated</strong>
-                        <span class="text-[10px] text-gain font-bold">+$10,000 Demo Funds Credited</span>
-                    </div>
-                </div>
-
-                <!-- Step 2: KYC Compliance Verification -->
-                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
-                    <div class="flex items-start space-x-3">
-                        <span class="w-6 h-6 rounded-full <%= user.kyc_status === 'verified' ? 'bg-gain text-white' : 'bg-amber-500 text-white' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                            <%= user.kyc_status === 'verified' ? '✓' : '🪪' %>
+                    <div class="flex items-baseline space-x-3 mt-1">
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-numeral tracking-tight"
+                            x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></h1>
+                        <span class="text-sm sm:text-base text-gain font-bold font-mono">
+                            ▲ +24.8% <span class="text-content-tertiary text-xs font-normal font-sans">(+$10,937.88)</span>
                         </span>
-                        <div>
-                            <strong class="text-content-primary font-sans block font-bold">2. Identity Clearance</strong>
-                            <span class="text-[10px] <%= user.kyc_status === 'verified' ? 'text-gain font-bold' : 'text-amber-600 font-bold' %>">
-                                <%= user.kyc_status === 'verified' ? 'Tier-1 Verified' : 'Compliance In-Review' %>
-                            </span>
-                        </div>
-                    </div>
-                    <% if (user.kyc_status !== 'verified') { %>
-                        <a href="/profile" class="px-2 py-1 rounded bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary text-[10px] font-sans transition">View</a>
-                    <% } %>
-                </div>
-
-                <!-- Step 3: Security & 2FA Setup -->
-                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
-                    <div class="flex items-start space-x-3">
-                        <span class="w-6 h-6 rounded-full <%= user.two_factor_secret ? 'bg-gain text-white' : 'bg-slate-200 text-slate-600' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                            <%= user.two_factor_secret ? '✓' : '3' %>
-                        </span>
-                        <div>
-                            <strong class="text-content-primary font-sans block font-bold">3. 2FA Security Guard</strong>
-                            <span class="text-[10px] <%= user.two_factor_secret ? 'text-gain font-bold' : 'text-content-tertiary' %>">
-                                <%= user.two_factor_secret ? 'Biometric TOTP Active' : 'Protect Account with 2FA' %>
-                            </span>
-                        </div>
-                    </div>
-                    <% if (!user.two_factor_secret) { %>
-                        <a href="/profile" class="px-2 py-1 rounded bg-primary/10 hover:bg-primary hover:text-white text-primary text-[10px] font-sans font-bold transition">Enable</a>
-                    <% } %>
-                </div>
-
-                <!-- Step 4: First Trade or Copy Trade -->
-                <div class="p-3.5 rounded-2xl bg-white border border-surface-border shadow-sm flex items-start justify-between gap-2">
-                    <div class="flex items-start space-x-3">
-                        <span class="w-6 h-6 rounded-full <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'bg-gain text-white' : 'bg-slate-200 text-slate-600' %> flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                            <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? '✓' : '4' %>
-                        </span>
-                        <div>
-                            <strong class="text-content-primary font-sans block font-bold">4. First Strategy Trade</strong>
-                            <span class="text-[10px] <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'text-gain font-bold' : 'text-content-tertiary' %>">
-                                <%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions && activeSubscriptions.length > 0) ? 'Active Copying Live' : 'Mirror a Master Quant' %>
-                            </span>
-                        </div>
-                    </div>
-                    <a href="/copy-trading" class="px-2 py-1 rounded bg-primary hover:bg-primary-dark text-white text-[10px] font-sans font-bold transition">Copy</a>
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- ============================================================================== -->
-        <!-- 2. HIGH-LEVEL KPI METRICS CARDS WITH 3D MOTION ANIMATION                       -->
-        <!-- ============================================================================== -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            
-            <!-- Card 1: Total Net Worth (Click -> Scroll to Holdings) -->
-            <div @click="activeTab = 'holdings'; document.getElementById('dashboard-tabs')?.scrollIntoView({ behavior: 'smooth' })"
-                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
-                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-sky-400/50 hover:shadow-sky-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
-                 title="Click to view full portfolio holdings">
-                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl group-hover:bg-sky-500/20 transition"></div>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Net Portfolio Value</span>
-                    <div class="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #0284C7;">
-                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
                     </div>
                 </div>
-                <p class="text-3xl font-extrabold text-content-primary font-serif font-mono transition-all duration-300"
-                   x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></p>
-                <div class="flex items-center justify-between">
-                    <p class="text-[11px] text-gain font-semibold flex items-center space-x-1">
-                        <span>▲ +24.8%</span>
-                        <span class="text-content-tertiary font-normal">&bull; Combined Valuation</span>
-                    </p>
-                    <span class="text-[10px] font-bold text-sky-400 group-hover:underline">Holdings &rarr;</span>
+
+                <!-- Focused Actions -->
+                <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
+                    <a href="/deposit" class="px-5 py-2.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/20 transition flex items-center space-x-1.5">
+                        <span class="text-sm font-bold leading-none">+</span>
+                        <span>Deposit</span>
+                    </a>
+                    <a href="/webtrade/app" class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm shadow-primary/20 transition flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                        <span>Trade</span>
+                    </a>
+                    <button type="button" @click="swapModal = true" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer">
+                        <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        <span>Swap</span>
+                    </button>
+                    <a href="/withdraw" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition">
+                        Withdraw
+                    </a>
                 </div>
             </div>
 
-            <!-- Card 2: Available Cash Balance (Click -> Go to Deposit) -->
-            <div @click="window.location.href = '/deposit'"
-                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
-                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-emerald-400/50 hover:shadow-emerald-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
-                 title="Click to deposit or add liquid funds">
-                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Available Cash</span>
-                    <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #10B981;">
-                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-serif">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></p>
-                <div class="flex items-center justify-between">
-                    <p class="text-[11px] text-content-secondary font-medium">Instant Liquid Capital</p>
-                    <span class="text-primary group-hover:underline text-[10px] font-bold capitalize">+ Add Funds &rarr;</span>
-                </div>
-            </div>
-
-            <!-- Card 3: Total Assets (Click -> Scroll to Assets / Holdings) -->
-            <div @click="activeTab = 'holdings'; document.getElementById('dashboard-tabs')?.scrollIntoView({ behavior: 'smooth' })"
-                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
-                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-blue-400/50 hover:shadow-blue-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
-                 title="Click to explore and manage all assets">
-                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition"></div>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Total Assets</span>
-                    <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #3B82F6;">
-                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-extrabold text-content-primary font-serif">
-                    <%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets
-                </p>
-                <div class="flex items-center justify-between">
-                    <p class="text-[11px] text-content-secondary font-medium"><%= (typeof stockBalances !== 'undefined' && stockBalances) ? stockBalances.length : 8 %> Equities &bull; <%= (typeof cryptoBalances !== 'undefined' && cryptoBalances) ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 6 %> Crypto</p>
-                    <span class="text-[10px] font-bold text-blue-400 group-hover:underline">Explore &rarr;</span>
-                </div>
-            </div>
-
-            <!-- Card 4: Copy Trading (Click -> Go to Copy Trading Hub) -->
-            <div @click="window.location.href = '/copy-trading/app'"
-                 onmousemove="handleCard3DTilt(event, this)" onmouseleave="resetCard3DTilt(this)"
-                 class="glass-card rounded-3xl p-6 space-y-2 border border-surface-border shadow-lg hover:border-amber-400/50 hover:shadow-amber-500/10 hover:scale-[1.01] active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
-                 title="Click to view copy trading terminal and strategies">
-                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition"></div>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-content-tertiary uppercase font-mono tracking-wider">Copy Trading</span>
-                    <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center icon-3d-badge" style="--icon-glow: #F59E0B;">
-                        <svg class="w-4 h-4 icon-floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-extrabold text-[#D4A038] font-serif"><%= (typeof copySubscriptions !== 'undefined' && copySubscriptions) ? copySubscriptions.length : 0 %> Strategies</p>
-                <div class="flex items-center justify-between">
-                    <p class="text-[11px] text-gain font-medium">Automated Replication</p>
-                    <span class="text-[#D4A038] group-hover:underline text-[10px] font-bold capitalize">View Masters &rarr;</span>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- ============================================================================== -->
-        <!-- 3. INTERACTIVE PORTFOLIO PERFORMANCE CHART & ASSET ALLOCATION                  -->
-        <!-- ============================================================================== -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <!-- Left 8 cols: Interactive Equity Curve -->
-            <div class="lg:col-span-8 glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-lg space-y-5 flex flex-col justify-between">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xl">📈</span>
-                            <h3 class="text-base font-bold font-serif text-content-primary">Portfolio Net Asset Value (NAV)</h3>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gain/15 text-gain uppercase font-mono">+24.8% Alpha</span>
-                        </div>
-                        <p class="text-xs text-content-secondary mt-0.5">Real-time cumulative equity telemetry across all connected asset classes.</p>
-                    </div>
-
-                    <!-- Timeframe Selectors -->
-                    <div class="flex items-center space-x-1.5 p-1 bg-surface-overlay rounded-xl border border-surface-border font-mono text-xs">
-                        <button type="button" @click="chartTimeframe = '7D'" :class="chartTimeframe === '7D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">7D</button>
-                        <button type="button" @click="chartTimeframe = '30D'" :class="chartTimeframe === '30D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">30D</button>
-                        <button type="button" @click="chartTimeframe = '90D'" :class="chartTimeframe === '90D' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">90D</button>
-                        <button type="button" @click="chartTimeframe = '1Y'" :class="chartTimeframe === '1Y' ? 'bg-primary text-white shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-3 py-1 rounded-lg transition">1Y</button>
+            <!-- Performance Chart -->
+            <div class="pt-2 space-y-2">
+                <div class="flex items-center justify-between text-xs font-mono text-content-tertiary">
+                    <span>Performance</span>
+                    <div class="flex items-center space-x-1 p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs">
+                        <button type="button" @click="chartTimeframe = '7D'" :class="chartTimeframe === '7D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">7D</button>
+                        <button type="button" @click="chartTimeframe = '30D'" :class="chartTimeframe === '30D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">30D</button>
+                        <button type="button" @click="chartTimeframe = '90D'" :class="chartTimeframe === '90D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">90D</button>
+                        <button type="button" @click="chartTimeframe = '1Y'" :class="chartTimeframe === '1Y' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">1Y</button>
                     </div>
                 </div>
 
-                <!-- SVG Performance Chart Area -->
-                <div class="w-full relative h-[210px] overflow-hidden rounded-2xl bg-surface-overlay/50 border border-surface-border/50 p-2">
-                    <svg viewBox="0 0 800 220" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+                <div class="w-full relative h-[150px] overflow-hidden rounded-2xl bg-surface-overlay/20 border border-surface-border/40 p-1.5">
+                    <svg viewBox="0 0 800 200" class="w-full h-full overflow-visible" preserveAspectRatio="none">
                         <defs>
-                            <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.35" />
+                            <linearGradient id="equityGradientSimple" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25" />
                                 <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
                             </linearGradient>
                         </defs>
-                        <!-- Shaded Area -->
-                        <path :d="chartSvgArea" fill="url(#equityGradient)" class="transition-all duration-500" />
-                        <!-- Line Stroke -->
-                        <path :d="chartSvgPath" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-500" />
+                        <path :d="chartSvgArea" fill="url(#equityGradientSimple)" class="transition-all duration-500" />
+                        <path :d="chartSvgPath" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-500" />
                     </svg>
-
-                    <!-- Overlay Live Current Marker -->
-                    <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-surface-border shadow-md font-mono text-xs">
-                        <span class="text-[10px] text-content-tertiary uppercase block">Current NAV</span>
-                        <span class="font-extrabold text-primary" x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                    </div>
-                </div>
-
-                <!-- Footer Stats -->
-                <div class="grid grid-cols-3 gap-4 pt-2 border-t border-surface-border text-center font-mono text-xs">
-                    <div>
-                        <span class="text-[10px] text-content-tertiary uppercase block">High Watermark</span>
-                        <strong class="text-content-primary" x-text="'$' + (livePortfolioValuation * 1.04).toLocaleString(undefined, {maximumFractionDigits: 0})"></strong>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-content-tertiary uppercase block">Max Drawdown</span>
-                        <strong class="text-gain">3.2% (Low Risk)</strong>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-content-tertiary uppercase block">Sharpe Ratio</span>
-                        <strong class="text-primary">2.41 (Institutional)</strong>
-                    </div>
                 </div>
             </div>
 
-            <!-- Right 4 cols: Asset Allocation Telemetry -->
-            <div class="lg:col-span-4 glass-card rounded-3xl p-6 sm:p-7 border border-surface-border shadow-lg space-y-5 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-base font-bold font-serif text-content-primary flex items-center space-x-2">
-                        <span>🎯 Asset Allocation</span>
-                    </h3>
-                    <p class="text-xs text-content-secondary mt-0.5">Capital distribution across connected asset classes.</p>
-                </div>
-
-                <!-- Multi-Colored Allocation Segment Bar -->
-                <div class="space-y-2">
-                    <div class="w-full h-3.5 rounded-full overflow-hidden flex shadow-inner bg-slate-200">
-                        <div class="bg-primary transition-all duration-500" :style="'width: ' + allocationPercents.cash + '%;'" :title="'Cash: ' + allocationPercents.cash + '%'"></div>
-                        <div class="bg-blue-500 transition-all duration-500" :style="'width: ' + allocationPercents.stock + '%;'" :title="'Equities: ' + allocationPercents.stock + '%'"></div>
-                        <div class="bg-amber-500 transition-all duration-500" :style="'width: ' + allocationPercents.crypto + '%;'" :title="'Crypto: ' + allocationPercents.crypto + '%'"></div>
-                        <div class="bg-[#D4A038] transition-all duration-500" :style="'width: ' + allocationPercents.copy + '%;'" :title="'Copy Trading: ' + allocationPercents.copy + '%'"></div>
+            <!-- Clean Unified Summary Row -->
+            <div class="pt-4 border-t border-surface-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
+                <div class="flex items-center space-x-6 sm:space-x-8">
+                    <div>
+                        <span class="text-content-tertiary text-[11px] block">Cash Balance</span>
+                        <strong class="text-emerald-600 dark:text-emerald-400 font-bold text-sm">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></strong>
+                    </div>
+                    <div class="w-px h-6 bg-surface-border"></div>
+                    <div>
+                        <span class="text-content-tertiary text-[11px] block">Invested</span>
+                        <strong class="text-content-primary font-bold text-sm" x-text="'$' + Math.max(0, livePortfolioValuation - <%= Number(user.balance) %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
+                    </div>
+                    <div class="w-px h-6 bg-surface-border"></div>
+                    <div>
+                        <span class="text-content-tertiary text-[11px] block">Holdings</span>
+                        <strong class="text-content-primary font-bold text-sm"><%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets</strong>
                     </div>
                 </div>
 
-                <!-- Breakdown List -->
-                <div class="space-y-2.5 font-mono text-xs">
-                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
-                            <span class="text-content-secondary">💵 Cash Reserves</span>
-                        </div>
-                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.cash + '%'"></span>
-                    </div>
-
-                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                            <span class="text-content-secondary">🏛️ Global Equities</span>
-                        </div>
-                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.stock + '%'"></span>
-                    </div>
-
-                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                            <span class="text-content-secondary">🪙 Cryptocurrencies</span>
-                        </div>
-                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.crypto + '%'"></span>
-                    </div>
-
-                    <div class="flex items-center justify-between p-2.5 bg-surface-overlay rounded-xl border border-surface-border">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-[#D4A038]"></span>
-                            <span class="text-content-secondary">👥 Copy Strategies</span>
-                        </div>
-                        <span class="font-extrabold text-content-primary" x-text="allocationPercents.copy + '%'"></span>
-                    </div>
+                <!-- Minimalist Allocation Legend -->
+                <div class="flex items-center space-x-3 text-xs text-content-secondary">
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
+                        <span>Cash <strong class="text-content-primary" x-text="allocationPercents.cash + '%'"></strong></span>
+                    </span>
+                    <span class="text-surface-border">•</span>
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                        <span>Stocks <strong class="text-content-primary" x-text="allocationPercents.stock + '%'"></strong></span>
+                    </span>
+                    <span class="text-surface-border">•</span>
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                        <span>Crypto <strong class="text-content-primary" x-text="allocationPercents.crypto + '%'"></strong></span>
+                    </span>
                 </div>
-
-                <button type="button" @click="swapModal = true" class="w-full text-center py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-primary font-bold text-xs transition block">
-                    Rebalance Portfolio &rarr;
-                </button>
             </div>
-
         </div>
 
         <!-- ============================================================================== -->
         <!-- 4. MAIN USER-FRIENDLY TABS: HOLDINGS | OPEN CFD TRADES | COPY TRADING | HISTORY-->
         <!-- ============================================================================== -->
         <div id="dashboard-tabs" class="space-y-5 scroll-mt-24">
-            
-            <!-- Tab Navigation Strip -->
-            <div class="flex items-center space-x-2 border-b border-surface-border pb-3 overflow-x-auto">
-                <button type="button" @click="activeTab = 'holdings'" 
-                        :class="activeTab === 'holdings' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>📦</span>
-                    <span>Portfolio Assets (<span x-text="ownedAssetsCount" class="font-mono"></span> Owned)</span>
-                </button>
-
-                <button type="button" @click="activeTab = 'baskets'" 
-                        :class="activeTab === 'baskets' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>🧺</span>
-                    <span>Thematic Stock Baskets (<%= typeof stockBaskets !== 'undefined' ? Object.keys(stockBaskets).length : 4 %>)</span>
-                </button>
-
-                <button type="button" @click="activeTab = 'positions'" 
-                        :class="activeTab === 'positions' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>⚡</span>
-                    <span>Open CFD Positions (<%= (typeof openTrades !== 'undefined' && openTrades) ? openTrades.length : 0 %>)</span>
-                </button>
-
-                <button type="button" @click="activeTab = 'copy'" 
-                        :class="activeTab === 'copy' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>👥</span>
-                    <span>Copy Trading (<%= (typeof activeSubscriptions !== 'undefined' && activeSubscriptions) ? activeSubscriptions.length : 0 %>)</span>
-                </button>
-
-                <button type="button" @click="activeTab = 'retirement'; selectedAccountMode = 'retirement'" 
-                        :class="activeTab === 'retirement' ? 'bg-gradient-to-r from-gain to-emerald-600 text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>🛡️</span>
-                    <span>Retirement IRA (<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_type.replace('_', ' ').toUpperCase() : 'Roth IRA' %>)</span>
-                    <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/20 text-white">TAX-ADVANTAGED</span>
-                </button>
-
-                <button type="button" @click="activeTab = 'history'" 
-                        :class="activeTab === 'history' ? 'bg-primary text-white font-bold shadow-md' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
-                        class="px-4 py-2.5 rounded-2xl text-xs transition flex items-center space-x-2 shrink-0">
-                    <span>📜</span>
-                    <span>Recent Activity</span>
-                </button>
-            </div>
-
             <!-- TAB 1: PORTFOLIO HOLDINGS -->
-            <div x-show="activeTab === 'holdings'" class="space-y-4" x-cloak>
+            <div id="holdings" x-show="activeTab === 'holdings'" class="space-y-4 scroll-mt-28 transition-all duration-300" x-cloak>
+                <div id="dividends" class="sr-only"></div>
                 
-                <!-- Stock Dividend & Institutional Yield Accrual Banner -->
-                <div class="p-4 bg-gradient-to-r from-emerald-500/10 via-surface-overlay to-primary/10 rounded-2xl border border-gain/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center space-x-3.5">
-                        <div class="w-10 h-10 rounded-xl bg-gain/20 text-gain flex items-center justify-center text-xl font-bold shadow-inner">
-                            📈
-                        </div>
-                        <div>
-                            <div class="flex items-center space-x-2">
-                                <h4 class="text-xs font-bold text-content-primary font-serif">Quarterly Equity Dividends & Compound Yields</h4>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gain/10 text-gain border border-gain/20">Auto-Accruing</span>
-                            </div>
-                            <p class="text-[11px] text-content-secondary font-mono">
-                                Estimated Annual Dividend Flow: 
-                                <strong class="text-gain font-bold">+$<%= (typeof estimatedAnnualDividends !== 'undefined' ? estimatedAnnualDividends : 0).toLocaleString(undefined, {minimumFractionDigits: 2}) %> / yr</strong>
-                                &bull; Yields paid directly into cash balance.
-                            </p>
-                        </div>
-                    </div>
-                    <button type="button" @click="claimDividends()" :disabled="dividendClaiming" class="px-4 py-2 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md shadow-gain/20 transition flex items-center space-x-1.5 shrink-0">
-                        <span x-text="dividendClaiming ? 'Distributing...' : '⚡ Claim Accrued Dividends'"></span>
-                    </button>
-                </div>
-                
-                <!-- Search & Filters Toolbar -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-surface-border shadow-sm">
-                    
-                    <!-- Search Input -->
-                    <div class="relative flex-1 max-w-md">
-                        <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">🔍</span>
-                        <input type="text" x-model="searchQuery" placeholder="Search by ticker or company name (e.g. AAPL, BTC, NVDA)..." 
-                               class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-mono" />
+                <!-- Clean Streamlined Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 p-3 sm:p-4 rounded-2xl border border-surface-border shadow-xs">
+                    <div class="flex items-center space-x-3">
+                        <h3 class="text-sm sm:text-base font-bold text-content-primary">Your Assets</h3>
+                        <span class="text-xs font-mono px-2.5 py-0.5 rounded-full bg-surface-overlay text-content-secondary font-medium border border-surface-border">
+                            <span x-text="ownedAssetsCount"></span> Holdings
+                        </span>
                     </div>
 
-                    <!-- Category Pills, Ownership Filter & Add Asset Button -->
-                    <div class="flex items-center space-x-2 font-mono text-xs flex-wrap gap-y-1">
-                        <!-- Owned Only Filter (Default) -->
-                        <button type="button" @click="assetFilter = 'owned'" :class="assetFilter === 'owned' ? 'bg-emerald-600 text-white shadow-md font-bold' : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border border-emerald-500/20'" class="px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
-                            <span>✓ Owned Only (<span x-text="ownedAssetsCount"></span>)</span>
-                        </button>
-
-                        <button type="button" @click="assetFilter = 'all'" :class="assetFilter === 'all' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
-                            All Markets
-                        </button>
-
-                        <button type="button" @click="assetFilter = 'equity'" :class="assetFilter === 'equity' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
-                            🏛️ Stocks
-                        </button>
-                        <button type="button" @click="assetFilter = 'crypto'" :class="assetFilter === 'crypto' ? 'bg-primary text-white shadow-sm font-bold' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl transition">
-                            🪙 Crypto
-                        </button>
-
-                        <button type="button" @click="discoverModal = true" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-dark hover:to-indigo-700 text-white font-bold transition shadow-sm flex items-center space-x-1.5">
-                            <span>✨ + Add Assets</span>
-                        </button>
-
-                        <button type="button" 
-                                @click="openLiquidateAllModal()" 
-                                :disabled="ownedAssetsCount === 0"
-                                :class="ownedAssetsCount === 0 ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border-surface-border' : 'hover:bg-loss hover:text-white border-loss/30 text-loss bg-loss/10 shadow-sm shadow-loss/10'"
-                                class="px-3.5 py-1.5 rounded-xl border font-bold transition flex items-center space-x-1.5 shrink-0"
-                                title="Emergency Liquidate All Assets to Cash">
-                            <span class="animate-pulse">⚠️</span>
-                            <span>Liquidate All</span>
-                        </button>
-
-                        <div class="h-4 w-px bg-surface-border mx-1"></div>
-
-                        <!-- Grid / Table View Switcher -->
-                        <button type="button" @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'text-primary font-bold bg-surface-overlay rounded-lg' : 'text-content-tertiary'" class="p-1.5 text-sm hover:text-content-primary transition" title="Card Grid View">
-                            ⊞
-                        </button>
-                        <button type="button" @click="viewMode = 'table'" :class="viewMode === 'table' ? 'text-primary font-bold bg-surface-overlay rounded-lg' : 'text-content-tertiary'" class="p-1.5 text-sm hover:text-content-primary transition" title="Table View">
-                            ☰
-                        </button>
-                    </div>
-
-                </div>
-
-                <!-- A. GRID VIEW (WITH 3D TILT, JEWELED BADGES, SPARKLINES & TELEMETRY) -->
-                <div x-show="viewMode === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 font-mono">
-                    <% if (typeof allBalances !== 'undefined' && allBalances && allBalances.filter(b => b.asset_symbol !== 'USD').length > 0) { %>
-                        <% allBalances.filter(b => b.asset_symbol !== 'USD').forEach(asset => { 
-                            const isStock = (asset.asset_type === 'stock');
-                            let glowHex = '#0284c7';
-                            if (asset.asset_symbol === 'BTC') glowHex = '#F59E0B';
-                            else if (asset.asset_symbol === 'ETH') glowHex = '#6366F1';
-                            else if (asset.asset_symbol === 'SOL') glowHex = '#A855F7';
-                            else if (asset.asset_symbol === 'NVDA') glowHex = '#10B981';
-                            else if (asset.asset_symbol === 'AAPL') glowHex = '#38BDF8';
-                            else if (asset.asset_symbol === 'TSLA') glowHex = '#EF4444';
-                        %>
-                            <div x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
-                                         ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
-                                 @mousemove="handleCard3DTilt($event, $el)" 
-                                 @mouseleave="resetCard3DTilt($el)"
-                                 :class="isAssetOwned('<%= asset.asset_symbol %>') ? 'border-emerald-500/40 shadow-lg shadow-emerald-500/5 bg-gradient-to-b from-white to-emerald-50/20' : 'opacity-70 hover:opacity-100 border-surface-border bg-white'"
-                                 class="card-3d-wrap glass-card rounded-3xl p-5 border transition-all duration-200 space-y-3.5 flex flex-col justify-between relative overflow-hidden group"
-                                 x-cloak>
-                                
-                                <div class="space-y-3">
-                                    <!-- Top Badges: Ownership Status & 24h Trend Sparkline -->
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-1.5">
-                                            <!-- Prominent Ownership Badge -->
-                                            <template x-if="isAssetOwned('<%= asset.asset_symbol %>')">
-                                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase font-mono bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 flex items-center space-x-1">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                                                    <span>✓ OWNED</span>
-                                                </span>
-                                            </template>
-                                            <template x-if="!isAssetOwned('<%= asset.asset_symbol %>')">
-                                                <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono bg-slate-100 text-slate-500 border border-slate-200">
-                                                    ⚪ Not Held
-                                                </span>
-                                            </template>
-
-                                            <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono tracking-wider <%= isStock ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20' %>">
-                                                <%= isStock ? 'Equity' : 'Crypto' %>
-                                            </span>
-                                        </div>
-
-                                        <div class="flex items-center space-x-2">
-                                            <!-- Mini SVG Sparkline -->
-                                            <svg class="w-14 h-5 overflow-visible" viewBox="0 0 96 30" fill="none">
-                                                <polyline :points="getSparklinePoints('<%= asset.asset_symbol %>')" 
-                                                          :stroke="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '#10B981' : '#EF4444'" 
-                                                          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                                            </svg>
-                                            
-                                            <span class="text-[11px] font-extrabold"
-                                                  :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
-                                                  x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '+' : '') + (rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Asset Identity & Live Price -->
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 border border-surface-border flex items-center justify-center text-xl font-bold icon-3d-badge shadow-md shadow-slate-200" style="--icon-glow: <%= glowHex %>;">
-                                                <span class="icon-floating"><%= asset.icon || (isStock ? '🏛️' : '🪙') %></span>
-                                            </div>
-                                            <div>
-                                                <h4 class="font-bold text-sm text-content-primary font-sans leading-tight"><%= asset.asset_name %></h4>
-                                                <div class="flex items-center space-x-1 mt-0.5">
-                                                    <span class="text-[10px] text-content-tertiary font-bold"><%= asset.asset_symbol %></span>
-                                                    <% if (isStock && typeof dividendRates !== 'undefined' && dividendRates[asset.asset_symbol]) { %>
-                                                        <span class="text-[9px] px-1 rounded bg-gain/10 text-gain font-bold font-mono"><%= (dividendRates[asset.asset_symbol]*100).toFixed(1) %>% Div</span>
-                                                    <% } %>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="text-right">
-                                            <span class="text-xs font-bold text-content-primary block"
-                                                  :class="rates['<%= asset.asset_symbol %>']?.direction === 'up' ? 'text-gain' : 'text-loss'"
-                                                  x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                                            <span class="text-[9px] text-content-tertiary">Market Rate</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Reactive Balance & Valuation Card -->
-                                <div class="p-3 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <span class="text-[9px] text-content-tertiary uppercase block">Quantity Held</span>
-                                            <span class="text-sm font-extrabold text-content-primary"
-                                                  x-text="getAssetBalance('<%= asset.asset_symbol %>').toFixed(<%= isStock ? 2 : 4 %>) + ' <%= isStock ? 'Shares' : asset.asset_symbol %>'"></span>
-                                        </div>
-                                        <div class="text-right">
-                                            <span class="text-[9px] text-content-tertiary uppercase block">Total Valuation</span>
-                                            <span class="text-sm font-extrabold text-gain transition-all duration-300"
-                                                  x-text="'≈ $' + getAssetValuation('<%= asset.asset_symbol %>').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Portfolio Share % & 24h PnL Dollar Impact -->
-                                    <div class="pt-1.5 border-t border-surface-border/60 flex items-center justify-between text-[10px] text-content-secondary font-mono">
-                                        <div class="flex items-center space-x-1">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                                            <span x-text="getAssetPortfolioPercent('<%= asset.asset_symbol %>') + '% of Total'"></span>
-                                        </div>
-                                        <span :class="getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? 'text-gain font-bold' : 'text-loss font-bold'"
-                                              x-text="(getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? '+$' : '-$') + Math.abs(getAsset24hPnLDollar('<%= asset.asset_symbol %>')).toFixed(2) + ' today'"></span>
-                                    </div>
-                                </div>
-
-                                <!-- Action Buttons (Buy, Sell, Swap, WebTrader) -->
-                                <div class="space-y-1.5 pt-1">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <button type="button" @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" class="py-2 rounded-xl bg-gain/10 hover:bg-gain text-gain hover:text-white border border-gain/20 font-bold text-[11px] transition text-center shadow-sm">
-                                            + Buy More
-                                        </button>
-                                        <button type="button" @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" class="py-2 rounded-xl bg-surface-overlay hover:bg-loss hover:text-white text-content-secondary border border-surface-border font-bold text-[11px] transition text-center">
-                                            Sell
-                                        </button>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2 text-[10px]">
-                                        <button type="button" @click="openSwapWith('<%= asset.asset_symbol %>')" class="py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary transition text-center font-mono">
-                                            🔄 Swap
-                                        </button>
-                                        <a href="/webtrade/app" class="py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary transition text-center font-mono block">
-                                            ⚡ Trade CFD
-                                        </a>
-                                    </div>
-                                </div>
-
-                            </div>
-                        <% }) %>
-                    <% } else { %>
-                        <!-- Clean Onboarding State for New Accounts -->
-                        <div class="col-span-full py-12 text-center bg-white rounded-3xl border border-surface-border p-8 space-y-4">
-                            <span class="text-5xl">🏛️</span>
-                            <h4 class="text-base font-bold font-serif text-content-primary">No Non-USD Assets in Spot Custody</h4>
-                            <p class="text-xs text-content-secondary max-w-md mx-auto">Acquire fractional shares of top global equities or crypto assets directly with your available cash balance.</p>
-                            <div class="flex items-center justify-center gap-3 pt-2">
-                                <button type="button" @click="discoverModal = true" class="px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
-                                    Browse Global Catalog &rarr;
-                                </button>
-                                <button type="button" @click="activeTab = 'baskets'" class="px-5 py-2.5 rounded-2xl bg-surface-overlay border border-surface-border text-content-primary font-bold text-xs">
-                                    View Thematic Baskets &rarr;
-                                </button>
-                            </div>
+                    <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
+                        <!-- Minimal Search Input -->
+                        <div class="relative flex-1 sm:w-56">
+                            <span class="absolute left-3 top-2 text-content-tertiary text-xs">🔍</span>
+                            <input type="text" x-model="searchQuery" placeholder="Search assets..." 
+                                   class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-sans transition placeholder:text-content-tertiary" />
                         </div>
-                    <% } %>
+
+                        <!-- Filter Chips: All | Stocks | Crypto -->
+                        <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs font-medium">
+                            <button type="button" @click="assetFilter = 'all'" 
+                                    :class="assetFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition">
+                                All
+                            </button>
+                            <button type="button" @click="assetFilter = 'equity'" 
+                                    :class="assetFilter === 'equity' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition">
+                                Stocks
+                            </button>
+                            <button type="button" @click="assetFilter = 'crypto'" 
+                                    :class="assetFilter === 'crypto' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition">
+                                Crypto
+                            </button>
+                        </div>
+
+                        <!-- View Switcher (List vs Cards) -->
+                        <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border">
+                            <button type="button" @click="viewMode = 'table'" :class="viewMode === 'table' ? 'bg-white dark:bg-neutral-800 text-primary font-bold shadow-xs' : 'text-content-tertiary hover:text-content-secondary'" class="px-2.5 py-1 rounded-lg text-xs transition" title="List View">
+                                ☰
+                            </button>
+                            <button type="button" @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-white dark:bg-neutral-800 text-primary font-bold shadow-xs' : 'text-content-tertiary hover:text-content-secondary'" class="px-2.5 py-1 rounded-lg text-xs transition" title="Card View">
+                                ⊞
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- B. TABLE VIEW (COMPACT INSTITUTIONAL LIST) -->
-                <div x-show="viewMode === 'table'" class="glass-card rounded-3xl border border-surface-border shadow-md overflow-hidden bg-white" x-cloak>
+                <!-- 1. MODERN SIMPLE LIST VIEW (DEFAULT) -->
+                <div x-show="viewMode === 'table'" class="bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border shadow-xs overflow-hidden" x-cloak>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left font-mono text-xs">
-                            <thead class="bg-surface-overlay/80 border-b border-surface-border text-[11px] text-content-tertiary uppercase font-sans">
+                        <table class="w-full text-left text-xs font-sans">
+                            <thead class="bg-surface-overlay/60 border-b border-surface-border text-[11px] font-mono text-content-tertiary uppercase tracking-wider">
                                 <tr>
                                     <th class="py-3 px-5">Asset</th>
-                                    <th class="py-3 px-4">Market Price</th>
-                                    <th class="py-3 px-4">24h Change</th>
-                                    <th class="py-3 px-4">Holdings</th>
-                                    <th class="py-3 px-4 text-right">Total Valuation</th>
-                                    <th class="py-3 px-5 text-right">Actions</th>
+                                    <th class="py-3 px-4 font-mono">Market Price</th>
+                                    <th class="py-3 px-4 font-mono">24h Change</th>
+                                    <th class="py-3 px-4 font-mono">Holdings</th>
+                                    <th class="py-3 px-4 font-mono text-right">Total Value</th>
+                                    <th class="py-3 px-5 text-right font-mono">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-surface-border">
-                                <% if (typeof allBalances !== 'undefined' && allBalances) { %>
+                                <% if (typeof allBalances !== 'undefined' && allBalances && allBalances.filter(b => b.asset_symbol !== 'USD').length > 0) { %>
                                     <% allBalances.filter(b => b.asset_symbol !== 'USD').forEach(asset => { 
                                         const isStock = (asset.asset_type === 'stock');
                                     %>
                                         <tr x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
                                                     ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
-                                            :class="isAssetOwned('<%= asset.asset_symbol %>') ? 'bg-emerald-50/15 font-semibold' : 'opacity-70 hover:opacity-100'"
                                             class="hover:bg-surface-overlay/40 transition">
                                             
+                                            <!-- Asset Name & Brand Logo -->
                                             <td class="py-3.5 px-5">
                                                 <div class="flex items-center space-x-3">
-                                                    <div class="w-9 h-9 rounded-xl bg-surface-overlay flex items-center justify-center font-bold text-base icon-3d-badge shadow-sm" style="--icon-glow: #0284c7;">
-                                                        <span class="icon-floating"><%= asset.icon || (isStock ? '🏛️' : '🪙') %></span>
+                                                    <div class="w-9 h-9 rounded-xl bg-surface-overlay flex items-center justify-center shrink-0 border border-surface-border shadow-xs">
+                                                        <span x-html="getInstrumentLogo('<%= asset.asset_symbol %>', '<%= isStock ? 'stocks' : 'crypto' %>', 'w-6 h-6')"></span>
                                                     </div>
                                                     <div>
-                                                        <div class="flex items-center space-x-1.5">
-                                                            <span class="font-bold text-content-primary font-sans text-xs block"><%= asset.asset_name %></span>
-                                                            <template x-if="isAssetOwned('<%= asset.asset_symbol %>')">
-                                                                <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-700">✓ OWNED</span>
-                                                            </template>
+                                                        <div class="font-bold text-content-primary text-xs flex items-center space-x-1.5">
+                                                            <span><%= asset.asset_name %></span>
+                                                            <span class="text-[10px] font-mono px-1 rounded bg-black/5 dark:bg-white/5 text-content-tertiary font-normal uppercase"><%= asset.asset_symbol %></span>
                                                         </div>
-                                                        <span class="text-[10px] text-content-tertiary"><%= asset.asset_symbol %> &bull; <%= isStock ? 'Stock' : 'Crypto' %> &bull; <strong class="text-primary" x-text="getAssetPortfolioPercent('<%= asset.asset_symbol %>') + '% of Total'"></strong></span>
+                                                        <span class="text-[10px] text-content-tertiary font-mono"><%= isStock ? 'Stock' : 'Crypto' %></span>
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td class="py-3.5 px-4 font-bold text-content-primary"
-                                                x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></td>
+                                            <!-- Market Price -->
+                                            <td class="py-3.5 px-4 font-mono font-bold text-content-primary">
+                                                <span class="px-2 py-0.5 rounded-md inline-block tabular-nums transition-all"
+                                                      :class="flashClass('<%= asset.asset_symbol %>')"
+                                                      x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                            </td>
 
-                                            <td class="py-3.5 px-4 font-bold"
+                                            <!-- 24h Change -->
+                                            <td class="py-3.5 px-4 font-mono font-bold"
                                                 :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'">
-                                                <div class="flex items-center space-x-1.5">
-                                                    <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '+' : '') + (rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
-                                                    <span class="text-[10px] text-content-tertiary" x-text="'(' + (getAsset24hPnLDollar('<%= asset.asset_symbol %>') >= 0 ? '+$' : '-$') + Math.abs(getAsset24hPnLDollar('<%= asset.asset_symbol %>')).toFixed(2) + ')'"></span>
-                                                </div>
+                                                <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
                                             </td>
 
-                                            <td class="py-3.5 px-4">
-                                                <span class="font-extrabold text-content-primary" x-text="getAssetBalance('<%= asset.asset_symbol %>').toFixed(<%= isStock ? 2 : 4 %>)"></span>
-                                                <span class="text-[10px] text-content-tertiary"><%= isStock ? 'Shares' : asset.asset_symbol %></span>
+                                            <!-- Holdings Quantity -->
+                                            <td class="py-3.5 px-4 font-mono">
+                                                <div class="font-bold text-content-primary" x-text="getAssetBalance('<%= asset.asset_symbol %>').toFixed(<%= isStock ? 2 : 4 %>)"></div>
+                                                <div class="text-[10px] text-content-tertiary"><%= isStock ? 'Shares' : asset.asset_symbol %></div>
                                             </td>
 
-                                            <td class="py-3.5 px-4 text-right font-extrabold text-gain"
+                                            <!-- Holdings Total Value -->
+                                            <td class="py-3.5 px-4 text-right font-mono font-bold text-content-primary"
                                                 x-text="'$' + getAssetValuation('<%= asset.asset_symbol %>').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></td>
 
-                                            <td class="py-3.5 px-5 text-right space-x-1.5">
-                                                <button type="button" @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" class="px-3 py-1 rounded-lg bg-gain/10 hover:bg-gain text-gain hover:text-white font-bold text-[10px] transition">
+                                            <!-- Clean Actions: Buy / Sell -->
+                                            <td class="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
+                                                <button type="button" 
+                                                        @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" 
+                                                        class="px-3 py-1.5 rounded-lg bg-gain hover:bg-gain/90 text-white font-bold text-xs transition shadow-xs cursor-pointer">
                                                     Buy
                                                 </button>
-                                                <button type="button" @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" class="px-3 py-1 rounded-lg bg-surface-overlay hover:bg-loss hover:text-white text-content-secondary font-bold text-[10px] transition">
+                                                <button type="button" 
+                                                        @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" 
+                                                        class="px-3 py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition cursor-pointer">
                                                     Sell
-                                                </button>
-                                                <button type="button" @click="openSwapWith('<%= asset.asset_symbol %>')" class="px-2.5 py-1 rounded-lg bg-surface-overlay hover:bg-primary hover:text-white text-content-tertiary text-[10px] transition">
-                                                    🔄 Swap
                                                 </button>
                                             </td>
 
                                         </tr>
                                     <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="py-12 text-center text-content-tertiary font-sans text-xs">
+                                            No assets currently held. Click "Deposit" to fund your account and begin investing.
+                                        </td>
+                                    </tr>
                                 <% } %>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+                <!-- 2. SIMPLIFIED GRID VIEW (CLEAN CARDS) -->
+                <div x-show="viewMode === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" x-cloak>
+                    <% if (typeof allBalances !== 'undefined' && allBalances && allBalances.filter(b => b.asset_symbol !== 'USD').length > 0) { %>
+                        <% allBalances.filter(b => b.asset_symbol !== 'USD').forEach(asset => { 
+                            const isStock = (asset.asset_type === 'stock');
+                        %>
+                            <div x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
+                                         ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
+                                 class="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-surface-border shadow-xs hover:border-primary/40 transition flex flex-col justify-between space-y-3">
+                                
+                                <!-- Card Header: Logo, Name, Symbol, 24h Change -->
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-9 h-9 rounded-xl bg-surface-overlay flex items-center justify-center shrink-0 border border-surface-border shadow-xs">
+                                            <span x-html="getInstrumentLogo('<%= asset.asset_symbol %>', '<%= isStock ? 'stocks' : 'crypto' %>', 'w-6 h-6')"></span>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-xs text-content-primary leading-tight"><%= asset.asset_name %></h4>
+                                            <span class="text-[10px] font-mono text-content-tertiary"><%= asset.asset_symbol %> &bull; <%= isStock ? 'Stock' : 'Crypto' %></span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs font-mono font-bold"
+                                          :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
+                                          x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                </div>
+
+                                <!-- Price & Value Summary -->
+                                <div class="pt-1 flex items-baseline justify-between font-mono">
+                                    <div>
+                                        <span class="text-[10px] text-content-tertiary uppercase block">Price</span>
+                                        <span class="text-xs font-bold text-content-primary px-1.5 py-0.5 rounded transition-all tabular-nums"
+                                              :class="flashClass('<%= asset.asset_symbol %>')"
+                                              x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-content-tertiary uppercase block">Your Value</span>
+                                        <span class="text-xs font-bold text-content-primary"
+                                              x-text="'$' + getAssetValuation('<%= asset.asset_symbol %>').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons: Buy / Sell -->
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button type="button" 
+                                            @click="<%= isStock ? "openBuyStock('" + asset.asset_symbol + "')" : "openSwapWith('" + asset.asset_symbol + "', 'to')" %>" 
+                                            class="py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs transition text-center shadow-xs cursor-pointer">
+                                        Buy
+                                    </button>
+                                    <button type="button" 
+                                            @click="<%= isStock ? "openSellStock('" + asset.asset_symbol + "', getAssetBalance('" + asset.asset_symbol + "'))" : "openSwapWith('" + asset.asset_symbol + "', 'from')" %>" 
+                                            class="py-1.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition text-center cursor-pointer">
+                                        Sell
+                                    </button>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="col-span-full py-12 text-center bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border p-8 space-y-3">
+                            <span class="text-4xl">💼</span>
+                            <h4 class="text-sm font-bold text-content-primary">No Assets in Custody</h4>
+                            <p class="text-xs text-content-secondary max-w-sm mx-auto">Acquire fractional shares of top global equities or crypto assets directly with your available cash balance.</p>
+                            <div class="pt-2">
+                                <a href="/deposit" class="inline-block px-4 py-2 rounded-xl bg-gain text-white font-bold text-xs shadow-xs">
+                                    + Deposit Funds
+                                </a>
+                            </div>
+                        </div>
+                    <% } %>
+                </div>
+
             </div>
 
             <!-- TAB: THEMATIC STOCK BASKETS -->
-            <div x-show="activeTab === 'baskets'" class="space-y-5" x-cloak>
+            <div id="baskets" x-show="activeTab === 'baskets'" class="space-y-5 scroll-mt-28" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-3">
                     <div>
-                        <h3 class="text-base font-bold font-serif text-content-primary">Thematic Stock Baskets & Curated ETF Portfolios</h3>
-                        <p class="text-xs text-content-secondary font-mono">One-click diversified institutional baskets with weighted fractional share allocation.</p>
+                        <div class="flex items-center space-x-2.5">
+                            <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" class="px-2.5 py-1 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary font-mono text-xs transition border border-surface-border">
+                                &larr; Holdings
+                            </button>
+                            <h3 class="text-base font-bold font-serif text-content-primary">Thematic Stock Baskets & Curated ETF Portfolios</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary font-mono mt-1">One-click diversified institutional baskets with weighted fractional share allocation.</p>
                     </div>
                     <span class="px-3 py-1 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20">
                         Zero Rebalance Fees
@@ -1438,18 +1143,23 @@ function dashboardPortfolioApp() {
             </div>
 
             <!-- TAB 2: OPEN CFD POSITIONS (FROM WEBTRADER) -->
-            <div x-show="activeTab === 'positions'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+            <div id="positions" x-show="activeTab === 'positions'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-3">
                     <div>
-                        <h3 class="text-base font-bold font-serif text-content-primary">Active CFD Margin Positions</h3>
-                        <p class="text-xs text-content-secondary">Open orders running on WebTrader prime STP execution.</p>
+                        <div class="flex items-center space-x-2.5">
+                            <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" class="px-2.5 py-1 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary font-mono text-xs transition border border-surface-border">
+                                &larr; Holdings
+                            </button>
+                            <h3 class="text-base font-bold font-serif text-content-primary">Active CFD Margin Positions</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary mt-1">Open orders running on WebTrader prime STP execution.</p>
                     </div>
                     <a href="/webtrade/app" class="px-4 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow-md transition flex items-center space-x-1">
                         <span>⚡ Trade on WebTrader</span>
                     </a>
                 </div>
 
-                <% if (typeof openTrades !== 'undefined' && openTrades && openTrades.length > 0) { %>
+                <template x-if="liveOpenTrades && liveOpenTrades.length > 0">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left font-mono text-xs">
                             <thead class="bg-surface-overlay border-b border-surface-border text-[10px] text-content-tertiary uppercase font-sans">
@@ -1459,41 +1169,50 @@ function dashboardPortfolioApp() {
                                     <th class="py-2.5 px-4">Type</th>
                                     <th class="py-2.5 px-4">Lot Size</th>
                                     <th class="py-2.5 px-4">Open Price</th>
+                                    <th class="py-2.5 px-4">Live Price</th>
                                     <th class="py-2.5 px-4">Take Profit / Stop Loss</th>
                                     <th class="py-2.5 px-4 text-right">Floating P&L</th>
                                     <th class="py-2.5 px-4 text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-surface-border">
-                                <% openTrades.forEach(t => { %>
+                                <template x-for="t in liveOpenTrades" :key="t.id">
                                     <tr class="hover:bg-surface-overlay/50 transition">
-                                        <td class="py-3 px-4 font-bold text-content-tertiary">#<%= t.id %></td>
-                                        <td class="py-3 px-4 font-extrabold text-content-primary"><%= t.symbol %></td>
+                                        <td class="py-3 px-4 font-bold text-content-tertiary" x-text="'#' + t.id"></td>
+                                        <td class="py-3 px-4 font-extrabold text-content-primary" x-text="t.symbol"></td>
                                         <td class="py-3 px-4">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase <%= t.type === 'BUY' ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss' %>">
-                                                <%= t.type %>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+                                                  :class="t.type === 'BUY' ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'"
+                                                  x-text="t.type">
                                             </span>
                                         </td>
-                                        <td class="py-3 px-4 font-bold"><%= t.lot_size %> Lots</td>
-                                        <td class="py-3 px-4 font-bold text-content-primary">$<%= Number(t.open_price).toLocaleString() %></td>
-                                        <td class="py-3 px-4 text-[11px]">
-                                            <span class="text-gain font-bold">TP: <%= t.take_profit ? '$' + t.take_profit : 'None' %></span> &bull; 
-                                            <span class="text-loss font-bold">SL: <%= t.stop_loss ? '$' + t.stop_loss : 'None' %></span>
+                                        <td class="py-3 px-4 font-bold" x-text="t.lot_size + ' Lots'"></td>
+                                        <td class="py-3 px-4 font-bold text-content-primary" x-text="'$' + Number(t.open_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})"></td>
+                                        <td class="py-3 px-4 font-bold">
+                                            <span class="px-1.5 py-0.5 rounded transition-all tabular-nums"
+                                                  :class="flashClass(t.symbol)"
+                                                  x-text="'$' + Number(rates[t.symbol]?.price || t.open_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})"></span>
                                         </td>
-                                        <td class="py-3 px-4 text-right font-extrabold text-sm <%= t.profit_loss >= 0 ? 'text-gain' : 'text-loss' %>">
-                                            <%= t.profit_loss >= 0 ? '+' : '' %>$<%= Number(t.profit_loss).toFixed(2) %>
+                                        <td class="py-3 px-4 text-[11px]">
+                                            <span class="text-gain font-bold" x-text="'TP: ' + (t.take_profit ? '$' + t.take_profit : 'None')"></span> &bull; 
+                                            <span class="text-loss font-bold" x-text="'SL: ' + (t.stop_loss ? '$' + t.stop_loss : 'None')"></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-right font-extrabold text-sm tabular-nums"
+                                            :class="getTradePnL(t) >= 0 ? 'text-gain' : 'text-loss'"
+                                            x-text="(getTradePnL(t) >= 0 ? '+' : '') + '$' + Number(getTradePnL(t)).toFixed(2)">
                                         </td>
                                         <td class="py-3 px-4 text-right">
-                                            <button type="button" @click="closeCfdTrade(<%= t.id %>)" class="px-3 py-1 rounded-lg bg-loss/10 hover:bg-loss text-loss hover:text-white font-bold text-[10px] transition">
+                                            <button type="button" @click="closeCfdTrade(t.id)" class="px-3 py-1 rounded-lg bg-loss/10 hover:bg-loss text-loss hover:text-white font-bold text-[10px] transition cursor-pointer">
                                                 Close
                                             </button>
                                         </td>
                                     </tr>
-                                <% }) %>
+                                </template>
                             </tbody>
                         </table>
                     </div>
-                <% } else { %>
+                </template>
+                <template x-if="!liveOpenTrades || liveOpenTrades.length === 0">
                     <div class="py-12 text-center space-y-3">
                         <span class="text-4xl">📊</span>
                         <h4 class="font-bold text-sm text-content-primary font-serif">No Active Positions Running</h4>
@@ -1502,15 +1221,20 @@ function dashboardPortfolioApp() {
                             Open Terminal &rarr;
                         </a>
                     </div>
-                <% } %>
+                </template>
             </div>
 
             <!-- TAB 3: COPY TRADING SUBSCRIPTIONS -->
-            <div x-show="activeTab === 'copy'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+            <div id="copy" x-show="activeTab === 'copy'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-3">
                     <div>
-                        <h3 class="text-base font-bold font-serif text-content-primary">Active Copy Trading Strategies</h3>
-                        <p class="text-xs text-content-secondary">Automated trade mirroring from verified institutional traders.</p>
+                        <div class="flex items-center space-x-2.5">
+                            <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" class="px-2.5 py-1 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary font-mono text-xs transition border border-surface-border">
+                                &larr; Holdings
+                            </button>
+                            <h3 class="text-base font-bold font-serif text-content-primary">Active Copy Trading Strategies</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary mt-1">Automated trade mirroring from verified institutional traders.</p>
                     </div>
                     <a href="/copy-trading/app" class="px-4 py-2 rounded-xl bg-[#D4A038] text-white font-bold text-xs shadow-md transition">
                         Browse Master Traders &rarr;
@@ -1574,7 +1298,7 @@ function dashboardPortfolioApp() {
             <!-- ============================================================== -->
             <!-- TAB 6: RETIREMENT IRA WEALTH HUB & TAX-ADVANTAGED PORTFOLIO    -->
             <!-- ============================================================== -->
-            <div x-show="activeTab === 'retirement'" class="space-y-6" x-cloak>
+            <div id="retirement" x-show="activeTab === 'retirement'" class="space-y-6 scroll-mt-28" x-cloak>
                 
                 <!-- Retirement Account Overview Header -->
                 <div class="glass-card rounded-3xl p-6 sm:p-8 border-2 border-gain/20 bg-gradient-to-r from-white via-emerald-50/20 to-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -1746,11 +1470,16 @@ function dashboardPortfolioApp() {
             </div>
 
             <!-- TAB 4: RECENT ACTIVITY & LEDGER -->
-            <div x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white" x-cloak>
+            <div id="history" x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-3">
                     <div>
-                        <h3 class="text-base font-bold font-serif text-content-primary">Recent Transactions & Activity</h3>
-                        <p class="text-xs text-content-secondary">Audit log of deposits, withdrawals, trades, and credit adjustments.</p>
+                        <div class="flex items-center space-x-2.5">
+                            <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" class="px-2.5 py-1 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary font-mono text-xs transition border border-surface-border">
+                                &larr; Holdings
+                            </button>
+                            <h3 class="text-base font-bold font-serif text-content-primary">Recent Transactions & Activity</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary mt-1">Audit log of deposits, withdrawals, trades, and credit adjustments.</p>
                     </div>
                     <a href="/transactions" class="text-xs font-bold text-primary hover:underline">
                         View Full History &rarr;
@@ -1975,8 +1704,8 @@ function dashboardPortfolioApp() {
             
             <div class="flex items-center justify-between border-b border-surface-border pb-3">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-primary/20 text-primary flex items-center justify-center text-xl font-bold shadow-md shadow-primary/20">
-                        🏛️
+                    <div class="w-10 h-10 rounded-2xl bg-surface-overlay border border-surface-border flex items-center justify-center shadow-md overflow-hidden shrink-0">
+                        <span class="shrink-0" x-html="getInstrumentLogo(selectedStockSymbol, 'stocks', 'w-8 h-8')"></span>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold font-serif text-content-primary">Spot Equity Order: <span x-text="selectedStockSymbol"></span></h3>

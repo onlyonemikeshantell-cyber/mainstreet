@@ -8,6 +8,20 @@ const db = require('../db');
 const { distributeQuarterlyDividends } = require('../services/dripService');
 const { requireAdmin } = require('../middleware/auth');
 
+// Activity Logger helper
+const logActivity = (userId, action, details, req) => {
+  try {
+    const ip = req ? (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null) : null;
+    const ua = req ? (req.headers['user-agent'] || 'Admin Console') : 'Admin Console';
+    db.prepare(`
+      INSERT INTO activity_logs (user_id, action, ip_address, user_agent, details)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(userId, action, ip, ua, details);
+  } catch (e) {
+    console.error('Failed to log admin activity:', e.message);
+  }
+};
+
 const processAvatarUpload = (avatarData) => {
   if (!avatarData || typeof avatarData !== 'string') {
     return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
@@ -43,50 +57,18 @@ router.use((req, res, next) => {
   next();
 });
 
-// Helper to send email via SMTP or fallback
-const sendEmail = async ({ to, subject, message, recipientType = 'direct' }) => {
-  try {
-    const smtp = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
-    if (smtp && smtp.is_active && smtp.host && smtp.user && smtp.pass) {
-      const transporter = nodemailer.createTransport({
-        host: smtp.host.trim(),
-        port: parseInt(smtp.port) || 587,
-        secure: parseInt(smtp.port) === 465,
-        auth: {
-          user: smtp.user.trim(),
-          pass: smtp.pass.trim()
-        },
-        tls: { rejectUnauthorized: false }
-      });
-
-      await transporter.sendMail({
-        from: `"${smtp.from_name || 'TradexEdge Support'}" <${smtp.from_email || smtp.user}>`,
-        to,
-        subject,
-        html: message
-      });
-
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-        VALUES (?, ?, ?, ?, 'sent')
-      `).run(to, recipientType, subject, message);
-      return { success: true };
-    } else {
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-        VALUES (?, ?, ?, ?, 'sent_local')
-      `).run(to, recipientType, subject, message);
-      return { success: true, localOnly: true };
-    }
-  } catch (err) {
-    console.error('Admin Email Dispatch Error:', err.message);
-    db.prepare(`
-      INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
-      VALUES (?, ?, ?, ?, 'failed')
-    `).run(to, recipientType, subject, `${message} [Error: ${err.message}]`);
-    return { success: false, error: err.message };
+// Secure KYC Document Serving (Admin Only, Strict Path Traversal Protection)
+router.get(['/babyoku/kyc/file/:filename', '/admin/kyc/file/:filename', '/storage/kyc/:filename'], requireAdmin, (req, res) => {
+  const safeFilename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, '..', '..', 'storage', 'kyc', safeFilename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('KYC document not found');
   }
-};
+  res.sendFile(filePath);
+});
+
+// Unified Mailer Service (Resend / SMTP / Sandbox)
+const { sendEmail } = require('../services/mailer');
 
 // GET /admin -> Main Master Command Center
 router.get(['/babyoku', '/admin'], (req, res) => {
@@ -152,7 +134,14 @@ router.get(['/babyoku', '/admin'], (req, res) => {
     FROM retirement_accounts ra 
     JOIN users u ON ra.user_id = u.id 
     ORDER BY ra.id DESC
-  `).all();
+  `).all().map(ra => {
+    ra.holdings = db.prepare(`
+      SELECT id, asset_symbol, asset_name, asset_type, shares_or_units, cost_basis 
+      FROM retirement_holdings 
+      WHERE account_id = ?
+    `).all(ra.id);
+    return ra;
+  });
   const totalRetirementAum = db.prepare("SELECT COALESCE(SUM(equity), 0) as s FROM retirement_accounts").get().s;
   const totalRetirementContributions = db.prepare("SELECT COALESCE(SUM(total_contributed), 0) as s FROM retirement_accounts").get().s;
   const activeDripCount = db.prepare("SELECT COUNT(*) as cnt FROM retirement_accounts WHERE drip_enabled = 1").get().cnt;
@@ -181,7 +170,7 @@ router.get(['/babyoku', '/admin'], (req, res) => {
 
   res.render('app/admin', {
     adminBasePath: '/babyoku',
-    title: 'TradexEdge | Institutional Master Command Desk',
+    title: 'Executive Master Command Desk | Mainstreet Capital Exchange',
     user: currentUser,
     users,
     transactions,
@@ -643,20 +632,29 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
   res.redirect('/babyoku');
 });
 
-router.get(['/babyoku/user/impersonate/:id', '/admin/user/impersonate/:id'], (req, res) => {
+router.all(['/babyoku/user/impersonate/:id', '/admin/user/impersonate/:id'], (req, res) => {
   const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!targetUser) {
     req.session.flash = { error: 'User not found.' };
     return res.redirect('/babyoku');
   }
 
-  req.session.adminId = req.session.adminId || req.session.userId;
+  // Strictly verify originating session possesses active administrator privileges
+  const adminIdToKeep = req.session.adminId || req.session.userId;
+  const adminUser = db.prepare('SELECT * FROM users WHERE id = ?').get(adminIdToKeep);
+  if (!adminUser || adminUser.role !== 'admin') {
+    req.session.flash = { error: 'Access denied: Administrator privileges required.' };
+    return res.redirect('/dashboard');
+  }
+
+  req.session.adminId = adminIdToKeep;
   req.session.userId = targetUser.id;
+  logActivity(adminIdToKeep, 'ADMIN_IMPERSONATE', `Admin #${adminIdToKeep} impersonating user #${targetUser.id} (${targetUser.email})`, req);
   req.session.flash = { success: `Now impersonating ${targetUser.name} (${targetUser.email}).` };
   res.redirect('/dashboard');
 });
 
-router.get(['/babyoku/switch-back', '/admin/switch-back'], (req, res) => {
+router.all(['/babyoku/switch-back', '/admin/switch-back'], (req, res) => {
   if (req.session.adminId) {
     req.session.userId = req.session.adminId;
     req.session.adminId = null;
@@ -740,20 +738,45 @@ router.post(['/babyoku/kyc/review', '/admin/kyc/review'], (req, res) => {
 
 router.post(['/babyoku/markets/save', '/admin/markets/save'], (req, res) => {
   const { id, symbol, name, category, spread, leverage, min_lot, max_lot, is_tradable } = req.body;
+  const sym = (symbol || '').trim().toUpperCase();
+  const n = (name || sym).trim();
+  const cat = category || 'reit';
+  const spr = parseFloat(spread) || 0.08;
+  const lev = parseInt(leverage) || 20;
+  const minL = parseFloat(min_lot) || 0.01;
+  const maxL = parseFloat(max_lot) || 50.0;
+  const tradable = is_tradable === '1' || is_tradable === 1 ? 1 : 0;
+
   if (id) {
     db.prepare(`
       UPDATE market_settings 
       SET symbol = ?, name = ?, category = ?, spread = ?, leverage = ?, min_lot = ?, max_lot = ?, is_tradable = ?
       WHERE id = ?
-    `).run(symbol, name, category, parseFloat(spread) || 0.1, parseInt(leverage) || 100, parseFloat(min_lot) || 0.01, parseFloat(max_lot) || 50.0, is_tradable === '1' ? 1 : 0, id);
-    req.session.flash = { success: `Market instrument '${symbol}' updated.` };
+    `).run(sym, n, cat, spr, lev, minL, maxL, tradable, id);
+    req.session.flash = { success: `Market instrument '${sym}' updated successfully.` };
+  } else {
+    const exists = db.prepare('SELECT id FROM market_settings WHERE symbol = ?').get(sym);
+    if (exists) {
+      db.prepare(`
+        UPDATE market_settings 
+        SET name = ?, category = ?, spread = ?, leverage = ?, min_lot = ?, max_lot = ?, is_tradable = ?
+        WHERE id = ?
+      `).run(n, cat, spr, lev, minL, maxL, tradable, exists.id);
+      req.session.flash = { success: `Market instrument '${sym}' updated.` };
+    } else {
+      db.prepare(`
+        INSERT INTO market_settings (symbol, name, category, spread, leverage, min_lot, max_lot, is_tradable)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(sym, n, cat, spr, lev, minL, maxL, tradable);
+      req.session.flash = { success: `New instrument '${sym}' added to market desk.` };
+    }
   }
   res.redirect('/babyoku');
 });
 
 router.get(['/babyoku/export/:type', '/admin/export/:type'], (req, res) => {
   const type = req.params.type;
-  let filename = `tradexedge_${type}_${Date.now()}.csv`;
+  let filename = `mainstreet_${type}_${Date.now()}.csv`;
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
@@ -897,23 +920,52 @@ router.post(['/babyoku/mailer/send', '/admin/mailer/send'], async (req, res) => 
   res.redirect('/babyoku');
 });
 
+
+router.post(['/babyoku/notifications/send', '/admin/notifications/send'], (req, res) => {
+  const { recipient_target, title, message, type } = req.body;
+  if (!title || !message) {
+    req.session.flash = { error: 'Notification title and message body are required.' };
+    return res.redirect('/babyoku');
+  }
+  const notifType = type || 'system';
+  let targetCount = 0;
+  if (recipient_target === 'all') {
+    const allUsers = db.prepare('SELECT id FROM users').all();
+    const insert = db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)');
+    for (const u of allUsers) {
+      insert.run(u.id, title.trim(), message.trim(), notifType);
+    }
+    targetCount = allUsers.length;
+  } else {
+    const userId = parseInt(recipient_target);
+    if (userId) {
+      db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)').run(userId, title.trim(), message.trim(), notifType);
+      targetCount = 1;
+    }
+  }
+  req.session.flash = { success: 'Pop-up notification successfully dispatched to ' + targetCount + ' trader(s)!' };
+  res.redirect('/babyoku');
+});
+
 router.post(['/babyoku/mailer/smtp', '/admin/mailer/smtp'], (req, res) => {
-  const { host, port, user, pass, from_name, from_email, is_active } = req.body;
+  const { host, port, user, pass, from_name, from_email, is_active, resend_api_key, provider } = req.body;
   db.prepare(`
     UPDATE smtp_settings 
-    SET host = ?, port = ?, user = ?, pass = ?, from_name = ?, from_email = ?, is_active = ?
+    SET host = ?, port = ?, user = ?, pass = ?, from_name = ?, from_email = ?, is_active = ?, resend_api_key = ?, provider = ?
     WHERE id = 1
   `).run(
     host || 'smtp.gmail.com',
     parseInt(port) || 587,
     user || '',
     pass || '',
-    from_name || 'TradexEdge Support',
-    from_email || 'support@tradexedge.com',
-    is_active === '1' ? 1 : 0
+    from_name || 'Mainstreet Capital Exchange Support',
+    from_email || 'support@mainstreetcapitalexchange.com',
+    is_active === '1' || is_active === 'on' || is_active === 1 ? 1 : 0,
+    (resend_api_key || '').trim(),
+    provider || (resend_api_key ? 'resend' : 'smtp')
   );
 
-  req.session.flash = { success: 'SMTP server settings updated successfully.' };
+  req.session.flash = { success: 'Mailer configuration (Resend & SMTP) updated successfully.' };
   res.redirect('/babyoku');
 });
 
@@ -1184,6 +1236,25 @@ router.post(['/babyoku/settings/security', '/admin/settings/security'], (req, re
   res.redirect('/babyoku');
 });
 
+// Update Didit AI KYC Protocol Configuration
+router.post(['/babyoku/settings/didit', '/admin/settings/didit'], (req, res) => {
+  const { didit_api_key, didit_app_id, didit_mode, didit_auto_approve } = req.body;
+  
+  db.prepare(`
+    UPDATE system_settings
+    SET didit_api_key = ?, didit_app_id = ?, didit_mode = ?, didit_auto_approve = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = 1
+  `).run(
+    didit_api_key ? didit_api_key.trim() : null,
+    didit_app_id ? didit_app_id.trim() : null,
+    didit_mode || 'live',
+    didit_auto_approve === '1' ? 1 : 0
+  );
+
+  req.session.flash = { success: 'Didit AI Protocol compliance settings updated successfully!' };
+  res.redirect('/babyoku');
+});
+
 // Send Live Test Email from Admin Settings
 router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], async (req, res) => {
   const { test_recipient } = req.body;
@@ -1194,9 +1265,9 @@ router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], asyn
 
   const result = await sendEmail({
     to: test_recipient.trim(),
-    subject: 'TradexEdge SMTP Server Test Diagnostic',
+    subject: 'Mainstreet Capital Exchange SMTP Server Test Diagnostic',
     message: `<div style="font-family: sans-serif; padding: 20px; background: #0f131a; color: #fff; border-radius: 12px;">
-      <h2 style="color: #d4a038;">TradexEdge SMTP Server Diagnostic</h2>
+      <h2 style="color: #d4a038;">Mainstreet Capital Exchange SMTP Server Diagnostic</h2>
       <p>This is an automated test confirming that your live SMTP server dispatch engine is operational.</p>
       <p style="color: #10b981; font-weight: bold;">Status: 200 OK (Connection Verified)</p>
       <p style="color: #888; font-size: 11px;">Timestamp: ${new Date().toUTCString()}</p>
@@ -1206,12 +1277,13 @@ router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], asyn
 
   if (result.success) {
     if (result.localOnly) {
-      req.session.flash = { success: `Diagnostic logged locally for ${test_recipient}. (Configure active SMTP credentials above for external delivery).` };
+      req.session.flash = { success: `Diagnostic logged locally in sandbox for ${test_recipient}. (Enter your Resend API Key above to dispatch to live inbox).` };
     } else {
-      req.session.flash = { success: `Live test email successfully dispatched to ${test_recipient}!` };
+      const providerLabel = result.provider === 'resend' ? 'Resend Cloud API' : 'SMTP';
+      req.session.flash = { success: `Live test email successfully dispatched to ${test_recipient} via ${providerLabel}!` };
     }
   } else {
-    req.session.flash = { error: `SMTP Connection Failed: ${result.error}` };
+    req.session.flash = { error: `Dispatch Failed: ${result.error}` };
   }
 
   res.redirect('/babyoku');
@@ -1221,7 +1293,7 @@ router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], asyn
 router.get(['/babyoku/settings/backup-db', '/admin/settings/backup-db'], (req, res) => {
   const dbFile = path.resolve(__dirname, '../../data/tradexedge.db');
   if (fs.existsSync(dbFile)) {
-    const filename = `tradexedge_backup_${Date.now()}.db`;
+    const filename = `mainstreet_capital_exchange_backup_${Date.now()}.db`;
     res.setHeader('Content-Type', 'application/x-sqlite3');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     const stream = fs.createReadStream(dbFile);
@@ -1233,8 +1305,27 @@ router.get(['/babyoku/settings/backup-db', '/admin/settings/backup-db'], (req, r
 });
 
 // Admin Live Chat API
+router.get('/api/admin/chat/conversations', requireAdmin, (req, res) => {
+  const threads = db.prepare(`
+    SELECT scm.user_id, 
+           COALESCE(u.name, 'Guest #' || ABS(scm.user_id)) as user_name,
+           COALESCE(u.email, 'Direct Live Visitor') as user_email,
+           COUNT(CASE WHEN scm.sender_role = 'user' AND scm.is_read = 0 THEN 1 END) as unread_count,
+           MAX(scm.created_at) as last_message_at,
+           (SELECT message FROM support_chat_messages WHERE user_id = scm.user_id ORDER BY id DESC LIMIT 1) as last_message
+    FROM support_chat_messages scm
+    LEFT JOIN users u ON scm.user_id = u.id
+    GROUP BY scm.user_id
+    ORDER BY unread_count DESC, last_message_at DESC
+  `).all();
+  res.json({ conversations: threads });
+});
+
 router.get('/api/admin/chat/messages/:userId', requireAdmin, (req, res) => {
-  const messages = db.prepare('SELECT * FROM support_chat_messages WHERE user_id = ? ORDER BY id ASC').all(req.params.userId);
+  const uid = req.params.userId;
+  // Mark user messages as read by admin
+  db.prepare("UPDATE support_chat_messages SET is_read = 1 WHERE user_id = ? AND sender_role = 'user'").run(uid);
+  const messages = db.prepare('SELECT * FROM support_chat_messages WHERE user_id = ? ORDER BY id ASC').all(uid);
   res.json({ messages });
 });
 
@@ -1435,27 +1526,63 @@ router.post(['/babyoku/retirement/adjust-balance', '/admin/retirement/adjust-bal
   }
 });
 
-// POST /babyoku/retirement/trigger-drip (Trigger Global Quarterly Dividend & DRIP Engine)
-router.post(['/babyoku/retirement/trigger-drip', '/admin/retirement/trigger-drip', '/api/admin/retirement/trigger-drip'], (req, res) => {
+// POST /babyoku/retirement/trigger-drip & /distribute-dividend (Execute DRIP & Custom Dividend Figures)
+router.post([
+  '/babyoku/retirement/trigger-drip', 
+  '/admin/retirement/trigger-drip', 
+  '/api/admin/retirement/trigger-drip',
+  '/babyoku/retirement/distribute-dividend',
+  '/admin/retirement/distribute-dividend',
+  '/api/admin/retirement/distribute-dividend'
+], (req, res) => {
   try {
-    const results = distributeQuarterlyDividends();
+    const {
+      target_account_id,
+      account_id,
+      custom_amount,
+      custom_yield_percent,
+      distribution_mode,
+      mode,
+      target_holding_id,
+      tax_year,
+      notes
+    } = req.body;
+
+    const chosenAccountId = (target_account_id && target_account_id !== 'all') ? target_account_id : (account_id || null);
+    const chosenMode = distribution_mode || mode || 'auto';
+
+    const results = distributeQuarterlyDividends({
+      targetAccountId: chosenAccountId,
+      customAmount: custom_amount,
+      customYieldPercent: custom_yield_percent,
+      mode: chosenMode,
+      targetHoldingId: target_holding_id,
+      taxYear: tax_year,
+      notes: notes
+    });
+
     const totalAccountsProcessed = results.length;
     const totalDividendsDistributed = results.reduce((s, r) => s + (r.totalDividends || 0), 0);
 
-    const msg = `System-wide DRIP cycle executed across ${totalAccountsProcessed} accounts. Total dividends distributed & reinvested: $${totalDividendsDistributed.toFixed(2)} USD.`;
+    let msg;
+    if (chosenAccountId && results.length > 0) {
+      msg = `Custom dividend successfully distributed to Account #${results[0].accountNumber}: $${totalDividendsDistributed.toFixed(2)} USD (${results[0].actions.length} allocation actions executed).`;
+    } else {
+      msg = `System-wide DRIP cycle executed across ${totalAccountsProcessed} accounts. Total dividends distributed & reinvested: $${totalDividendsDistributed.toFixed(2)} USD.`;
+    }
 
     if (req.xhr || req.headers.accept?.includes('json')) {
-      return res.json({ success: true, message: msg, results });
+      return res.json({ success: true, message: msg, results, totalDividendsDistributed });
     }
 
     req.session.flash = { success: msg };
     res.redirect('/babyoku#retirement-tab');
   } catch (err) {
-    console.error('Error running system DRIP cycle:', err);
+    console.error('Error running dividend distribution / DRIP cycle:', err);
     if (req.xhr || req.headers.accept?.includes('json')) {
-      return res.status(500).json({ success: false, error: 'Failed to trigger dividend cycle.' });
+      return res.status(500).json({ success: false, error: 'Failed to execute dividend distribution cycle.' });
     }
-    req.session.flash = { error: 'Failed to trigger DRIP cycle.' };
+    req.session.flash = { error: 'Failed to execute dividend distribution cycle.' };
     res.redirect('/babyoku#retirement-tab');
   }
 });
