@@ -1,0 +1,185 @@
+<!-- ============================================================================== -->
+<!-- MAINSTREET CAPITAL EXCHANGE - AUTO-TRANSLATOR CORE SCRIPT & IP DETECTION      -->
+<!-- ============================================================================== -->
+
+<style>
+    /* Google Translate Invisible Layer & Apple-Native Clean UI */
+    .goog-te-banner-frame.skiptranslate,
+    .goog-te-banner-frame,
+    #goog-gt-tt,
+    .goog-te-balloon-frame,
+    .VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+    .VIpgJd-ZVi9od-aZ2wEe-OiiCO,
+    .VIpgJd-y6T80-UbuQg,
+    iframe.skiptranslate {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    body {
+        top: 0px !important;
+        position: static !important;
+    }
+    .goog-text-highlight {
+        background: none !important;
+        box-shadow: none !important;
+    }
+    #google_translate_element {
+        display: none !important;
+    }
+</style>
+
+<!-- Hidden Anchor for Google Translate -->
+<div id="google_translate_element" aria-hidden="true" style="display:none;"></div>
+
+<script>
+    window.__MAINSTREET_GEO__ = <%- JSON.stringify(typeof visitorGeo !== 'undefined' ? visitorGeo : {}) %>;
+</script>
+
+<script>
+(function() {
+    const COUNTRY_LANG_MAP = {
+        'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es', 'CL': 'es', 'PE': 'es', 'VE': 'es',
+        'GT': 'es', 'EC': 'es', 'CU': 'es', 'BO': 'es', 'DO': 'es', 'HN': 'es', 'PY': 'es',
+        'SV': 'es', 'NI': 'es', 'CR': 'es', 'PA': 'es', 'UY': 'es', 'PR': 'es', 'GQ': 'es',
+        'FR': 'fr', 'MC': 'fr', 'SN': 'fr', 'CI': 'fr', 'CM': 'fr', 'CD': 'fr', 'CG': 'fr',
+        'ML': 'fr', 'NE': 'fr', 'BF': 'fr', 'GN': 'fr', 'BJ': 'fr', 'TG': 'fr', 'GA': 'fr',
+        'DE': 'de', 'AT': 'de', 'LI': 'de', 'CH': 'de',
+        'IT': 'it', 'SM': 'it', 'VA': 'it',
+        'PT': 'pt', 'BR': 'pt', 'AO': 'pt', 'MZ': 'pt', 'CV': 'pt', 'GW': 'pt', 'ST': 'pt',
+        'RU': 'ru', 'BY': 'ru', 'KZ': 'ru', 'KG': 'ru',
+        'CN': 'zh-CN', 'TW': 'zh-TW', 'HK': 'zh-TW', 'MO': 'zh-TW', 'SG': 'zh-CN',
+        'JP': 'ja',
+        'KR': 'ko',
+        'SA': 'ar', 'AE': 'ar', 'EG': 'ar', 'QA': 'ar', 'KW': 'ar', 'BH': 'ar', 'OM': 'ar',
+        'JO': 'ar', 'LB': 'ar', 'IQ': 'ar', 'DZ': 'ar', 'MA': 'ar', 'TN': 'ar', 'LY': 'ar',
+        'TR': 'tr', 'CY': 'tr',
+        'NL': 'nl', 'SR': 'nl', 'BE': 'nl',
+        'PL': 'pl',
+        'SE': 'sv',
+        'NO': 'no',
+        'DK': 'da',
+        'FI': 'fi',
+        'GR': 'el',
+        'CZ': 'cs',
+        'RO': 'ro', 'MD': 'ro',
+        'HU': 'hu',
+        'UA': 'uk',
+        'VN': 'vi',
+        'TH': 'th',
+        'ID': 'id',
+        'MY': 'ms',
+        'IN': 'hi',
+        'PH': 'tl',
+        'IL': 'iw',
+        'IR': 'fa',
+        'PK': 'ur',
+        'BD': 'bn',
+        'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en', 'NZ': 'en', 'IE': 'en', 'ZA': 'en'
+    };
+
+    const LANG_METADATA = {
+        'en': { name: 'English', native: 'English', flag: '🇺🇸' },
+        'es': { name: 'Spanish', native: 'Español', flag: '🇪🇸' },
+        'fr': { name: 'French', native: 'Français', flag: '🇫🇷' },
+        'de': { name: 'German', native: 'Deutsch', flag: '🇩🇪' },
+        'it': { name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
+        'pt': { name: 'Portuguese', native: 'Português', flag: '🇧🇷' },
+        'ru': { name: 'Russian', native: 'Русский', flag: '🇷🇺' },
+        'zh-CN': { name: 'Chinese', native: '简体中文', flag: '🇨🇳' },
+        'ja': { name: 'Japanese', native: '日本語', flag: '🇯🇵' },
+        'ko': { name: 'Korean', native: '한국어', flag: '🇰🇷' },
+        'ar': { name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
+        'tr': { name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
+        'nl': { name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
+        'pl': { name: 'Polish', native: 'Polski', flag: '🇵🇱' },
+        'hi': { name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
+        'id': { name: 'Indonesian', native: 'Indonesia', flag: '🇮🇩' },
+        'vi': { name: 'Vietnamese', native: 'Tiếng Việt', flag: '🇻🇳' },
+        'th': { name: 'Thai', native: 'ไทย', flag: '🇹🇭' },
+        'uk': { name: 'Ukrainian', native: 'Українська', flag: '🇺🇦' }
+    };
+
+    window.__LANG_METADATA__ = LANG_METADATA;
+
+    function setCookie(name, value, days) {
+        const d = new Date();
+        d.setTime(d.getTime() + 24 * 60 * 60 * 1000 * (days || 365));
+        const expires = "expires=" + d.toUTCString();
+        const domain = window.location.hostname;
+        document.cookie = name + "=" + value + ";path=/;" + expires;
+        if (domain && domain !== 'localhost' && !domain.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+            document.cookie = name + "=" + value + ";path=/;domain=" + domain + ";" + expires;
+            document.cookie = name + "=" + value + ";path=/;domain=." + domain + ";" + expires;
+        }
+    }
+
+    function clearTranslateCookie() {
+        const domain = window.location.hostname;
+        const past = "expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
+        document.cookie = "googtrans=;" + past;
+        document.cookie = "googtrans=;" + past + "domain=" + domain + ";";
+        document.cookie = "googtrans=;" + past + "domain=." + domain + ";";
+    }
+
+    // IP Auto-Detection Execution
+    async function initAutoDetect() {
+        const savedLang = localStorage.getItem('mainstreet_user_lang');
+        const autoDone = localStorage.getItem('mainstreet_ip_auto_done');
+        if (savedLang || autoDone) return;
+
+        let detectedCountry = null;
+        let detectedLang = 'en';
+
+        // 1. Check server-side geo header
+        if (window.__MAINSTREET_GEO__ && window.__MAINSTREET_GEO__.country) {
+            detectedCountry = window.__MAINSTREET_GEO__.country.toUpperCase();
+        }
+
+        // 2. Client-side IP lookup if local or direct
+        if (!detectedCountry) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const res = await fetch('https://api.country.is/', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.country) detectedCountry = data.country.toUpperCase();
+                }
+            } catch(e) {}
+        }
+
+        // 3. Fallback to navigator browser language if country lookup failed
+        if (!detectedCountry && navigator.language) {
+            const shortNav = navigator.language.split('-')[0].toLowerCase();
+            if (LANG_METADATA[shortNav]) detectedLang = shortNav;
+        } else if (detectedCountry && COUNTRY_LANG_MAP[detectedCountry]) {
+            detectedLang = COUNTRY_LANG_MAP[detectedCountry];
+        }
+
+        localStorage.setItem('mainstreet_ip_auto_done', 'true');
+
+        if (detectedLang && detectedLang !== 'en') {
+            localStorage.setItem('mainstreet_user_lang', detectedLang);
+            localStorage.setItem('mainstreet_auto_notice', JSON.stringify({
+                country: detectedCountry || '',
+                lang: detectedLang,
+                langName: (LANG_METADATA[detectedLang] && LANG_METADATA[detectedLang].name) || detectedLang
+            }));
+            const cookieVal = '/en/' + detectedLang;
+            setCookie('googtrans', cookieVal, 365);
+            window.location.reload();
+        }
+    }
+
+    initAutoDetect();
+})();
+
+function googleTranslateElementInit() {
+    new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        autoDisplay: false
+    }, 'google_translate_element');
+}
+</script>
+<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>

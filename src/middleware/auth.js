@@ -1,4 +1,5 @@
 const db = require('../db');
+const { detectGeoFromRequest } = require('../services/geoService');
 
 const requireAuth = (req, res, next) => {
   if (!req.session.userId) {
@@ -45,7 +46,9 @@ const injectUser = (req, res, next) => {
   req.session.flash = null;
   res.locals.csrfToken = req.session.csrfToken || 'txe_default_token';
   res.locals.currentPath = req.path;
+  res.locals.visitorGeo = detectGeoFromRequest(req);
   next();
 };
 
 module.exports = { requireAuth, requireAdmin, injectUser };
+

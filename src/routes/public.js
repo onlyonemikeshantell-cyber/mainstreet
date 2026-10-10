@@ -141,6 +141,18 @@ router.get(['/webterminal', '/terminal', '/trade', '/trader', '/trading'], (req,
 });
 
 const { MODEL_PERSONAS, generateCopilotAnalysis } = require('../services/aiCopilotService');
+const { detectGeoFromRequest, SUPPORTED_LANGUAGES, COUNTRY_TO_LANG } = require('../services/geoService');
+
+// IP & Geolocation Language Detection API
+router.get('/api/geo/detect', (req, res) => {
+  const geo = detectGeoFromRequest(req);
+  res.json({
+    success: true,
+    ...geo,
+    supportedLanguages: SUPPORTED_LANGUAGES,
+    countryMap: COUNTRY_TO_LANG
+  });
+});
 
 // AI Financial Copilot API (Public & Interactive)
 router.get('/api/copilot/models', (req, res) => {
@@ -154,3 +166,4 @@ router.post('/api/copilot/query', (req, res) => {
 });
 
 module.exports = router;
+

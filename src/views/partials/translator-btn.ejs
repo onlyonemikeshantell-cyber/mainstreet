@@ -1,0 +1,151 @@
+<!-- ============================================================================== -->
+<!-- MAINSTREET CAPITAL EXCHANGE - LANGUAGE PICKER DROPDOWN BUTTON                  -->
+<!-- ============================================================================== -->
+
+<div x-data="{
+    open: false,
+    currentLang: localStorage.getItem('mainstreet_user_lang') || 'en',
+    languages: [
+        { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
+        { code: 'es', name: 'Spanish', native: 'Español', flag: '🇪🇸' },
+        { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
+        { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
+        { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
+        { code: 'pt', name: 'Portuguese', native: 'Português', flag: '🇧🇷' },
+        { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
+        { code: 'zh-CN', name: 'Chinese', native: '简体中文', flag: '🇨🇳' },
+        { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
+        { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
+        { code: 'ar', name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
+        { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
+        { code: 'nl', name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
+        { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' },
+        { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
+        { code: 'id', name: 'Indonesian', native: 'Indonesia', flag: '🇮🇩' },
+        { code: 'vi', name: 'Vietnamese', native: 'Tiếng Việt', flag: '🇻🇳' },
+        { code: 'th', name: 'Thai', native: 'ไทย', flag: '🇹🇭' },
+        { code: 'uk', name: 'Ukrainian', native: 'Українська', flag: '🇺🇦' }
+    ],
+    notice: null,
+    init() {
+        const raw = localStorage.getItem('mainstreet_auto_notice');
+        if (raw) {
+            try {
+                this.notice = JSON.parse(raw);
+                setTimeout(() => { this.dismissNotice(); }, 8000);
+            } catch(e) {}
+        }
+    },
+    dismissNotice() {
+        this.notice = null;
+        localStorage.removeItem('mainstreet_auto_notice');
+    },
+    getActiveLang() {
+        return this.languages.find(l => l.code === this.currentLang) || this.languages[0];
+    },
+    selectLanguage(code) {
+        const domain = window.location.hostname;
+        if (code === 'en') {
+            const past = 'expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+            document.cookie = 'googtrans=;' + past;
+            document.cookie = 'googtrans=;' + past + 'domain=' + domain + ';';
+            document.cookie = 'googtrans=;' + past + 'domain=.' + domain + ';';
+            localStorage.setItem('mainstreet_user_lang', 'en');
+        } else {
+            const d = new Date();
+            d.setTime(d.getTime() + 365*24*60*60*1000);
+            const expires = 'expires=' + d.toUTCString();
+            const val = '/en/' + code;
+            document.cookie = 'googtrans=' + val + ';path=/;' + expires;
+            document.cookie = 'googtrans=' + val + ';path=/;domain=' + domain + ';' + expires;
+            document.cookie = 'googtrans=' + val + ';path=/;domain=.' + domain + ';' + expires;
+            localStorage.setItem('mainstreet_user_lang', code);
+        }
+        this.open = false;
+        window.location.reload();
+    }
+}" class="inline-block relative notranslate">
+
+    <!-- Compact Language Switcher Pill -->
+    <button type="button" 
+            @click="open = !open" 
+            @click.away="open = false" 
+            class="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-content-secondary hover:text-content-primary hover:bg-black/5 dark:hover:bg-white/10 border border-black/[0.08] dark:border-white/[0.1] transition active:scale-[0.96] shadow-sm cursor-pointer"
+            title="Auto-translated via IP. Click to switch language.">
+        <span class="text-sm leading-none" x-text="getActiveLang().flag"></span>
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-content-primary dark:text-neutral-200" x-text="getActiveLang().code"></span>
+        <svg class="w-3 h-3 text-content-tertiary transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+
+    <!-- Elegant Apple Glass Dropdown -->
+    <div x-show="open" 
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 transform scale-95 -translate-y-1"
+         x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+         x-transition:leave-end="opacity-0 transform scale-95 -translate-y-1"
+         class="absolute right-0 mt-2 w-56 max-h-80 overflow-y-auto rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl shadow-2xl border border-black/[0.08] dark:border-white/[0.12] p-1.5 z-50 divide-y divide-black/[0.04] dark:divide-white/[0.04]"
+         x-cloak>
+        
+        <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-content-tertiary flex items-center justify-between">
+            <span>🌐 Language</span>
+            <span class="text-[9px] font-medium text-emerald-500 font-mono">IP Auto-Detect</span>
+        </div>
+
+        <div class="py-1 space-y-0.5">
+            <template x-for="lang in languages" :key="lang.code">
+                <button type="button" 
+                        @click="selectLanguage(lang.code)"
+                        class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs text-left transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                        :class="currentLang === lang.code ? 'bg-primary/10 text-primary font-bold dark:text-sky-400' : 'text-content-primary dark:text-neutral-200'">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-base" x-text="lang.flag"></span>
+                        <span class="font-medium text-[12px]" x-text="lang.native"></span>
+                        <span class="text-[10px] text-content-tertiary" x-text="'(' + lang.name + ')'"></span>
+                    </div>
+                    <span x-show="currentLang === lang.code" class="text-primary dark:text-sky-400 text-xs font-bold">✓</span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification on Auto-Translate -->
+    <div x-show="notice" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-4"
+         class="fixed bottom-6 left-6 z-[9999] max-w-sm glass-card rounded-2xl p-3.5 shadow-2xl border border-primary/30 flex items-center space-x-3 bg-white/95 dark:bg-[#161617]/95 backdrop-blur-xl"
+         x-cloak>
+        <div class="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-base shrink-0">
+            🌐
+        </div>
+        <div class="flex-1 text-xs">
+            <p class="font-semibold text-content-primary dark:text-white leading-tight">
+                Translated to <span x-text="notice ? notice.langName : ''" class="text-primary font-bold"></span>
+            </p>
+            <p class="text-[11px] text-content-secondary mt-0.5">
+                Automatically adapted based on your visitor IP location.
+            </p>
+        </div>
+        <div class="flex items-center space-x-1 shrink-0">
+            <button type="button" 
+                    @click="selectLanguage('en')" 
+                    class="px-2 py-1 rounded-lg text-[10px] font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-content-primary dark:text-white transition cursor-pointer"
+                    title="Switch back to English">
+                English
+            </button>
+            <button type="button" 
+                    @click="dismissNotice()" 
+                    class="p-1 rounded-lg text-content-tertiary hover:text-content-primary transition text-sm cursor-pointer">
+                &times;
+            </button>
+        </div>
+    </div>
+
+</div>
