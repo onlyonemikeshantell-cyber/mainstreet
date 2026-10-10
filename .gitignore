@@ -7,3 +7,4 @@ yarn-error.log*
 *.log
 .system_generated/
 scratch/
+*.zip
