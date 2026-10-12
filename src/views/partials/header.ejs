@@ -467,13 +467,18 @@
                     <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0 shrink-0">
                         <% if (user) { %>
                             <!-- Dedicated App Context Breadcrumb -->
-                            <div class="hidden sm:flex items-center space-x-2 text-xs font-medium whitespace-nowrap shrink-0">
-                                <a href="/dashboard" class="text-content-secondary dark:text-neutral-400 hover:text-primary dark:hover:text-sky-400 transition font-semibold">Mainstreet Capital Exchange</a>
-                                <span class="text-content-tertiary opacity-40">/</span>
+                            <div class="flex items-center space-x-2 text-xs font-medium whitespace-nowrap shrink-0">
+                                <a href="/" class="flex items-center space-x-2 text-content-secondary dark:text-neutral-400 hover:text-primary dark:hover:text-sky-400 transition font-semibold">
+                                    <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet" class="w-6 h-6 object-contain sm:hidden" />
+                                    <span class="hidden sm:inline">Mainstreet Capital Exchange</span>
+                                </a>
+                                <span class="text-content-tertiary opacity-40 hidden sm:inline">/</span>
                                 <%
                                     let breadcrumbSection = 'Portfolio';
                                     if (typeof currentPath !== 'undefined') {
-                                        if (currentPath.startsWith('/webtrade')) breadcrumbSection = 'Terminal';
+                                        if (currentPath === '/') breadcrumbSection = 'Home';
+                                        else if (currentPath.startsWith('/markets')) breadcrumbSection = 'Markets';
+                                        else if (currentPath.startsWith('/webtrade')) breadcrumbSection = 'Terminal';
                                         else if (currentPath.startsWith('/wallet')) breadcrumbSection = 'Crypto Vault';
                                         else if (currentPath.startsWith('/copy-trading')) breadcrumbSection = 'Copy Trading';
                                         else if (currentPath.startsWith('/deposit')) breadcrumbSection = 'Deposit';
@@ -483,9 +488,11 @@
                                         else if (currentPath.startsWith('/retirement')) breadcrumbSection = 'Retirement';
                                         else if (currentPath.startsWith('/referrals')) breadcrumbSection = 'Affiliates';
                                         else if (currentPath.startsWith('/security')) breadcrumbSection = 'Security';
+                                        else if (currentPath.startsWith('/about')) breadcrumbSection = 'About';
+                                        else if (currentPath.startsWith('/contact')) breadcrumbSection = 'Support';
                                     }
                                 %>
-                                <span class="text-content-primary dark:text-white font-medium whitespace-nowrap"><%= breadcrumbSection %></span>
+                                <span class="text-content-primary dark:text-white font-medium whitespace-nowrap hidden sm:inline"><%= breadcrumbSection %></span>
                             </div>
                         <% } else { %>
                             <!-- Public Guest Logo -->
@@ -518,6 +525,10 @@
                                     <span>Admin Desk</span>
                                 </a>
                             <% } %>
+                            <a href="/dashboard" class="px-3 py-1.5 rounded-xl <%= (typeof currentPath !== 'undefined' && currentPath === '/dashboard') ? 'bg-primary text-white' : 'bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-content-primary dark:text-white border border-black/[0.06] dark:border-white/[0.08]' %> font-bold text-xs transition flex items-center space-x-1.5 shrink-0">
+                                <span>📊</span>
+                                <span>Dashboard</span>
+                            </a>
                             <a href="/deposit" class="px-3.5 py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/25 transition flex items-center space-x-1.5 group shrink-0">
                                 <span class="text-sm leading-none">+</span>
                                 <span>Deposit</span>
@@ -556,6 +567,10 @@
                                         <div class="text-[10px] text-content-secondary dark:text-neutral-400 font-mono">ID: #<%= 10000 + user.id %> &bull; <span class="text-gain font-semibold"><%= user.kyc_status === 'verified' ? 'Verified' : 'Standard' %></span></div>
                                         <div class="text-[11px] font-mono font-extrabold text-content-primary dark:text-white mt-1">Cash: $<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
                                     </div>
+                                    <a href="/dashboard" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-primary dark:text-sky-400 font-semibold hover:bg-primary/10 transition">
+                                        <span>📊</span>
+                                        <span>Portfolio Dashboard</span>
+                                    </a>
                                     <a href="/wallet" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-500/10 transition">
                                         <span>👛</span>
                                         <span>Crypto Wallet</span>

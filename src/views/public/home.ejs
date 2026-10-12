@@ -120,14 +120,25 @@
 
                 <!-- Call to Action Buttons (Apple Pills) -->
                 <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
-                    <a href="/register" class="w-full sm:w-auto px-7 py-3.5 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-sm transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)] hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)] active:scale-[0.98] text-center flex items-center justify-center space-x-2">
-                        <span>Open Live Account</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    </a>
-                    <a href="/copy-trading" class="w-full sm:w-auto px-7 py-3.5 rounded-full apple-glass text-content-primary font-medium text-sm transition-all hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] text-center flex items-center justify-center space-x-2">
-                        <span>Explore Copy Trading</span>
-                        <svg class="w-4 h-4 text-content-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </a>
+                    <% if (typeof user !== 'undefined' && user) { %>
+                        <a href="<%= user.role === 'admin' ? '/babyoku' : '/dashboard' %>" class="w-full sm:w-auto px-7 py-3.5 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-sm transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)] hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)] active:scale-[0.98] text-center flex items-center justify-center space-x-2">
+                            <span><%= user.role === 'admin' ? 'Open Executive Console' : 'Go to Portfolio Dashboard' %></span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </a>
+                        <a href="/webtrade/app" class="w-full sm:w-auto px-7 py-3.5 rounded-full apple-glass text-content-primary font-medium text-sm transition-all hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] text-center flex items-center justify-center space-x-2">
+                            <span>Launch WebTrader</span>
+                            <svg class="w-4 h-4 text-content-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    <% } else { %>
+                        <a href="/register" class="w-full sm:w-auto px-7 py-3.5 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-sm transition-all shadow-[0_2px_10px_rgba(0,113,227,0.3)] hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)] active:scale-[0.98] text-center flex items-center justify-center space-x-2">
+                            <span>Open Live Account</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </a>
+                        <a href="/copy-trading" class="w-full sm:w-auto px-7 py-3.5 rounded-full apple-glass text-content-primary font-medium text-sm transition-all hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] text-center flex items-center justify-center space-x-2">
+                            <span>Explore Copy Trading</span>
+                            <svg class="w-4 h-4 text-content-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    <% } %>
                 </div>
 
                 <!-- Live Key Stats Counter (Apple Typography) -->

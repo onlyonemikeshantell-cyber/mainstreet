@@ -53,8 +53,83 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
+// Persistent SQLite Session Store (survives server restarts)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_sessions (
+    sid TEXT PRIMARY KEY,
+    sess TEXT NOT NULL,
+    expire INTEGER NOT NULL
+  );
+`);
+
+class SQLiteSessionStore extends session.Store {
+  constructor() {
+    super();
+    setInterval(() => {
+      try {
+        db.prepare('DELETE FROM user_sessions WHERE expire < ?').run(Date.now());
+      } catch (e) {}
+    }, 15 * 60 * 1000).unref();
+  }
+  get(sid, cb) {
+    try {
+      const row = db.prepare('SELECT sess, expire FROM user_sessions WHERE sid = ?').get(sid);
+      if (!row) return cb(null, null);
+      if (row.expire < Date.now()) {
+        db.prepare('DELETE FROM user_sessions WHERE sid = ?').run(sid);
+        return cb(null, null);
+      }
+      return cb(null, JSON.parse(row.sess));
+    } catch (err) {
+      return cb(err);
+    }
+  }
+  set(sid, sess, cb) {
+    try {
+      const maxAge = (sess && sess.cookie && sess.cookie.maxAge) ? sess.cookie.maxAge : (1000 * 60 * 60 * 24 * 7);
+      const expire = Date.now() + maxAge;
+      db.prepare(`
+        INSERT INTO user_sessions (sid, sess, expire)
+        VALUES (?, ?, ?)
+        ON CONFLICT(sid) DO UPDATE SET sess = excluded.sess, expire = excluded.expire
+      `).run(sid, JSON.stringify(sess), expire);
+      if (cb) cb(null);
+    } catch (err) {
+      if (cb) cb(err);
+    }
+  }
+  destroy(sid, cb) {
+    try {
+      db.prepare('DELETE FROM user_sessions WHERE sid = ?').run(sid);
+      if (cb) cb(null);
+    } catch (err) {
+      if (cb) cb(err);
+    }
+  }
+  touch(sid, sess, cb) {
+    try {
+      const maxAge = (sess && sess.cookie && sess.cookie.maxAge) ? sess.cookie.maxAge : (1000 * 60 * 60 * 24 * 7);
+      const expire = Date.now() + maxAge;
+      db.prepare('UPDATE user_sessions SET expire = ? WHERE sid = ?').run(expire, sid);
+      if (cb) cb(null);
+    } catch (err) {
+      if (cb) cb(err);
+    }
+  }
+}
+
+// Prevent browser/proxy from caching guest HTML across login/logout transitions
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Vary', 'Cookie');
+  next();
+});
+
 // Session setup
 app.use(session({
+  store: new SQLiteSessionStore(),
   secret: process.env.SESSION_SECRET || 'mainstreet_secure_jwt_token_session_2026',
   resave: false,
   saveUninitialized: false,
