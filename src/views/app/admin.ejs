@@ -2335,13 +2335,27 @@
                 </div>
             </div>
 
-            <!-- Transactions Ledger Table -->
-            <div class="luxury-glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
-                <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <!-- Transactions Ledger Table (Paginated Page-by-Page) -->
+            <div class="luxury-glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4"
+                 x-data="{
+                     txPage: 1,
+                     txPerPage: 8,
+                     txTotal: <%= transactions.length %>,
+                     get txTotalPages() { return Math.max(1, Math.ceil(this.txTotal / this.txPerPage)); }
+                 }">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.08] pb-3 gap-2">
                     <h3 class="text-sm font-extrabold uppercase tracking-wider text-white font-serif flex items-center space-x-2">
                         <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg><span>Complete Treasury Statement Ledger</span>
                     </h3>
-                    <span class="text-xs text-slate-400 font-mono"><%= transactions.length %> total records</span>
+                    <div class="flex items-center space-x-3 text-xs font-mono">
+                        <span class="text-slate-400">Page <strong class="text-white" x-text="txPage"></strong> of <strong class="text-white" x-text="txTotalPages"></strong> (<%= transactions.length %> total records)</span>
+                        <select x-model.number="txPerPage" @change="txPage = 1" class="bg-[#0D1424] border border-white/10 rounded-lg px-2 py-1 text-xs text-slate-300 outline-none">
+                            <option value="5">5 / page</option>
+                            <option value="8">8 / page</option>
+                            <option value="12">12 / page</option>
+                            <option value="20">20 / page</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Desktop Table View -->
@@ -2360,8 +2374,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% transactions.forEach(t => { %>
-                                <tr>
+                            <% transactions.forEach((t, txIdx) => { %>
+                                <tr x-show="Math.floor(<%= txIdx %> / txPerPage) + 1 === txPage">
                                     <td class="font-mono text-slate-400 font-bold">
                                         <%= t.reference || 'TX-' + t.id %>
                                     </td>
@@ -2428,8 +2442,8 @@
 
                 <!-- Mobile Transactions Card Stack -->
                 <div class="md:hidden space-y-3">
-                    <% transactions.forEach(t => { %>
-                        <div class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
+                    <% transactions.forEach((t, txIdx) => { %>
+                        <div x-show="Math.floor(<%= txIdx %> / txPerPage) + 1 === txPage" class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-mono text-slate-400 font-bold"><%= t.reference || 'TX-' + t.id %></span>
                                 <div>
@@ -2493,6 +2507,42 @@
                             </div>
                         </div>
                     <% }) %>
+                </div>
+
+                <!-- Page-by-Page Footer Controls -->
+                <div class="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
+                    <span class="text-slate-400">
+                        Showing <strong class="text-white" x-text="txTotal === 0 ? 0 : ((txPage - 1) * txPerPage + 1)"></strong> to <strong class="text-white" x-text="Math.min(txTotal, txPage * txPerPage)"></strong> of <strong class="text-white" x-text="txTotal"></strong> entries
+                    </span>
+                    <div class="flex items-center space-x-1.5">
+                        <button type="button" @click="txPage = 1" :disabled="txPage <= 1"
+                                :class="txPage <= 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 text-white'"
+                                class="px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-300 font-bold transition">
+                            &laquo;
+                        </button>
+                        <button type="button" @click="if (txPage > 1) txPage--" :disabled="txPage <= 1"
+                                :class="txPage <= 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 text-white'"
+                                class="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-300 font-bold transition">
+                            &lsaquo; Prev
+                        </button>
+                        <template x-for="p in txTotalPages" :key="p">
+                            <button type="button" x-show="Math.abs(p - txPage) <= 2 || p === 1 || p === txTotalPages"
+                                    @click="txPage = p"
+                                    :class="p === txPage ? 'bg-sky-500 text-white border-sky-500 font-bold shadow-sm' : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/10'"
+                                    class="w-8 h-8 rounded-xl border transition flex items-center justify-center"
+                                    x-text="p"></button>
+                        </template>
+                        <button type="button" @click="if (txPage < txTotalPages) txPage++" :disabled="txPage >= txTotalPages"
+                                :class="txPage >= txTotalPages ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 text-white'"
+                                class="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-300 font-bold transition">
+                            Next &rsaquo;
+                        </button>
+                        <button type="button" @click="txPage = txTotalPages" :disabled="txPage >= txTotalPages"
+                                :class="txPage >= txTotalPages ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 text-white'"
+                                class="px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-300 font-bold transition">
+                            &raquo;
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

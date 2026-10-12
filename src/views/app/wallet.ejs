@@ -427,9 +427,19 @@ function generateSvgPath(sparkline) {
         </div>
 
         <!-- ==========================================
-             TAB 3: BLOCKCHAIN ACTIVITY & FILLS
+             TAB 3: BLOCKCHAIN ACTIVITY & FILLS (Paginated Page-by-Page)
              ========================================== -->
-        <div x-show="currentTab === 'activity'" class="space-y-4">
+        <div x-show="currentTab === 'activity'" class="space-y-4"
+             x-data="{
+                 cryptoTxList: <%- JSON.stringify(typeof cryptoTransactions !== 'undefined' && cryptoTransactions ? cryptoTransactions : []).replace(/\"/g, '&quot;') %>,
+                 cPage: 1,
+                 cPerPage: 6,
+                 get cTotalPages() { return Math.max(1, Math.ceil(this.cryptoTxList.length / this.cPerPage)); },
+                 get pagedCryptoTx() {
+                     const start = (this.cPage - 1) * this.cPerPage;
+                     return this.cryptoTxList.slice(start, start + this.cPerPage);
+                 }
+             }">
             <div class="bg-white dark:bg-[#141517] rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-xs">
@@ -445,45 +455,68 @@ function generateSvgPath(sparkline) {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
-                            <% if (cryptoTransactions && cryptoTransactions.length > 0) { %>
-                                <% cryptoTransactions.forEach(function(tx) { %>
-                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
-                                    <td class="py-3.5 px-4 font-semibold">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= (tx.type || tx.direction || '').includes('in') || tx.amount > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600' %>">
-                                            <%= (tx.type || tx.direction || 'DEPOSIT').toUpperCase() %>
-                                        </span>
-                                    </td>
-                                    <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
-                                        <%= (tx.tx_hash || tx.reference || '0x' + Math.random().toString(16).substr(2, 8) + '...').substr(0, 14) %>...
-                                    </td>
-                                    <td class="py-3.5 px-4 text-slate-600 dark:text-slate-400">
-                                        <%= tx.currency || 'BTC' %> Native Network
-                                    </td>
-                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                        <%= Math.abs(tx.amount) %> <%= tx.currency || 'BTC' %>
-                                    </td>
-                                    <td class="py-3.5 px-4 text-right font-mono text-slate-600 dark:text-slate-400">
-                                        $<%= (Math.abs(tx.amount) * (tx.currency === 'BTC' ? 77923 : 1)).toFixed(2) %>
-                                    </td>
-                                    <td class="py-3.5 px-4 text-right text-slate-500">
-                                        <%= tx.created_at ? new Date(tx.created_at).toLocaleString() : 'Recent' %>
-                                    </td>
-                                    <td class="py-3.5 px-4 text-center">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                            CONFIRMED
-                                        </span>
-                                    </td>
-                                </tr>
-                                <% }); %>
-                            <% } else { %>
+                            <template x-if="pagedCryptoTx.length > 0">
+                                <template x-for="(tx, idx) in pagedCryptoTx" :key="tx.id || idx">
+                                    <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                                        <td class="py-3.5 px-4 font-semibold">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                                                  :class="(tx.type || tx.direction || '').includes('in') || tx.amount > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600'"
+                                                  x-text="(tx.type || tx.direction || 'DEPOSIT').toUpperCase()"></span>
+                                        </td>
+                                        <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400"
+                                            x-text="String(tx.tx_hash || tx.reference || '0x8f92e41b9c204a').slice(0, 14) + '...'"></td>
+                                        <td class="py-3.5 px-4 text-slate-600 dark:text-slate-400"
+                                            x-text="(tx.currency || 'BTC') + ' Native Network'"></td>
+                                        <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white"
+                                            x-text="Math.abs(tx.amount) + ' ' + (tx.currency || 'BTC')"></td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-slate-600 dark:text-slate-400"
+                                            x-text="'$' + (Math.abs(tx.amount) * (tx.currency === 'BTC' ? 77923 : 1)).toFixed(2)"></td>
+                                        <td class="py-3.5 px-4 text-right text-slate-500"
+                                            x-text="tx.created_at ? new Date(tx.created_at).toLocaleString() : 'Recent'"></td>
+                                        <td class="py-3.5 px-4 text-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                                CONFIRMED
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+                            <template x-if="pagedCryptoTx.length === 0">
                                 <tr>
                                     <td colspan="7" class="py-10 text-center text-slate-400">
                                         No recent on-chain transactions recorded for this vault.
                                     </td>
                                 </tr>
-                            <% } %>
+                            </template>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Page-by-Page Footer Controls -->
+                <div x-show="cryptoTxList.length > 0" class="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono bg-slate-50/40 dark:bg-slate-900/20">
+                    <span class="text-slate-500 dark:text-slate-400">
+                        Page <strong class="text-slate-900 dark:text-white" x-text="cPage"></strong> of <strong class="text-slate-900 dark:text-white" x-text="cTotalPages"></strong>
+                        (<span x-text="cryptoTxList.length"></span> records)
+                    </span>
+                    <div class="flex items-center space-x-1.5">
+                        <button type="button" @click="if (cPage > 1) cPage--" :disabled="cPage <= 1"
+                                :class="cPage <= 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white'"
+                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold transition">
+                            &lsaquo; Prev
+                        </button>
+                        <template x-for="p in cTotalPages" :key="p">
+                            <button type="button" x-show="Math.abs(p - cPage) <= 2 || p === 1 || p === cTotalPages"
+                                    @click="cPage = p"
+                                    :class="p === cPage ? 'bg-blue-600 text-white border-blue-600 font-bold' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'"
+                                    class="w-8 h-8 rounded-xl border transition flex items-center justify-center"
+                                    x-text="p"></button>
+                        </template>
+                        <button type="button" @click="if (cPage < cTotalPages) cPage++" :disabled="cPage >= cTotalPages"
+                                :class="cPage >= cTotalPages ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white'"
+                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold transition">
+                            Next &rsaquo;
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

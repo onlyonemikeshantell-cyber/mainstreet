@@ -123,7 +123,7 @@ const logActivity = (userId, action, details, req) => {
 router.get('/dashboard', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const openTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN' ORDER BY id DESC").all(user.id);
-  const recentTransactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 5').all(user.id);
+  const recentTransactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC').all(user.id);
   const activeSubscriptions = db.prepare(`
     SELECT cs.*, mt.name as master_name, mt.strategy_name, mt.avatar, mt.win_rate
     FROM copy_subscriptions cs
@@ -1055,14 +1055,29 @@ router.post('/api/wallet/send', (req, res) => {
   res.redirect('/wallet');
 });
 
-// 6. Statement & Transactions
+// 6. Statement & Transactions (Paginated Page-by-Page)
 router.get('/transactions', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-  const transactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC').all(user.id);
+  const allTransactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC').all(user.id);
+
+  const perPage = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 8));
+  const totalItems = allTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+  const currentPage = Math.max(1, Math.min(totalPages, parseInt(req.query.page, 10) || 1));
+  const startIndex = (currentPage - 1) * perPage;
+  const paginatedTransactions = allTransactions.slice(startIndex, startIndex + perPage);
+
   res.render('app/transactions', {
     title: 'Account Statement & Ledger | Mainstreet Capital Exchange',
     user,
-    transactions
+    transactions: allTransactions,
+    paginatedTransactions,
+    pagination: {
+      currentPage,
+      perPage,
+      totalItems,
+      totalPages
+    }
   });
 });
 

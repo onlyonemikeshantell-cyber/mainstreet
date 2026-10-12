@@ -1469,8 +1469,18 @@ function dashboardPortfolioApp() {
 
             </div>
 
-            <!-- TAB 4: RECENT ACTIVITY & LEDGER -->
-            <div id="history" x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak>
+            <!-- TAB 4: RECENT ACTIVITY & LEDGER (Paginated Page-by-Page) -->
+            <div id="history" x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak
+                 x-data="{
+                     txList: <%- JSON.stringify(typeof recentTransactions !== 'undefined' && recentTransactions ? recentTransactions : []).replace(/\"/g, '&quot;') %>,
+                     txPage: 1,
+                     txPerPage: 5,
+                     get txTotalPages() { return Math.max(1, Math.ceil(this.txList.length / this.txPerPage)); },
+                     get pagedTx() {
+                         const start = (this.txPage - 1) * this.txPerPage;
+                         return this.txList.slice(start, start + this.txPerPage);
+                     }
+                 }">
                 <div class="flex items-center justify-between border-b border-surface-border pb-3">
                     <div>
                         <div class="flex items-center space-x-2.5">
@@ -1479,53 +1489,84 @@ function dashboardPortfolioApp() {
                             </button>
                             <h3 class="text-base font-bold font-serif text-content-primary">Recent Transactions & Activity</h3>
                         </div>
-                        <p class="text-xs text-content-secondary mt-1">Audit log of deposits, withdrawals, trades, and credit adjustments.</p>
+                        <p class="text-xs text-content-secondary mt-1">Paginated audit log of deposits, withdrawals, trades, and credit adjustments.</p>
                     </div>
                     <a href="/transactions" class="text-xs font-bold text-primary hover:underline">
-                        View Full History &rarr;
+                        Open Full Statement &rarr;
                     </a>
                 </div>
 
-                <% if (typeof recentTransactions !== 'undefined' && recentTransactions && recentTransactions.length > 0) { %>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left font-mono text-xs">
-                            <thead class="bg-surface-overlay border-b border-surface-border text-[10px] text-content-tertiary uppercase font-sans">
-                                <tr>
-                                    <th class="py-2.5 px-4">Date</th>
-                                    <th class="py-2.5 px-4">Reference</th>
-                                    <th class="py-2.5 px-4">Type</th>
-                                    <th class="py-2.5 px-4">Amount</th>
-                                    <th class="py-2.5 px-4">Status</th>
-                                    <th class="py-2.5 px-4">Description</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-surface-border">
-                                <% recentTransactions.forEach(tx => { %>
-                                    <tr class="hover:bg-surface-overlay/50 transition">
-                                        <td class="py-3 px-4 text-content-tertiary"><%= new Date(tx.created_at).toLocaleDateString() %></td>
-                                        <td class="py-3 px-4 font-bold text-content-primary"><%= tx.reference || ('#TX-' + tx.id) %></td>
-                                        <td class="py-3 px-4">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= tx.type === 'deposit' || tx.type === 'bonus' ? 'bg-gain/20 text-gain' : (tx.type === 'withdrawal' ? 'bg-loss/20 text-loss' : 'bg-primary/20 text-primary') %>">
-                                                <%= tx.type %>
-                                            </span>
-                                        </td>
-                                        <td class="py-3 px-4 font-bold text-content-primary">$<%= Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2}) %></td>
-                                        <td class="py-3 px-4">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase <%= tx.status === 'completed' ? 'bg-gain/20 text-gain' : 'bg-amber-500/20 text-amber-600' %>">
-                                                <%= tx.status %>
-                                            </span>
-                                        </td>
-                                        <td class="py-3 px-4 text-content-secondary font-sans text-[11px]"><%= tx.description %></td>
+                <template x-if="txList.length > 0">
+                    <div class="space-y-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left font-mono text-xs">
+                                <thead class="bg-surface-overlay border-b border-surface-border text-[10px] text-content-tertiary uppercase font-sans">
+                                    <tr>
+                                        <th class="py-2.5 px-4">Date</th>
+                                        <th class="py-2.5 px-4">Reference</th>
+                                        <th class="py-2.5 px-4">Type</th>
+                                        <th class="py-2.5 px-4">Amount</th>
+                                        <th class="py-2.5 px-4">Status</th>
+                                        <th class="py-2.5 px-4">Description</th>
                                     </tr>
-                                <% }) %>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-surface-border">
+                                    <template x-for="tx in pagedTx" :key="tx.id">
+                                        <tr class="hover:bg-surface-overlay/50 transition">
+                                            <td class="py-3 px-4 text-content-tertiary" x-text="tx.created_at ? new Date(tx.created_at).toLocaleDateString() : ''"></td>
+                                            <td class="py-3 px-4 font-bold text-content-primary" x-text="tx.reference || ('#TX-' + tx.id)"></td>
+                                            <td class="py-3 px-4">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                                                      :class="tx.type === 'deposit' || tx.type === 'bonus' ? 'bg-gain/20 text-gain' : (tx.type === 'withdrawal' ? 'bg-loss/20 text-loss' : 'bg-primary/20 text-primary')"
+                                                      x-text="tx.type"></span>
+                                            </td>
+                                            <td class="py-3 px-4 font-bold text-content-primary" x-text="'$' + Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                            <td class="py-3 px-4">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                                                      :class="tx.status === 'completed' ? 'bg-gain/20 text-gain' : 'bg-amber-500/20 text-amber-600'"
+                                                      x-text="tx.status"></span>
+                                            </td>
+                                            <td class="py-3 px-4 text-content-secondary font-sans text-[11px]" x-text="tx.description"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Page-by-Page Controls -->
+                        <div class="pt-3 border-t border-surface-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
+                            <span class="text-content-secondary">
+                                Page <strong class="text-content-primary" x-text="txPage"></strong> of <strong class="text-content-primary" x-text="txTotalPages"></strong>
+                                (<span x-text="txList.length"></span> total transactions)
+                            </span>
+                            <div class="flex items-center space-x-1.5">
+                                <button type="button" @click="if (txPage > 1) txPage--" :disabled="txPage <= 1"
+                                        :class="txPage <= 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-border text-content-primary'"
+                                        class="px-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-content-secondary font-bold transition">
+                                    &lsaquo; Prev
+                                </button>
+                                <template x-for="p in txTotalPages" :key="p">
+                                    <button type="button" x-show="Math.abs(p - txPage) <= 2 || p === 1 || p === txTotalPages"
+                                            @click="txPage = p"
+                                            :class="p === txPage ? 'bg-primary text-white border-primary font-bold' : 'bg-surface-overlay text-content-secondary border-surface-border hover:bg-surface-border'"
+                                            class="w-8 h-8 rounded-xl border transition flex items-center justify-center"
+                                            x-text="p"></button>
+                                </template>
+                                <button type="button" @click="if (txPage < txTotalPages) txPage++" :disabled="txPage >= txTotalPages"
+                                        :class="txPage >= txTotalPages ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-border text-content-primary'"
+                                        class="px-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-content-secondary font-bold transition">
+                                    Next &rsaquo;
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                <% } else { %>
+                </template>
+
+                <template x-if="txList.length === 0">
                     <div class="py-8 text-center text-xs text-content-tertiary">
                         No transactions recorded yet.
                     </div>
-                <% } %>
+                </template>
             </div>
 
         </div>
