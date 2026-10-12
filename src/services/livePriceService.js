@@ -590,11 +590,11 @@ const persistMarketAndCheckOrders = () => {
   } catch(e) {}
 };
 
-// Calm Institutional Price Ticks: 3,500ms in-memory heartbeat
-setInterval(tickMarketPrices, 3500);
+// Calm Institutional Price Ticks: 8,000ms in-memory heartbeat
+setInterval(tickMarketPrices, 8000);
 
-// Throttled Database & Order Check: 5,000ms
-setInterval(persistMarketAndCheckOrders, 5000);
+// Throttled Database & Order Check: 10,000ms
+setInterval(persistMarketAndCheckOrders, 10000);
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };
