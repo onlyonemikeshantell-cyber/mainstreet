@@ -590,11 +590,11 @@ const persistMarketAndCheckOrders = () => {
   } catch(e) {}
 };
 
-// Calm Institutional Price Ticks: 8,000ms in-memory heartbeat
-setInterval(tickMarketPrices, 8000);
+// Sub-Second Micro-Ticks: 300ms high-frequency in-memory heartbeat for WebTrader Terminal
+setInterval(tickMarketPrices, 300);
 
-// Throttled Database & Order Check: 10,000ms
-setInterval(persistMarketAndCheckOrders, 10000);
+// Throttled Database & Order Check: 1,500ms
+setInterval(persistMarketAndCheckOrders, 1500);
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };
