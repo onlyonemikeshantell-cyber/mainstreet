@@ -582,6 +582,29 @@ router.post('/deposit', async (req, res) => {
   const ref = 'DEP-' + Math.floor(100000 + Math.random() * 900000);
   const gwName = gateway ? `${gateway.name} (${gateway.currency})` : 'Cryptocurrency Direct';
 
+  // 0. Check if Live Blockchain Tracker already auto-credited this exact transaction for this user
+  if (tx_hash && tx_hash.trim()) {
+    const alreadyCreditedForUser = db.prepare(
+      "SELECT id, reference, amount FROM transactions WHERE tx_hash = ? AND user_id = ? AND status = 'completed' ORDER BY id DESC LIMIT 1"
+    ).get(tx_hash.trim(), user.id);
+
+    if (alreadyCreditedForUser) {
+      if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+        return res.json({
+          success: true,
+          reference: alreadyCreditedForUser.reference || `DEP-${alreadyCreditedForUser.id}`,
+          amount: alreadyCreditedForUser.amount,
+          newBalance: user.balance,
+          message: 'Deposit verified and auto-credited to balance instantly!'
+        });
+      }
+      req.session.flash = {
+        success: `Deposit #${alreadyCreditedForUser.reference || alreadyCreditedForUser.id} Confirmed! $${Number(alreadyCreditedForUser.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} USD has already been credited to your trading balance.`
+      };
+      return res.redirect('/dashboard');
+    }
+  }
+
   // 1. REAL ON-CHAIN BLOCKCHAIN VERIFICATION
   let onChainResult = null;
   const isCryptoGateway = gateway && gateway.currency !== 'USD';
@@ -619,9 +642,9 @@ router.post('/deposit', async (req, res) => {
         onChainResult,
         gwName,
         ref,
-        txHash,
-        proofNotes,
-        proofImage,
+        txHash: tx_hash,
+        proofNotes: proof_notes,
+        proofImage: proof_image,
         req
       });
 

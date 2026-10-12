@@ -95,12 +95,18 @@ db.exec(`
     reference TEXT UNIQUE,
     tx_hash TEXT DEFAULT NULL,
     receipt_url TEXT DEFAULT NULL,
+    proof_image TEXT DEFAULT NULL,
     status TEXT DEFAULT 'pending',
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
 `);
+
+const txCols = db.prepare('PRAGMA table_info(transactions)').all().map(c => c.name);
+if (!txCols.includes('proof_image')) {
+  db.exec("ALTER TABLE transactions ADD COLUMN proof_image TEXT DEFAULT NULL");
+}
 
 // 3. Trades Table
 db.exec(`
