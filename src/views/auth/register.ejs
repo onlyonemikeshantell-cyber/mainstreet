@@ -79,6 +79,20 @@
             <p class="text-xs text-content-secondary max-w-sm mx-auto">Get instantaneous access to real-time institutional execution with $10,000 demo capital.</p>
         </div>
 
+        <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
+            <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>⚠️</span>
+                <span><%= flash.error %></span>
+            </div>
+        <% } %>
+
+        <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
+            <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>✓</span>
+                <span><%= flash.success %></span>
+            </div>
+        <% } %>
+
         <!-- Master Form -->
         <form action="/register" method="POST" @submit="isSubmitting = true" class="space-y-4 text-xs font-mono">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />

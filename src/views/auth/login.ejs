@@ -8,9 +8,23 @@
             <div class="flex justify-center">
                 <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-12 w-auto object-contain drop-shadow-md" />
             </div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-content-primary font-serif">Welcome Back</h1>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-content-primary dark:text-white font-serif">Welcome Back</h1>
             <p class="text-xs text-content-secondary">Access your institutional trading terminal & portfolio.</p>
         </div>
+
+        <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
+            <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>⚠️</span>
+                <span><%= flash.error %></span>
+            </div>
+        <% } %>
+
+        <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
+            <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>✓</span>
+                <span><%= flash.success %></span>
+            </div>
+        <% } %>
 
         <!-- Form -->
         <form action="/login" method="POST" class="space-y-4 text-xs font-mono">
@@ -18,7 +32,7 @@
 
             <div>
                 <label class="block uppercase font-semibold text-content-secondary mb-1.5 font-sans">Email Address *</label>
-                <input type="email" name="email" required placeholder="trader@mainstreetcapitalexchange.com" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
+                <input type="email" name="email" required autocomplete="username" placeholder="trader@mainstreetcapitalexchange.com" class="w-full bg-white dark:bg-[#1c1c1e] border border-surface-border dark:border-white/10 text-content-primary dark:text-white rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
             </div>
 
             <div x-data="{ showPass: false }">
@@ -32,7 +46,7 @@
                     </div>
                 </div>
                 <div class="relative">
-                    <input :type="showPass ? 'text' : 'password'" name="password" required placeholder="••••••••••••" class="w-full bg-white border border-surface-border text-content-primary rounded-xl pl-4 pr-11 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
+                    <input :type="showPass ? 'text' : 'password'" name="password" required autocomplete="current-password" placeholder="••••••••••••" class="w-full bg-white dark:bg-[#1c1c1e] border border-surface-border dark:border-white/10 text-content-primary dark:text-white rounded-xl pl-4 pr-11 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
                     <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-content-tertiary hover:text-primary transition" title="Toggle password visibility (Spy password)">
                         <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         <svg x-show="showPass" class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>

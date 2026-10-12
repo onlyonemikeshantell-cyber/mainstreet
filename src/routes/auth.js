@@ -135,22 +135,35 @@ const { sendEmail } = require('../services/mailer');
 
 // GET /login
 router.get('/login', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   if (req.session.userId) {
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(req.session.userId);
-    if (user && user.role === 'admin') return res.redirect('/babyoku');
-    return res.redirect('/dashboard');
+    const user = db.prepare('SELECT id, role, is_active FROM users WHERE id = ?').get(req.session.userId);
+    if (user && user.is_active !== 0) {
+      if (user.role === 'admin') return res.redirect('/babyoku');
+      return res.redirect('/dashboard');
+    }
+    req.session.userId = null;
+  }
+  if (req.query.loggedOut === '1' && (!res.locals.flash || (!res.locals.flash.success && !res.locals.flash.error))) {
+    res.locals.flash = { success: 'You have been signed out securely.' };
   }
   res.render('auth/login', { title: 'Sign In | Mainstreet Capital Exchange' });
 });
 
 // GET /babyoku/login (and alias /admin/login -> /babyoku/login)
 router.get(['/babyoku/login', '/admin/login'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   if (req.path.startsWith('/admin')) {
     return res.redirect('/babyoku/login');
   }
   if (req.session.userId) {
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(req.session.userId);
-    if (user && user.role === 'admin') return res.redirect('/babyoku');
+    const user = db.prepare('SELECT id, role, is_active FROM users WHERE id = ?').get(req.session.userId);
+    if (user && user.role === 'admin' && user.is_active !== 0) {
+      return res.redirect('/babyoku');
+    }
+  }
+  if (req.query.loggedOut === '1' && (!res.locals.flash || (!res.locals.flash.success && !res.locals.flash.error))) {
+    res.locals.flash = { success: 'Executive session terminated securely.' };
   }
   res.render('auth/admin-login', { 
     title: 'Executive Console Login | Mainstreet Capital Exchange',
@@ -165,7 +178,7 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     req.session.flash = { error: 'Please enter both your email and password.' };
-    return res.redirect(redirectTarget);
+    return req.session.save(() => res.redirect(redirectTarget));
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
@@ -177,7 +190,7 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   if (record && record.lockedUntil > now) {
     const mins = Math.ceil((record.lockedUntil - now) / 60000);
     req.session.flash = { error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.` };
-    return res.redirect(redirectTarget);
+    return req.session.save(() => res.redirect(redirectTarget));
   }
   const registerFailure = () => {
     const r = loginAttempts.get(attemptKey) || { count: 0, first: now, lockedUntil: 0 };
@@ -196,13 +209,20 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
     match = false;
   }
 
-  // Admin console only admits admin accounts
-  if (match && isAdminPath && user.role !== 'admin') match = false;
-
   if (!user || !match) {
     registerFailure();
     req.session.flash = { error: 'Invalid email or password.' };
-    return res.redirect(redirectTarget);
+    return req.session.save(() => res.redirect(redirectTarget));
+  }
+
+  if (isAdminPath && user.role !== 'admin') {
+    req.session.flash = { error: 'Access denied: Administrator credentials are required for the Executive Console.' };
+    return req.session.save(() => res.redirect(redirectTarget));
+  }
+
+  if (user.is_active === 0) {
+    req.session.flash = { error: 'Your account is currently suspended. Please contact our compliance desk.' };
+    return req.session.save(() => res.redirect(redirectTarget));
   }
 
   // Clear failed attempts upon successful password match
@@ -212,18 +232,20 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   if (user.two_factor_enabled === 1 && user.two_factor_secret) {
     req.session.pending2faUserId = user.id;
     req.session.pending2faIsAdmin = (user.role === 'admin' && isAdminPath);
-    return res.redirect('/login/2fa');
+    return req.session.save(() => res.redirect('/login/2fa'));
   }
 
   req.session.userId = user.id;
+  req.session.adminId = null;
   logActivity(user.id, 'LOGIN', `User logged in successfully via ${req.path}`, req);
   req.session.flash = { success: `Welcome back, ${user.name}!` };
 
-  if (user.role === 'admin') {
-    return res.redirect('/babyoku');
-  } else {
+  return req.session.save(() => {
+    if (user.role === 'admin') {
+      return res.redirect('/babyoku');
+    }
     return res.redirect('/dashboard');
-  }
+  });
 });
 
 // GET /login/2fa -> Render 2FA verification prompt
@@ -244,13 +266,13 @@ router.post('/login/2fa', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.pending2faUserId);
   if (!user || !user.two_factor_secret) {
     req.session.pending2faUserId = null;
-    return res.redirect('/login');
+    return req.session.save(() => res.redirect('/login'));
   }
 
   const isValid = verifyTotp(user.two_factor_secret, totp_code);
   if (!isValid) {
     req.session.flash = { error: 'Invalid 2FA code. Please enter the current 6-digit code from your Authenticator app.' };
-    return res.redirect('/login/2fa');
+    return req.session.save(() => res.redirect('/login/2fa'));
   }
 
   // Authentication fully validated
@@ -261,15 +283,24 @@ router.post('/login/2fa', (req, res) => {
 
   logActivity(user.id, 'LOGIN_2FA_SUCCESS', `2FA Authenticated successfully `, req);
 
-  if (isAdminLogin || user.role === 'admin') {
-    return res.redirect('/babyoku');
-  }
-  res.redirect('/dashboard');
+  return req.session.save(() => {
+    if (isAdminLogin || user.role === 'admin') {
+      return res.redirect('/babyoku');
+    }
+    return res.redirect('/dashboard');
+  });
 });
 
 // GET /register
 router.get('/register', (req, res) => {
-  if (req.session.userId) return res.redirect('/dashboard');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  if (req.session.userId) {
+    const user = db.prepare('SELECT id, role, is_active FROM users WHERE id = ?').get(req.session.userId);
+    if (user && user.is_active !== 0) {
+      return res.redirect(user.role === 'admin' ? '/babyoku' : '/dashboard');
+    }
+    req.session.userId = null;
+  }
   const captchaQuestion = generateCaptcha(req);
   res.render('auth/register', { 
     title: 'Open Live Account | Mainstreet Capital Exchange',
@@ -348,22 +379,26 @@ router.post('/register', (req, res) => {
       VALUES (?, 'bonus', 10000.00, 'USD', 'completed', 'Demo Capital', ?, 'Welcome Trading Bonus Balance')
     `).run(newUserId, 'MCE-WEL-' + newUserId + '-' + Date.now());
 
-    // Auto-seed default crypto balance ledger
+    // Auto-seed default crypto & stock balance ledger
     try {
       const defaultCryptos = [
-        { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 68650.00 },
-        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3645.00 },
-        { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00 },
-        { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 156.20 },
-        { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 612.80 },
-        { symbol: 'USD', name: 'US Dollar', icon: '$', balance: 10000.00, rate: 1.00 }
+        { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 64800.00, type: 'crypto' },
+        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3540.00, type: 'crypto' },
+        { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00, type: 'crypto' },
+        { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 148.50, type: 'crypto' },
+        { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 580.00, type: 'crypto' },
+        { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 10000.00, rate: 1.00, type: 'fiat' },
+        { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 15.0000, rate: 224.20, type: 'stock' },
+        { symbol: 'MSFT', name: 'Microsoft Corporation', icon: '🪟', balance: 8.0000, rate: 418.50, type: 'stock' },
+        { symbol: 'NVDA', name: 'NVIDIA Corporation', icon: '🟢', balance: 25.0000, rate: 128.50, type: 'stock' },
+        { symbol: 'TSLA', name: 'Tesla, Inc.', icon: '⚡', balance: 12.0000, rate: 218.40, type: 'stock' }
       ];
       const insertCrypto = db.prepare(`
-        INSERT OR IGNORE INTO user_crypto_balances (user_id, symbol, name, icon, balance, rate)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       for (const c of defaultCryptos) {
-        insertCrypto.run(newUserId, c.symbol, c.name, c.icon, c.balance, c.rate);
+        insertCrypto.run(newUserId, c.symbol, c.name, c.balance, c.icon, c.rate, c.type);
       }
     } catch (e) {
       console.warn('Could not auto-seed crypto balances for user:', e.message);
@@ -384,11 +419,11 @@ router.post('/register', (req, res) => {
     };
 
     req.session.flash = { success: 'Welcome to Mainstreet Capital Exchange! Your account has been created with $10,000 demo capital.' };
-    return res.redirect('/dashboard');
+    return req.session.save(() => res.redirect('/dashboard'));
   } catch (err) {
     console.error('Registration error:', err);
     req.session.flash = { error: 'Registration failed: ' + err.message };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 });
 
@@ -537,24 +572,31 @@ router.post('/reset-password', (req, res) => {
   res.redirect('/login');
 });
 
-// GET & POST /logout
-router.all('/logout', (req, res) => {
-  let wasAdmin = false;
-  if (req.session.adminId) {
-    wasAdmin = true;
-  } else if (req.session.userId) {
-    try {
-      const u = db.prepare('SELECT role FROM users WHERE id = ?').get(req.session.userId);
-      if (u && u.role === 'admin') wasAdmin = true;
-      logActivity(req.session.userId, 'LOGOUT', 'User logged out', req);
-    } catch (e) {}
-  }
-  req.session.destroy(() => {
-    if (wasAdmin) {
-      return res.redirect('/babyoku/login');
+// GET & POST /logout (and /babyoku/logout, /admin/logout, /signout)
+router.all(['/logout', '/babyoku/logout', '/admin/logout', '/signout'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  let wasAdmin = req.path.includes('babyoku') || req.path.includes('admin');
+  if (req.session) {
+    if (req.session.adminId) {
+      wasAdmin = true;
+    } else if (req.session.userId) {
+      try {
+        const u = db.prepare('SELECT role FROM users WHERE id = ?').get(req.session.userId);
+        if (u && u.role === 'admin') wasAdmin = true;
+        logActivity(req.session.userId, 'LOGOUT', 'User logged out', req);
+      } catch (e) {}
     }
-    res.redirect('/login');
-  });
+    req.session.destroy(() => {
+      res.clearCookie('connect.sid');
+      if (wasAdmin) {
+        return res.redirect('/babyoku/login?loggedOut=1');
+      }
+      return res.redirect('/login?loggedOut=1');
+    });
+  } else {
+    res.clearCookie('connect.sid');
+    return res.redirect(wasAdmin ? '/babyoku/login?loggedOut=1' : '/login?loggedOut=1');
+  }
 });
 
 module.exports = router;

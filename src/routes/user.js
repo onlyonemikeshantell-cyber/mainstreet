@@ -100,6 +100,15 @@ const requireAuth = (req, res, next) => {
     req.session.flash = { error: 'Please log in to access this trading area.' };
     return res.redirect('/login');
   }
+  const activeUser = db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(req.session.userId);
+  if (!activeUser || activeUser.is_active === 0) {
+    req.session.userId = null;
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, error: 'Session expired or account inactive. Please log in again.' });
+    }
+    req.session.flash = { error: 'Your session has expired or your account is inactive. Please sign in.' };
+    return res.redirect('/login');
+  }
   next();
 };
 

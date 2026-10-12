@@ -3,7 +3,15 @@ const crypto = require('crypto');
 const EXEMPT_PREFIXES = [
   '/api/webhooks',
   '/api/kyc/didit/webhook',
-  '/api/market/sync-live-price'
+  '/api/market/sync-live-price',
+  '/logout',
+  '/babyoku/logout',
+  '/admin/logout',
+  '/signout',
+  '/login',
+  '/babyoku/login',
+  '/admin/login',
+  '/register'
 ];
 
 const csrfMiddleware = (req, res, next) => {

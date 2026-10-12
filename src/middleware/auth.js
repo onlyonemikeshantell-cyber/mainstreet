@@ -7,8 +7,9 @@ const requireAuth = (req, res, next) => {
     return res.redirect('/login');
   }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-  if (user && user.is_active === 0) {
+  if (!user || user.is_active === 0) {
     req.session.destroy(() => {
+      res.clearCookie('connect.sid');
       res.redirect('/login');
     });
     return;
@@ -22,9 +23,9 @@ const requireAdmin = (req, res, next) => {
     return res.redirect('/babyoku/login');
   }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(effectiveAdminId);
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== 'admin' || user.is_active === 0) {
     req.session.flash = { error: 'Access denied. Administrator privileges required.' };
-    return res.redirect('/dashboard');
+    return res.redirect('/babyoku/login');
   }
   next();
 };
@@ -33,7 +34,12 @@ const injectUser = (req, res, next) => {
   if (req.session.userId) {
     try {
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-      res.locals.user = user || null;
+      if (user && user.is_active !== 0) {
+        res.locals.user = user;
+      } else {
+        req.session.userId = null;
+        res.locals.user = null;
+      }
     } catch (e) {
       res.locals.user = null;
     }
