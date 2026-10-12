@@ -61,6 +61,59 @@ try {
       db.prepare('UPDATE market_settings SET category = ? WHERE symbol = ?').run('etf', sym);
     }
   }
+
+  // Ensure comprehensive Global Blue-Chip Stocks exist in market_settings
+  const stockInsert = db.prepare(`
+    INSERT OR IGNORE INTO market_settings (symbol, name, category, spread, leverage, min_lot, max_lot, is_tradable)
+    VALUES (?, ?, 'stocks', ?, 20, 0.01, 100.0, 1)
+  `);
+  const majorStocks = [
+    ['AVGO', 'Broadcom Inc.', 0.08],
+    ['ORCL', 'Oracle Corporation', 0.06],
+    ['CRM', 'Salesforce, Inc.', 0.08],
+    ['INTC', 'Intel Corporation', 0.04],
+    ['QCOM', 'QUALCOMM Incorporated', 0.06],
+    ['ARM', 'Arm Holdings plc', 0.10],
+    ['MU', 'Micron Technology, Inc.', 0.06],
+    ['ASML', 'ASML Holding N.V.', 0.15],
+    ['MA', 'Mastercard Incorporated', 0.08],
+    ['BAC', 'Bank of America Corp', 0.04],
+    ['GS', 'Goldman Sachs Group', 0.10],
+    ['MS', 'Morgan Stanley', 0.06],
+    ['WMT', 'Walmart Inc.', 0.04],
+    ['COST', 'Costco Wholesale Corp', 0.12],
+    ['HD', 'The Home Depot, Inc.', 0.08],
+    ['KO', 'The Coca-Cola Company', 0.04],
+    ['PEP', 'PepsiCo, Inc.', 0.06],
+    ['PG', 'Procter & Gamble Co.', 0.06],
+    ['MCD', 'McDonald\'s Corporation', 0.08],
+    ['NKE', 'NIKE, Inc.', 0.05],
+    ['JNJ', 'Johnson & Johnson', 0.06],
+    ['UNH', 'UnitedHealth Group Inc.', 0.12],
+    ['ABBV', 'AbbVie Inc.', 0.06],
+    ['MRK', 'Merck & Co., Inc.', 0.05],
+    ['PFE', 'Pfizer Inc.', 0.04],
+    ['ISRG', 'Intuitive Surgical, Inc.', 0.12],
+    ['VRTX', 'Vertex Pharmaceuticals', 0.12],
+    ['REGN', 'Regeneron Pharmaceuticals', 0.15],
+    ['XOM', 'Exxon Mobil Corporation', 0.05],
+    ['CVX', 'Chevron Corporation', 0.06],
+    ['NEE', 'NextEra Energy, Inc.', 0.05],
+    ['ENPH', 'Enphase Energy, Inc.', 0.10],
+    ['FSLR', 'First Solar, Inc.', 0.10],
+    ['CAT', 'Caterpillar Inc.', 0.10],
+    ['BA', 'The Boeing Company', 0.08],
+    ['LMT', 'Lockheed Martin Corp', 0.12],
+    ['GE', 'GE Aerospace', 0.06]
+  ];
+  for (const [sym, name, spr] of majorStocks) {
+    const existing = db.prepare('SELECT id FROM market_settings WHERE symbol = ?').get(sym);
+    if (!existing) {
+      stockInsert.run(sym, name, spr);
+    } else {
+      db.prepare('UPDATE market_settings SET category = ? WHERE symbol = ?').run('stocks', sym);
+    }
+  }
 } catch(e) {}
 
 
@@ -408,18 +461,73 @@ const defaultSpotAssets = [
   { symbol: 'AMZN', name: 'Amazon.com, Inc.', icon: '📦', balance: 18.0000, rate: 178.60, type: 'stock' },
   { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)', icon: '🔍', balance: 14.0000, rate: 164.80, type: 'stock' },
   { symbol: 'META', name: 'Meta Platforms, Inc.', icon: '♾️', balance: 6.0000, rate: 512.30, type: 'stock' },
-  { symbol: 'PLTR', name: 'Palantir Technologies', icon: '👁️', balance: 80.0000, rate: 31.80, type: 'stock' }
+  { symbol: 'PLTR', name: 'Palantir Technologies', icon: '👁️', balance: 80.0000, rate: 31.80, type: 'stock' },
+  // Expanded Global Blue-Chip Equities Catalog
+  { symbol: 'AMD', name: 'Advanced Micro Devices', icon: '🏛️', balance: 0.0, rate: 152.40, type: 'stock' },
+  { symbol: 'NFLX', name: 'Netflix, Inc.', icon: '🏛️', balance: 0.0, rate: 684.20, type: 'stock' },
+  { symbol: 'AVGO', name: 'Broadcom Inc.', icon: '🏛️', balance: 0.0, rate: 176.80, type: 'stock' },
+  { symbol: 'ORCL', name: 'Oracle Corporation', icon: '🏛️', balance: 0.0, rate: 168.40, type: 'stock' },
+  { symbol: 'CRM', name: 'Salesforce, Inc.', icon: '🏛️', balance: 0.0, rate: 288.50, type: 'stock' },
+  { symbol: 'INTC', name: 'Intel Corporation', icon: '🏛️', balance: 0.0, rate: 24.60, type: 'stock' },
+  { symbol: 'QCOM', name: 'QUALCOMM Incorporated', icon: '🏛️', balance: 0.0, rate: 172.30, type: 'stock' },
+  { symbol: 'ARM', name: 'Arm Holdings plc', icon: '🏛️', balance: 0.0, rate: 144.80, type: 'stock' },
+  { symbol: 'MU', name: 'Micron Technology, Inc.', icon: '🏛️', balance: 0.0, rate: 108.40, type: 'stock' },
+  { symbol: 'TSM', name: 'Taiwan Semiconductor Mfg', icon: '🏛️', balance: 0.0, rate: 168.40, type: 'stock' },
+  { symbol: 'ASML', name: 'ASML Holding N.V.', icon: '🏛️', balance: 0.0, rate: 842.50, type: 'stock' },
+  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', icon: '🏛️', balance: 0.0, rate: 214.50, type: 'stock' },
+  { symbol: 'V', name: 'Visa Inc.', icon: '🏛️', balance: 0.0, rate: 268.90, type: 'stock' },
+  { symbol: 'MA', name: 'Mastercard Incorporated', icon: '🏛️', balance: 0.0, rate: 492.40, type: 'stock' },
+  { symbol: 'BRK.B', name: 'Berkshire Hathaway Inc.', icon: '🏛️', balance: 0.0, rate: 448.20, type: 'stock' },
+  { symbol: 'BAC', name: 'Bank of America Corp', icon: '🏛️', balance: 0.0, rate: 41.80, type: 'stock' },
+  { symbol: 'GS', name: 'Goldman Sachs Group', icon: '🏛️', balance: 0.0, rate: 512.60, type: 'stock' },
+  { symbol: 'MS', name: 'Morgan Stanley', icon: '🏛️', balance: 0.0, rate: 114.20, type: 'stock' },
+  { symbol: 'COIN', name: 'Coinbase Global, Inc.', icon: '🏛️', balance: 0.0, rate: 218.50, type: 'stock' },
+  { symbol: 'MSTR', name: 'MicroStrategy Inc.', icon: '🏛️', balance: 0.0, rate: 194.80, type: 'stock' },
+  { symbol: 'WMT', name: 'Walmart Inc.', icon: '🏛️', balance: 0.0, rate: 80.40, type: 'stock' },
+  { symbol: 'COST', name: 'Costco Wholesale Corp', icon: '🏛️', balance: 0.0, rate: 892.30, type: 'stock' },
+  { symbol: 'HD', name: 'The Home Depot, Inc.', icon: '🏛️', balance: 0.0, rate: 394.50, type: 'stock' },
+  { symbol: 'KO', name: 'The Coca-Cola Company', icon: '🏛️', balance: 0.0, rate: 69.80, type: 'stock' },
+  { symbol: 'PEP', name: 'PepsiCo, Inc.', icon: '🏛️', balance: 0.0, rate: 172.40, type: 'stock' },
+  { symbol: 'PG', name: 'Procter & Gamble Co.', icon: '🏛️', balance: 0.0, rate: 174.20, type: 'stock' },
+  { symbol: 'MCD', name: 'McDonald\'s Corporation', icon: '🏛️', balance: 0.0, rate: 298.60, type: 'stock' },
+  { symbol: 'NKE', name: 'NIKE, Inc.', icon: '🏛️', balance: 0.0, rate: 82.40, type: 'stock' },
+  { symbol: 'DIS', name: 'The Walt Disney Company', icon: '🏛️', balance: 0.0, rate: 92.40, type: 'stock' },
+  { symbol: 'UBER', name: 'Uber Technologies, Inc.', icon: '🏛️', balance: 0.0, rate: 72.80, type: 'stock' },
+  { symbol: 'BABA', name: 'Alibaba Group Holding', icon: '🏛️', balance: 0.0, rate: 82.50, type: 'stock' },
+  { symbol: 'LLY', name: 'Eli Lilly and Company', icon: '🏛️', balance: 0.0, rate: 942.50, type: 'stock' },
+  { symbol: 'JNJ', name: 'Johnson & Johnson', icon: '🏛️', balance: 0.0, rate: 162.80, type: 'stock' },
+  { symbol: 'UNH', name: 'UnitedHealth Group Inc.', icon: '🏛️', balance: 0.0, rate: 584.20, type: 'stock' },
+  { symbol: 'ABBV', name: 'AbbVie Inc.', icon: '🏛️', balance: 0.0, rate: 194.60, type: 'stock' },
+  { symbol: 'MRK', name: 'Merck & Co., Inc.', icon: '🏛️', balance: 0.0, rate: 114.80, type: 'stock' },
+  { symbol: 'PFE', name: 'Pfizer Inc.', icon: '🏛️', balance: 0.0, rate: 28.90, type: 'stock' },
+  { symbol: 'ISRG', name: 'Intuitive Surgical, Inc.', icon: '🏛️', balance: 0.0, rate: 486.40, type: 'stock' },
+  { symbol: 'VRTX', name: 'Vertex Pharmaceuticals', icon: '🏛️', balance: 0.0, rate: 472.80, type: 'stock' },
+  { symbol: 'REGN', name: 'Regeneron Pharmaceuticals', icon: '🏛️', balance: 0.0, rate: 998.50, type: 'stock' },
+  { symbol: 'XOM', name: 'Exxon Mobil Corporation', icon: '🏛️', balance: 0.0, rate: 121.40, type: 'stock' },
+  { symbol: 'CVX', name: 'Chevron Corporation', icon: '🏛️', balance: 0.0, rate: 152.80, type: 'stock' },
+  { symbol: 'NEE', name: 'NextEra Energy, Inc.', icon: '🏛️', balance: 0.0, rate: 84.20, type: 'stock' },
+  { symbol: 'ENPH', name: 'Enphase Energy, Inc.', icon: '🏛️', balance: 0.0, rate: 96.40, type: 'stock' },
+  { symbol: 'FSLR', name: 'First Solar, Inc.', icon: '🏛️', balance: 0.0, rate: 218.60, type: 'stock' },
+  { symbol: 'CAT', name: 'Caterpillar Inc.', icon: '🏛️', balance: 0.0, rate: 384.20, type: 'stock' },
+  { symbol: 'BA', name: 'The Boeing Company', icon: '🏛️', balance: 0.0, rate: 156.40, type: 'stock' },
+  { symbol: 'LMT', name: 'Lockheed Martin Corp', icon: '🏛️', balance: 0.0, rate: 586.40, type: 'stock' },
+  { symbol: 'GE', name: 'GE Aerospace', icon: '🏛️', balance: 0.0, rate: 188.60, type: 'stock' }
 ];
 
 const ensureUserCryptoBalances = (userId) => {
   const count = db.prepare('SELECT COUNT(*) as count FROM user_crypto_balances WHERE user_id = ?').get(userId).count;
+  const insertStmt = db.prepare(`
+    INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
   if (count === 0) {
-    const insertStmt = db.prepare(`
-      INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
     defaultSpotAssets.forEach(a => {
       insertStmt.run(userId, a.symbol, a.name, a.balance, a.icon, a.rate, a.type);
+    });
+  } else {
+    // Ensure any newly added catalog stocks exist with 0.0 balance for existing users
+    defaultSpotAssets.filter(a => a.type === 'stock').forEach(a => {
+      insertStmt.run(userId, a.symbol, a.name, 0.0, a.icon, a.rate, a.type);
     });
   }
 };

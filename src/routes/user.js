@@ -1584,7 +1584,7 @@ router.post('/api/user/swap', requireAuth, (req, res) => {
     const toAssetRow = db.prepare('SELECT * FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = ?').get(userId, toSym);
     if (!toAssetRow) {
       const mkt = db.prepare('SELECT * FROM market_settings WHERE symbol = ? OR symbol LIKE ?').get(toSym, toSym + '/%');
-      const isStock = (mkt && mkt.category === 'stocks') || ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'PLTR', 'AMD', 'NFLX'].includes(toSym);
+      const isStock = (mkt && mkt.category === 'stocks') || ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'PLTR', 'AMD', 'NFLX', 'JPM', 'V', 'BRK.B', 'LLY', 'DIS', 'BABA', 'TSM', 'UBER', 'AVGO', 'ORCL', 'CRM', 'INTC', 'QCOM', 'ARM', 'MU', 'ASML', 'MA', 'BAC', 'GS', 'MS', 'COIN', 'MSTR', 'WMT', 'COST', 'HD', 'KO', 'PEP', 'PG', 'MCD', 'NKE', 'JNJ', 'UNH', 'ABBV', 'MRK', 'PFE', 'ISRG', 'VRTX', 'REGN', 'XOM', 'CVX', 'NEE', 'ENPH', 'FSLR', 'CAT', 'BA', 'LMT', 'GE'].includes(toSym);
       const assetType = isStock ? 'stock' : (toSym === 'USDT' ? 'fiat' : 'crypto');
       const assetName = mkt ? mkt.name : (livePrices[toSym]?.name || toSym);
       
@@ -1685,7 +1685,7 @@ router.post('/api/user/spot-trade', requireAuth, (req, res) => {
   let asset = db.prepare('SELECT * FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = ?').get(userId, sym);
   if (!asset) {
     const mkt = db.prepare('SELECT * FROM market_settings WHERE symbol = ?').get(sym);
-    const assetType = (mkt && mkt.category === 'stocks') || ['AAPL','MSFT','NVDA','TSLA','AMZN','GOOGL','META','PLTR','AMD','NFLX','JPM','V','BRK.B','LLY','DIS','BABA','TSM','UBER'].includes(sym) ? 'stock' : 'crypto';
+    const assetType = (mkt && mkt.category === 'stocks') || ['AAPL','MSFT','NVDA','TSLA','AMZN','GOOGL','META','PLTR','AMD','NFLX','JPM','V','BRK.B','LLY','DIS','BABA','TSM','UBER','AVGO','ORCL','CRM','INTC','QCOM','ARM','MU','ASML','MA','BAC','GS','MS','COIN','MSTR','WMT','COST','HD','KO','PEP','PG','MCD','NKE','JNJ','UNH','ABBV','MRK','PFE','ISRG','VRTX','REGN','XOM','CVX','NEE','ENPH','FSLR','CAT','BA','LMT','GE'].includes(sym) ? 'stock' : 'crypto';
     const assetName = mkt ? mkt.name : (livePrices[sym]?.name || sym);
     const defaultIcon = assetType === 'stock' ? '🏛️' : '🪙';
     db.prepare(`

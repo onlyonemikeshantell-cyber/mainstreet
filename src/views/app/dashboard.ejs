@@ -1632,16 +1632,22 @@ function dashboardPortfolioApp() {
                                 <option value="PEPE">PEPE (Pepe)</option>
                             </optgroup>
                             <optgroup label="🏛️ Global Stocks">
-                                <option value="AAPL">AAPL (Apple Inc)</option>
-                                <option value="MSFT">MSFT (Microsoft)</option>
-                                <option value="NVDA">NVDA (NVIDIA)</option>
-                                <option value="TSLA">TSLA (Tesla)</option>
-                                <option value="AMZN">AMZN (Amazon)</option>
-                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
-                                <option value="META">META (Meta Platforms)</option>
-                                <option value="PLTR">PLTR (Palantir)</option>
-                                <option value="AMD">AMD (Advanced Micro Devices)</option>
-                                <option value="NFLX">NFLX (Netflix)</option>
+                                <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
+                                    <% stockBalances.forEach(s => { %>
+                                        <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
+                                    <% }) %>
+                                <% } else { %>
+                                    <option value="AAPL">AAPL (Apple Inc)</option>
+                                    <option value="MSFT">MSFT (Microsoft)</option>
+                                    <option value="NVDA">NVDA (NVIDIA)</option>
+                                    <option value="TSLA">TSLA (Tesla)</option>
+                                    <option value="AMZN">AMZN (Amazon)</option>
+                                    <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                    <option value="META">META (Meta Platforms)</option>
+                                    <option value="PLTR">PLTR (Palantir)</option>
+                                    <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                    <option value="NFLX">NFLX (Netflix)</option>
+                                <% } %>
                             </optgroup>
                         </select>
                     </div>
@@ -1695,16 +1701,22 @@ function dashboardPortfolioApp() {
                                 <option value="USDT">USDT (Tether USD)</option>
                             </optgroup>
                             <optgroup label="🏛️ Global Stocks">
-                                <option value="AAPL">AAPL (Apple Inc)</option>
-                                <option value="MSFT">MSFT (Microsoft)</option>
-                                <option value="NVDA">NVDA (NVIDIA)</option>
-                                <option value="TSLA">TSLA (Tesla)</option>
-                                <option value="AMZN">AMZN (Amazon)</option>
-                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
-                                <option value="META">META (Meta Platforms)</option>
-                                <option value="PLTR">PLTR (Palantir)</option>
-                                <option value="AMD">AMD (Advanced Micro Devices)</option>
-                                <option value="NFLX">NFLX (Netflix)</option>
+                                <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
+                                    <% stockBalances.forEach(s => { %>
+                                        <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
+                                    <% }) %>
+                                <% } else { %>
+                                    <option value="AAPL">AAPL (Apple Inc)</option>
+                                    <option value="MSFT">MSFT (Microsoft)</option>
+                                    <option value="NVDA">NVDA (NVIDIA)</option>
+                                    <option value="TSLA">TSLA (Tesla)</option>
+                                    <option value="AMZN">AMZN (Amazon)</option>
+                                    <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                    <option value="META">META (Meta Platforms)</option>
+                                    <option value="PLTR">PLTR (Palantir)</option>
+                                    <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                    <option value="NFLX">NFLX (Netflix)</option>
+                                <% } %>
                             </optgroup>
                         </select>
                     </div>
@@ -1922,8 +1934,8 @@ function dashboardPortfolioApp() {
                 <template x-for="item in allTradableCatalog.filter(m => (discoverFilter === 'all' || m.category === discoverFilter) && (m.name.toLowerCase().includes(discoverSearch.toLowerCase()) || m.symbol.toLowerCase().includes(discoverSearch.toLowerCase())))" :key="item.symbol">
                     <div class="p-3.5 bg-surface-overlay/80 hover:bg-surface-overlay rounded-2xl border border-surface-border flex items-center justify-between transition">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl bg-surface-base border border-surface-border flex items-center justify-center font-bold text-base shadow-sm">
-                                <span x-text="item.category === 'stocks' ? '🏛️' : (item.category === 'crypto' ? '🪙' : '📈')"></span>
+                            <div class="w-10 h-10 rounded-xl bg-surface-base border border-surface-border flex items-center justify-center font-bold text-base shadow-sm overflow-hidden shrink-0">
+                                <span x-html="getInstrumentLogo(item.symbol, item.category, 'w-7 h-7')"></span>
                             </div>
                             <div>
                                 <h4 class="font-bold text-sm text-content-primary font-sans leading-tight" x-text="item.name"></h4>
