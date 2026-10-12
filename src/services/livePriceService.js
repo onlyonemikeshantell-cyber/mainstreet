@@ -590,11 +590,11 @@ const persistMarketAndCheckOrders = () => {
   } catch(e) {}
 };
 
-// Sub-Second Micro-Ticks: 300ms high-frequency in-memory heartbeat for WebTrader Terminal
-setInterval(tickMarketPrices, 300);
+// Global Standard 1-Second (1,000ms) Live Market Tick Heartbeat
+setInterval(tickMarketPrices, 1000);
 
-// Throttled Database & Order Check: 1,500ms
-setInterval(persistMarketAndCheckOrders, 1500);
+// Throttled Database & Order Check: 2,000ms
+setInterval(persistMarketAndCheckOrders, 2000);
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };

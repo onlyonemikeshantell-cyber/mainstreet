@@ -220,8 +220,8 @@ function webTraderApp() {
             this.updateClocks();
             this.pollPrices();
             setInterval(() => this.updateClocks(), 1000);
-            setInterval(() => this.pollPrices(), 800);
-            setInterval(() => this.synthesizeClientTick(), 350);
+            setInterval(() => this.pollPrices(), 1000);
+            setInterval(() => this.synthesizeClientTick(), 500);
             setInterval(() => this.syncServerState(), 3000);
             this.calculatePnL();
             this.$nextTick(() => {
