@@ -15,7 +15,7 @@
             fetch('/api/market/prices').then(r => r.json()).then(d => {
                 if (d && d.prices) this.rates = d.prices;
             }).catch(e => {});
-        }, 900);
+        }, 4500);
     }
 }">
     <div class="flex items-center space-x-8 animate-marquee whitespace-nowrap font-numeral text-[12px] text-[#a1a1a6]">
@@ -172,7 +172,7 @@
                         fetch('/api/market/prices').then(r => r.json()).then(d => {
                             if (d && d.prices) this.rates = d.prices;
                         }).catch(e => {});
-                    }, 900);
+                    }, 4500);
                 }
             }">
                 <div onmousemove="handleCard3DTilt(event, this)" 

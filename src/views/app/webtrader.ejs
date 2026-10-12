@@ -215,14 +215,14 @@ function webTraderApp() {
         initTrader() {
             this.fetchEventsAndSignals();
             this.fetchCryptoSession();
-            setInterval(() => this.fetchCryptoSession(), 2000);
+            setInterval(() => this.fetchCryptoSession(), 5000);
             this.syncPrices();
             this.updateClocks();
             this.pollPrices();
             setInterval(() => this.updateClocks(), 1000);
-            setInterval(() => this.pollPrices(), 800);
-            setInterval(() => this.synthesizeClientTick(), 350);
-            setInterval(() => this.syncServerState(), 3000);
+            setInterval(() => this.pollPrices(), 4000);
+            setInterval(() => this.synthesizeClientTick(), 3500);
+            setInterval(() => this.syncServerState(), 6000);
             this.calculatePnL();
             this.$nextTick(() => {
                 this.mountChart();
