@@ -4,6 +4,7 @@ const db = require('../db');
 
 // Generate Branded HTML Template
 const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') => {
+  const appBaseUrl = process.env.APP_URL || 'https://mainstreetcapitalexchange.com';
   return `
     <!DOCTYPE html>
     <html>
@@ -27,7 +28,7 @@ const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') =>
           <table role="presentation" style="margin: 0 auto; border-collapse: collapse;">
             <tr>
               <td style="vertical-align: middle; padding-right: 10px;">
-                <img src="https://pope-portfolio-sum-extraordinary.trycloudflare.com/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 36px; width: 36px; object-fit: contain; display: block;" />
+                <img src="${appBaseUrl}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 36px; width: 36px; object-fit: contain; display: block;" />
               </td>
               <td style="vertical-align: middle; text-align: left;">
                 <span style="color: #38BDF8; font-size: 18px; font-weight: 800; font-family: monospace; letter-spacing: -0.5px; display: block; line-height: 1.1;">MAINSTREET CAPITAL</span>
@@ -42,7 +43,7 @@ const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') =>
           <p>Hello <strong>${recipientName}</strong>,</p>
           <div>${(content || '').replace(/\n/g, '<br>')}</div>
           <div style="text-align: center; margin-top: 25px;">
-            <a href="https://pope-portfolio-sum-extraordinary.trycloudflare.com/dashboard" class="btn">Open Trading Terminal &rarr;</a>
+            <a href="${appBaseUrl}/dashboard" class="btn">Open Trading Terminal &rarr;</a>
           </div>
         </div>
         <div class="footer">
