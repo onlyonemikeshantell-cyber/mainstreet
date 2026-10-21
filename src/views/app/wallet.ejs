@@ -120,27 +120,21 @@ function generateSvgPath(sparkline) {
                             :class="currentTab === 'assets' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
                             class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
                         <span>Assets</span>
-                        <span class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200/50 dark:bg-slate-700/50">
-                            <%= cryptoBalances.length %>
-                        </span>
+                        <span class="text-xs opacity-60 font-mono">(<%= cryptoBalances.length %>)</span>
                     </button>
 
                     <button @click="currentTab = 'addressbook'"
                             :class="currentTab === 'addressbook' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
                             class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
                         <span>Addresses</span>
-                        <span class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200/50 dark:bg-slate-700/50">
-                            <%= savedWallets ? savedWallets.length : 0 %>
-                        </span>
+                        <span class="text-xs opacity-60 font-mono">(<%= savedWallets ? savedWallets.length : 0 %>)</span>
                     </button>
 
                     <button @click="currentTab = 'connected'"
                             :class="currentTab === 'connected' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
                             class="px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
                         <span>Connected Web3 Wallets</span>
-                        <span class="px-2 py-0.5 text-[11px] rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-mono font-bold" x-text="connectedList.length">
-                            <%= typeof connectedWallets !== 'undefined' ? connectedWallets.length : 0 %>
-                        </span>
+                        <span class="text-xs opacity-60 font-mono" x-text="'(' + connectedList.length + ')'">(<%= typeof connectedWallets !== 'undefined' ? connectedWallets.length : 0 %>)</span>
                     </button>
                     <button @click="currentTab = 'activity'"
                             :class="currentTab === 'activity' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'"
@@ -572,7 +566,7 @@ function generateSvgPath(sparkline) {
                                     <div>
                                         <div class="flex items-center space-x-2">
                                             <h4 class="font-bold text-sm text-slate-900 dark:text-white" x-text="cw.wallet_type || 'WalletConnect'"></h4>
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Active</span>
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                         </div>
                                         <span class="text-xs text-slate-500 dark:text-slate-400 font-mono" x-text="cw.network_name || 'Ethereum Mainnet'"></span>
                                     </div>

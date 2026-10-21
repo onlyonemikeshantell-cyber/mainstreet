@@ -658,7 +658,6 @@
                         <div class="flex items-center space-x-2">
                             <span class="text-xl">⚡</span>
                             <h3 class="text-base sm:text-lg font-bold text-content-primary font-sans">Transfer from Linked External Wallet</h3>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-mono font-bold">1-Click Fast Transfer</span>
                         </div>
                         <p class="text-xs text-content-secondary max-w-xl">
                             Transfer crypto from your paired wallet directly into your trading account balance with account password authorization.
@@ -830,8 +829,8 @@
             <!-- 1-Click Send Button (When connected & on EVM gateway) -->
             <div x-show="isEvmCompatible" class="pt-2 border-t border-surface-border/50 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div class="text-xs text-content-secondary font-mono flex items-center space-x-2">
-                    <span class="text-gain font-bold">⚡ Zero Manual Steps:</span>
-                    <span>Transfers exact value directly into Mainstreet Custody Vault</span>
+                    <span class="text-gain font-semibold">Direct Deposit:</span>
+                    <span>Transfers exact value directly into your trading balance</span>
                 </div>
                 <button type="button" @click="sendFromWeb3Wallet()" :disabled="web3Sending"
                         :class="web3Sending ? 'opacity-70 cursor-not-allowed bg-primary/80' : 'bg-primary hover:bg-primary-dark shadow-primary/30'"
@@ -977,7 +976,7 @@
                                     class="p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2">
                                 <div class="flex items-center justify-between">
                                     <span class="font-bold text-sm font-sans text-content-primary"><%= gw.name %></span>
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] bg-white dark:bg-black/30 border border-surface-border font-mono font-bold"><%= gw.currency %></span>
+                                    <span class="text-xs font-mono font-semibold text-content-secondary"><%= gw.currency %></span>
                                 </div>
                                 <div class="flex items-center justify-between text-[10px] opacity-75">
                                     <span><%= gw.network || 'Mainnet' %></span>
