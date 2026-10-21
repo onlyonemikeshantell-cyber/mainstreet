@@ -713,14 +713,14 @@ function generateSvgPath(sparkline) {
 
                 <!-- Provider Options Grid -->
                 <div class="space-y-2.5 text-xs font-sans">
-                    <!-- Browser Wallet (MetaMask / Rabby / Brave) -->
+                    <!-- Browser Wallet (MetaMask / Rabby / Brave / OKX) -->
                     <button type="button" @click="connectBrowserProvider('MetaMask')"
                             class="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 hover:bg-blue-500/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition flex items-center justify-between group">
                         <div class="flex items-center space-x-3">
                             <span class="text-2xl">🦊</span>
                             <div class="text-left">
-                                <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">MetaMask / Browser Extension</div>
-                                <div class="text-[11px] text-slate-500">Instant one-click browser detection</div>
+                                <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">MetaMask & Injected Browser Wallets</div>
+                                <div class="text-[11px] text-slate-500">MetaMask, Rabby, Brave, OKX, Binance Wallet</div>
                             </div>
                         </div>
                         <span class="text-blue-500 font-bold">&rarr;</span>
@@ -733,24 +733,46 @@ function generateSvgPath(sparkline) {
                             <span class="text-2xl">🔵</span>
                             <div class="text-left">
                                 <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">Coinbase Wallet</div>
-                                <div class="text-[11px] text-slate-500">Extension or mobile QR link</div>
+                                <div class="text-[11px] text-slate-500">Extension or mobile app bridge</div>
                             </div>
                         </div>
                         <span class="text-blue-500 font-bold">&rarr;</span>
                     </button>
 
-                    <!-- Trust Wallet / Mobile QR (WalletConnect v2 QR) -->
+                    <!-- Universal WalletConnect (Crypto.com DeFi, Blockchain.com, Trust Wallet, etc.) -->
                     <button type="button" @click="triggerWalletConnectQr()"
-                            class="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 hover:bg-blue-500/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition flex items-center justify-between group">
-                        <div class="flex items-center space-x-3">
-                            <span class="text-2xl">🛡️</span>
-                            <div class="text-left">
-                                <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">WalletConnect QR (Mobile Wallets)</div>
-                                <div class="text-[11px] text-slate-500">Scan QR with Trust Wallet, Rainbow, Phantom, etc.</div>
+                            class="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 hover:bg-blue-500/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition flex flex-col space-y-2 text-left group">
+                        <div class="flex items-center justify-between w-full">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🔗</span>
+                                <div>
+                                    <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">WalletConnect (Mobile & DeFi Apps)</div>
+                                    <div class="text-[11px] text-slate-500">Scan QR code using your favorite mobile wallet</div>
+                                </div>
                             </div>
+                            <span class="text-blue-500 font-bold">&rarr;</span>
                         </div>
-                        <span class="text-blue-500 font-bold">&rarr;</span>
+                        <div class="flex flex-wrap gap-1.5 pt-1">
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Blockchain.com</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Crypto.com DeFi</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Trust Wallet</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Exodus</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Rainbow</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">Phantom</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 font-mono">+400 More</span>
+                        </div>
                     </button>
+                </div>
+
+                <!-- Helpful Notice about Centralized Exchanges -->
+                <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+                    <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                        <span>💡</span>
+                        <span>Using Centralized Exchange Apps (Crypto.com App, Binance, Coinbase)?</span>
+                    </div>
+                    <p class="leading-relaxed">
+                        Exchange custody accounts do not permit external Web3 dApp pulls. To fund from an exchange app, switch to <strong>"On-Chain QR & Address"</strong> mode and withdraw directly to your account's custody address.
+                    </p>
                 </div>
 
                 <!-- WalletConnect QR Display Box (shown when QR is requested) -->
