@@ -6,87 +6,192 @@
 </script>
 
 <!-- ============================================================================== -->
-<!-- 1. STREAMING HIGH-FREQUENCY LIVE MARKET TICKER RIBBON                          -->
+<!-- 1. STREAMING HIGH-FREQUENCY LIVE MARKET TICKER RIBBON (INFINITE MARQUEE)       -->
 <!-- ============================================================================== -->
-<div class="w-full bg-[#161617]/95 dark:bg-[#161617] backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] overflow-hidden py-2.5 relative z-20" x-data="{
+<div class="w-full bg-[#161617] backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] overflow-hidden py-2.5 relative z-20 select-none group" x-data="{
     rates: window.__MAINSTREET_LIVE_PRICES__ || {},
     init() {
         setInterval(() => {
             fetch('/api/market/prices').then(r => r.json()).then(d => {
                 if (d && d.prices) this.rates = d.prices;
             }).catch(e => {});
-        }, 9000);
+        }, 8000);
     }
 }">
-    <div class="flex items-center space-x-8 animate-marquee whitespace-nowrap font-numeral text-[12px] text-[#a1a1a6]">
-        <!-- Repeating Ticker Stream -->
-        <template x-for="i in 2" :key="i">
-            <div class="flex items-center space-x-8 shrink-0">
+    <!-- Subtle Left & Right Edge Feathering -->
+    <div class="pointer-events-none absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#161617] to-transparent z-10"></div>
+    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#161617] to-transparent z-10"></div>
+
+    <!-- Smooth Infinite Marquee Track (Pauses on Hover) -->
+    <div class="ticker-marquee-track flex items-center whitespace-nowrap font-numeral text-[12px] text-[#a1a1a6]">
+        <!-- Primary Stream -->
+        <div class="flex items-center space-x-8 shrink-0 pr-8">
+
                 <!-- BTC -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('BTC', 'crypto', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">BTC/USD</strong>
-                    <span class="font-medium text-amber-300" x-text="'$' + (rates['BTC']?.price || 68650).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['BTC']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['BTC']?.change24h || 0) >= 0 ? '+' : '') + (rates['BTC']?.change24h || 3.85) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">BTC/USD</strong>
+                    <span class="font-medium text-amber-300" x-text="'$' + (rates['BTC']?.price || 83987.19).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$83,987.19</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['BTC']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['BTC']?.change24h || 0) >= 0 ? '+' : '') + (rates['BTC']?.change24h || 1.45) + '%'">+1.45%</span>
                 </div>
 
                 <!-- ETH -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('ETH', 'crypto', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">ETH/USD</strong>
-                    <span class="font-medium text-indigo-300" x-text="'$' + (rates['ETH']?.price || 3645).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['ETH']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['ETH']?.change24h || 0) >= 0 ? '+' : '') + (rates['ETH']?.change24h || 2.95) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">ETH/USD</strong>
+                    <span class="font-medium text-indigo-300" x-text="'$' + (rates['ETH']?.price || 2476.25).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$2,476.25</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['ETH']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['ETH']?.change24h || 0) >= 0 ? '+' : '') + (rates['ETH']?.change24h || -0.85) + '%'">-0.85%</span>
                 </div>
 
                 <!-- NVDA -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('NVDA', 'stocks', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">NVDA</strong>
-                    <span class="font-medium text-emerald-300" x-text="'$' + (rates['NVDA']?.price || 128.5).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['NVDA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['NVDA']?.change24h || 0) >= 0 ? '+' : '') + (rates['NVDA']?.change24h || 3.20) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">NVDA</strong>
+                    <span class="font-medium text-emerald-300" x-text="'$' + (rates['NVDA']?.price || 219.12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$219.12</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['NVDA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['NVDA']?.change24h || 0) >= 0 ? '+' : '') + (rates['NVDA']?.change24h || 0.93) + '%'">+0.93%</span>
                 </div>
 
                 <!-- AAPL -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('AAPL', 'stocks', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">AAPL</strong>
-                    <span class="font-medium text-sky-300" x-text="'$' + (rates['AAPL']?.price || 224.2).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['AAPL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['AAPL']?.change24h || 0) >= 0 ? '+' : '') + (rates['AAPL']?.change24h || 1.45) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">AAPL</strong>
+                    <span class="font-medium text-sky-300" x-text="'$' + (rates['AAPL']?.price || 324.64).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$324.64</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['AAPL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['AAPL']?.change24h || 0) >= 0 ? '+' : '') + (rates['AAPL']?.change24h || 0.19) + '%'">+0.19%</span>
                 </div>
 
                 <!-- TSLA -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('TSLA', 'stocks', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">TSLA</strong>
-                    <span class="font-medium text-rose-300" x-text="'$' + (rates['TSLA']?.price || 218.4).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['TSLA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['TSLA']?.change24h || 0) >= 0 ? '+' : '') + (rates['TSLA']?.change24h || 2.15) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">TSLA</strong>
+                    <span class="font-medium text-rose-300" x-text="'$' + (rates['TSLA']?.price || 377.66).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$377.66</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['TSLA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['TSLA']?.change24h || 0) >= 0 ? '+' : '') + (rates['TSLA']?.change24h || 3.17) + '%'">+3.17%</span>
                 </div>
 
                 <!-- XAU/USD (Gold) -->
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('XAU/USD', 'commodities', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">XAU/USD</strong>
-                    <span class="font-medium text-yellow-300" x-text="'$' + (rates['XAU/USD']?.price || 2418.5).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['XAU/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['XAU/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAU/USD']?.change24h || 1.45) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">XAU/USD</strong>
+                    <span class="font-medium text-yellow-300" x-text="'$' + (rates['XAU/USD']?.price || 4372.60).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$4,372.60</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['XAU/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['XAU/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAU/USD']?.change24h || 0.06) + '%'">+0.06%</span>
                 </div>
 
-                <!-- SOL -->
-                <div class="flex items-center space-x-2">
+                <!-- SOL/USD -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('SOL', 'crypto', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">SOL/USD</strong>
-                    <span class="font-medium text-purple-300" x-text="'$' + (rates['SOL']?.price || 156.2).toFixed(2)"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SOL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SOL']?.change24h || 0) >= 0 ? '+' : '') + (rates['SOL']?.change24h || 5.40) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">SOL/USD</strong>
+                    <span class="font-medium text-purple-300" x-text="'$' + (rates['SOL']?.price || 156.20).toFixed(2)">$156.20</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SOL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SOL']?.change24h || 0) >= 0 ? '+' : '') + (rates['SOL']?.change24h || 2.30) + '%'">+2.30%</span>
                 </div>
 
-                <!-- SPX500 -->
-                <div class="flex items-center space-x-2">
+                <!-- S&P 500 -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                     <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('SPX500', 'indices', 'w-4 h-4')"></span>
-                    <strong class="text-[#f5f5f7] font-medium">S&P 500</strong>
-                    <span class="font-medium text-slate-200" x-text="(rates['SPX500']?.price || 5480).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
-                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SPX500']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SPX500']?.change24h || 0) >= 0 ? '+' : '') + (rates['SPX500']?.change24h || 0.65) + '%'"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">S&P 500</strong>
+                    <span class="font-medium text-slate-200" x-text="(rates['SPX500']?.price || 5480.00).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">5,480.00</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SPX500']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SPX500']?.change24h || 0) >= 0 ? '+' : '') + (rates['SPX500']?.change24h || 0.65) + '%'">+0.65%</span>
                 </div>
-            </div>
-        </template>
+
+                <!-- EUR/USD -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('EUR/USD', 'forex', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">EUR/USD</strong>
+                    <span class="font-medium text-cyan-300" x-text="(rates['EUR/USD']?.price || 1.1596).toFixed(4)">1.1596</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['EUR/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['EUR/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['EUR/USD']?.change24h || 0.15) + '%'">+0.15%</span>
+                </div>
+
+                <!-- US30 (Dow Jones) -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('US30', 'indices', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">DOW 30</strong>
+                    <span class="font-medium text-blue-300" x-text="(rates['US30']?.price || 42850).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">42,850.00</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['US30']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['US30']?.change24h || 0) >= 0 ? '+' : '') + (rates['US30']?.change24h || 0.45) + '%'">+0.45%</span>
+                </div>
+
+        </div>
+        <!-- Cloned Stream for Seamless Infinite 360° Loop -->
+        <div class="flex items-center space-x-8 shrink-0 pr-8" aria-hidden="true">
+
+                <!-- BTC -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('BTC', 'crypto', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">BTC/USD</strong>
+                    <span class="font-medium text-amber-300" x-text="'$' + (rates['BTC']?.price || 83987.19).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$83,987.19</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['BTC']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['BTC']?.change24h || 0) >= 0 ? '+' : '') + (rates['BTC']?.change24h || 1.45) + '%'">+1.45%</span>
+                </div>
+
+                <!-- ETH -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('ETH', 'crypto', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">ETH/USD</strong>
+                    <span class="font-medium text-indigo-300" x-text="'$' + (rates['ETH']?.price || 2476.25).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$2,476.25</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['ETH']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['ETH']?.change24h || 0) >= 0 ? '+' : '') + (rates['ETH']?.change24h || -0.85) + '%'">-0.85%</span>
+                </div>
+
+                <!-- NVDA -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('NVDA', 'stocks', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">NVDA</strong>
+                    <span class="font-medium text-emerald-300" x-text="'$' + (rates['NVDA']?.price || 219.12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$219.12</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['NVDA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['NVDA']?.change24h || 0) >= 0 ? '+' : '') + (rates['NVDA']?.change24h || 0.93) + '%'">+0.93%</span>
+                </div>
+
+                <!-- AAPL -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('AAPL', 'stocks', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">AAPL</strong>
+                    <span class="font-medium text-sky-300" x-text="'$' + (rates['AAPL']?.price || 324.64).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$324.64</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['AAPL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['AAPL']?.change24h || 0) >= 0 ? '+' : '') + (rates['AAPL']?.change24h || 0.19) + '%'">+0.19%</span>
+                </div>
+
+                <!-- TSLA -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('TSLA', 'stocks', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">TSLA</strong>
+                    <span class="font-medium text-rose-300" x-text="'$' + (rates['TSLA']?.price || 377.66).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$377.66</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['TSLA']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['TSLA']?.change24h || 0) >= 0 ? '+' : '') + (rates['TSLA']?.change24h || 3.17) + '%'">+3.17%</span>
+                </div>
+
+                <!-- XAU/USD (Gold) -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('XAU/USD', 'commodities', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">XAU/USD</strong>
+                    <span class="font-medium text-yellow-300" x-text="'$' + (rates['XAU/USD']?.price || 4372.60).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$4,372.60</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['XAU/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['XAU/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['XAU/USD']?.change24h || 0.06) + '%'">+0.06%</span>
+                </div>
+
+                <!-- SOL/USD -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('SOL', 'crypto', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">SOL/USD</strong>
+                    <span class="font-medium text-purple-300" x-text="'$' + (rates['SOL']?.price || 156.20).toFixed(2)">$156.20</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SOL']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SOL']?.change24h || 0) >= 0 ? '+' : '') + (rates['SOL']?.change24h || 2.30) + '%'">+2.30%</span>
+                </div>
+
+                <!-- S&P 500 -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('SPX500', 'indices', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">S&P 500</strong>
+                    <span class="font-medium text-slate-200" x-text="(rates['SPX500']?.price || 5480.00).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">5,480.00</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['SPX500']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['SPX500']?.change24h || 0) >= 0 ? '+' : '') + (rates['SPX500']?.change24h || 0.65) + '%'">+0.65%</span>
+                </div>
+
+                <!-- EUR/USD -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('EUR/USD', 'forex', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">EUR/USD</strong>
+                    <span class="font-medium text-cyan-300" x-text="(rates['EUR/USD']?.price || 1.1596).toFixed(4)">1.1596</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['EUR/USD']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['EUR/USD']?.change24h || 0) >= 0 ? '+' : '') + (rates['EUR/USD']?.change24h || 0.15) + '%'">+0.15%</span>
+                </div>
+
+                <!-- US30 (Dow Jones) -->
+                <div class="flex items-center space-x-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                    <span class="w-4 h-4 shrink-0 inline-flex items-center" x-html="getInstrumentLogo('US30', 'indices', 'w-4 h-4')"></span>
+                    <strong class="text-[#f5f5f7] font-medium tracking-tight">DOW 30</strong>
+                    <span class="font-medium text-blue-300" x-text="(rates['US30']?.price || 42850).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">42,850.00</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full font-medium" :class="(rates['US30']?.change24h || 0) >= 0 ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'" x-text="((rates['US30']?.change24h || 0) >= 0 ? '+' : '') + (rates['US30']?.change24h || 0.45) + '%'">+0.45%</span>
+                </div>
+
+        </div>
     </div>
 </div>
 

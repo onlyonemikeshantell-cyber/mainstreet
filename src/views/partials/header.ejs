@@ -80,12 +80,18 @@
                     'apple-xl': '34px',
                 },
                 animation: {
+                    'ticker': 'tickerTapeScroll 40s linear infinite',
+                    'marquee': 'tickerTapeScroll 40s linear infinite',
                     'float': 'float 6s ease-in-out infinite',
                     'float-slow': 'float 9s ease-in-out infinite',
                     'pulse-subtle': 'pulseGlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     'shimmer': 'shimmer 2.5s linear infinite',
                 },
                 keyframes: {
+                    tickerTapeScroll: {
+                        '0%': { transform: 'translate3d(0, 0, 0)' },
+                        '100%': { transform: 'translate3d(-50%, 0, 0)' },
+                    },
                     float: {
                         '0%, 100%': { transform: 'translateY(0px)' },
                         '50%': { transform: 'translateY(-8px)' },
@@ -112,6 +118,33 @@
     <title><%= typeof title !== 'undefined' ? title : 'Mainstreet Capital Exchange | Institutional Multi-Asset Trading Platform' %></title>
 
     <style>
+        /* Infinite Streaming Market Ticker Ribbon */
+        @keyframes tickerTapeScroll {
+            0% {
+                transform: translate3d(0, 0, 0);
+            }
+            100% {
+                transform: translate3d(-50%, 0, 0);
+            }
+        }
+        .animate-marquee,
+        .ticker-marquee-track {
+            display: flex !important;
+            width: max-content !important;
+            will-change: transform;
+            animation: tickerTapeScroll 42s linear infinite !important;
+        }
+        .animate-marquee:hover,
+        .ticker-marquee-track:hover {
+            animation-play-state: paused !important;
+        }
+        @media (max-width: 768px) {
+            .animate-marquee,
+            .ticker-marquee-track {
+                animation-duration: 30s !important;
+            }
+        }
+    
         [x-cloak] { display: none !important; }
         
         /* Modern Clean Scrollbars */
