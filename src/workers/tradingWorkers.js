@@ -93,6 +93,16 @@ function initLiquidationWorker(db, intervalMs = 2500) {
             db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, trade.user_id);
           }
 
+          // Insert real-time notification
+          try {
+            const isTp = closeReason === 'TAKE_PROFIT_TRIGGER';
+            const notifTitle = isTp ? 'Take-Profit Executed' : 'Stop-Loss Triggered';
+            const sign = finalPnL >= 0 ? '+$' : '-$';
+            const notifMsg = `Trade #${trade.id} (${trade.symbol} ${trade.type}) auto-settled @ $${currentPrice}. Realized P&L: ${sign}${Math.abs(finalPnL).toFixed(2)} USD.`;
+            db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+              .run(trade.user_id, notifTitle, notifMsg, 'trade');
+          } catch (ne) {}
+
           console.log(`[TP/SL Engine] Auto-closed Trade #${trade.id} (${trade.symbol} ${trade.type}) @ $${currentPrice} [${closeReason}] -> P&L: $${finalPnL}`);
         }
       });

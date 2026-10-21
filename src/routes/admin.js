@@ -710,6 +710,16 @@ router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
   const userKycStatus = (status === 'approved') ? 'verified' : 'rejected';
   db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
 
+  try {
+    const isApp = (status === 'approved');
+    const notifTitle = isApp ? 'Identity Verification Approved' : 'Identity Verification Declined';
+    const notifMsg = isApp 
+      ? 'Your compliance identity verification has been approved. Full institutional trading and withdrawal limits are now unlocked.'
+      : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
+    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+      .run(doc.user_id, notifTitle, notifMsg, 'kyc');
+  } catch(ne) {}
+
   req.session.flash = { success: `KYC Document #${doc.id} successfully marked as ${status.toUpperCase()} (Trader KYC updated to ${userKycStatus}).` };
   res.redirect('/babyoku');
 });
@@ -731,6 +741,16 @@ router.post(['/babyoku/kyc/review', '/admin/kyc/review'], (req, res) => {
   // Sync user's global KYC status
   const userKycStatus = (status === 'approved') ? 'verified' : (status === 'rejected' ? 'rejected' : 'pending');
   db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
+
+  try {
+    const isApp = (status === 'approved');
+    const notifTitle = isApp ? 'Identity Verification Approved' : 'Identity Verification Declined';
+    const notifMsg = isApp 
+      ? 'Your compliance identity verification has been approved. Full institutional trading and withdrawal limits are now unlocked.'
+      : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
+    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+      .run(doc.user_id, notifTitle, notifMsg, 'kyc');
+  } catch(ne) {}
 
   req.session.flash = { success: `KYC Document #${doc.id} marked as ${status} (Trader KYC updated to ${userKycStatus}).` };
   res.redirect('/babyoku');
@@ -871,6 +891,40 @@ router.post(['/babyoku/transaction/status', '/admin/transaction/status'], (req, 
     const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(tx.user_id);
     const newBal = user.balance + tx.amount;
     db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, user.id);
+  }
+
+  // Notify user of transaction status change
+  try {
+    const formattedAmt = `${tx.amount.toLocaleString()} ${tx.currency || 'USD'}`;
+    const txRef = tx.reference || `#${tx.id}`;
+    let notifTitle = 'Transaction Status Updated';
+    let notifMsg = `Transaction ${txRef} (${formattedAmt}) status changed to ${status}.`;
+    let notifType = 'system';
+
+    if (tx.type === 'deposit') {
+      notifType = 'deposit';
+      if (status === 'completed') {
+        notifTitle = 'Deposit Approved & Credited';
+        notifMsg = `Your deposit ${txRef} for $${formattedAmt} has been confirmed and credited to your trading capital.`;
+      } else if (status === 'rejected') {
+        notifTitle = 'Deposit Declined';
+        notifMsg = `Your deposit ${txRef} for $${formattedAmt} was declined by institutional compliance.`;
+      }
+    } else if (tx.type === 'withdrawal') {
+      notifType = 'trade';
+      if (status === 'completed') {
+        notifTitle = 'Withdrawal Approved & Dispatched';
+        notifMsg = `Your withdrawal ${txRef} for $${formattedAmt} has been approved and processed to your receiving account.`;
+      } else if (status === 'rejected') {
+        notifType = 'security';
+        notifTitle = 'Withdrawal Declined';
+        notifMsg = `Your withdrawal ${txRef} for $${formattedAmt} was declined. Funds remain in your account equity.`;
+      }
+    }
+    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+      .run(tx.user_id, notifTitle, notifMsg, notifType);
+  } catch(e) {
+    console.error('Failed to dispatch user transaction notification:', e);
   }
 
   req.session.flash = { success: `Transaction #${transaction_id} marked as ${status}.` };

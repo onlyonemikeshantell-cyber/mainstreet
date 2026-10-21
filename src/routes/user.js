@@ -1382,6 +1382,12 @@ router.post('/api/trade/close', (req, res) => {
 
   db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
 
+  try {
+    const sign = pnl >= 0 ? '+$' : '-$';
+    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+      .run(user.id, 'Position Closed', `Closed #${trade.id} (${trade.symbol} ${trade.type}) @ $${close_price || trade.current_price}. Realized P&L: ${sign}${Math.abs(pnl).toFixed(2)} USD.`, 'trade');
+  } catch(ne) {}
+
   logActivity(user.id, 'TRADE_CLOSE', `Closed #${trade.id} with realized P&L of $${pnl}`, req);
   res.json({ success: true, realizedPnL: pnl, newBalance });
 });
@@ -1412,6 +1418,12 @@ router.post('/api/trade/close-all', (req, res) => {
 
   const newBalance = user.balance + totalRealized;
   db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+
+  try {
+    const sign = totalRealized >= 0 ? '+$' : '-$';
+    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+      .run(user.id, 'Positions Closed in Bulk', `Liquidated ${targetTrades.length} open position(s). Net Realized P&L: ${sign}${Math.abs(totalRealized).toFixed(2)} USD.`, 'trade');
+  } catch(ne) {}
 
   logActivity(user.id, 'BULK_CLOSE', `Bulk closed ${targetTrades.length} positions (${filter || 'all'}) with net P&L $${totalRealized.toFixed(2)}`, req);
   res.json({ success: true, count: targetTrades.length, totalRealizedPnL: totalRealized, newBalance });

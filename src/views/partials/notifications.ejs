@@ -88,7 +88,11 @@ document.addEventListener('alpine:init', () => {
 
         async markAllRead() {
             try {
-                await fetch('/api/notifications/read-all', { method: 'POST' });
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                await fetch('/api/notifications/read-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-csrf-token': token }
+                });
                 this.unreadCount = 0;
                 this.notifications.forEach(n => n.is_read = 1);
             } catch (err) {
@@ -100,7 +104,11 @@ document.addEventListener('alpine:init', () => {
             if (event) event.stopPropagation();
             if (item.is_read === 1) return;
             try {
-                await fetch('/api/notifications/' + item.id + '/read', { method: 'POST' });
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                await fetch('/api/notifications/' + item.id + '/read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-csrf-token': token }
+                });
                 item.is_read = 1;
                 this.unreadCount = Math.max(0, this.unreadCount - 1);
             } catch (err) {
@@ -206,7 +214,7 @@ document.addEventListener('alpine:init', () => {
                     };
                 default:
                     return {
-                        icon: '⚡',
+                        icon: '🔔',
                         label: 'System',
                         badgeClass: 'bg-slate-500/10 text-slate-500 dark:text-slate-300 border-slate-500/20',
                         accentClass: 'border-l-4 border-l-slate-400'
@@ -217,7 +225,12 @@ document.addEventListener('alpine:init', () => {
         formatTime(dateStr) {
             if (!dateStr || dateStr === 'Just now') return 'Just now';
             try {
-                const date = new Date(dateStr.replace(' ', 'T') + 'Z');
+                let s = String(dateStr).trim();
+                if (!s.endsWith('Z') && !s.includes('+')) {
+                    s = s.replace(' ', 'T') + 'Z';
+                }
+                const date = new Date(s);
+                if (isNaN(date.getTime())) return 'Just now';
                 const now = new Date();
                 const diffMs = now - date;
                 const diffSec = Math.floor(diffMs / 1000);
@@ -229,7 +242,7 @@ document.addEventListener('alpine:init', () => {
                 const diffDays = Math.floor(diffHr / 24);
                 return `${diffDays}d ago`;
             } catch (e) {
-                return dateStr;
+                return 'Just now';
             }
         }
     }));
