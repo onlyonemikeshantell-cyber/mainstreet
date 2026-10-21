@@ -1,62 +1,456 @@
 <%- include('../partials/header') %>
 
-<div class="min-h-[calc(100vh-4rem)] py-10 px-4 sm:px-6 lg:px-8 bg-surface-base">
+<script>
+  window.__CONNECTED_WALLETS__ = <%- JSON.stringify(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
+  window.__SAVED_WALLETS__ = <%- JSON.stringify(typeof savedWallets !== 'undefined' && savedWallets ? savedWallets : []) %>;
+  window.__FREE_MARGIN__ = <%= Number(typeof freeMargin !== 'undefined' ? freeMargin : user.balance) %>;
+
+  function withdrawalDesk() {
+    const connWallets = window.__CONNECTED_WALLETS__ || [];
+    const maxFree = window.__FREE_MARGIN__ || 0;
+
+    return {
+      amount: '',
+      maxFree: maxFree,
+      methodType: connWallets.length > 0 ? 'linked' : 'crypto',
+      connectedWallets: connWallets,
+      selectedWallet: connWallets.length > 0 ? connWallets[0] : null,
+      
+      // Direct Crypto Details
+      cryptoAsset: 'USDT-TRC20',
+      cryptoAddress: '',
+      cryptoAssets: [
+        { id: 'USDT-TRC20', name: 'USDT (Tron TRC-20)', symbol: 'USDT', network: 'Tron Network', placeholder: 'T...' },
+        { id: 'USDT-ERC20', name: 'USDT (Ethereum ERC-20)', symbol: 'USDT', network: 'Ethereum Mainnet', placeholder: '0x...' },
+        { id: 'BTC', name: 'Bitcoin (BTC)', symbol: 'BTC', network: 'Bitcoin Native Network', placeholder: 'bc1... or 1...' },
+        { id: 'ETH', name: 'Ethereum (ETH)', symbol: 'ETH', network: 'Ethereum Mainnet', placeholder: '0x...' },
+        { id: 'SOL', name: 'Solana (SOL)', symbol: 'SOL', network: 'Solana Mainnet', placeholder: 'Address...' }
+      ],
+
+      // Bank Details
+      bankName: '',
+      iban: '',
+      swift: '',
+      beneficiaryName: '<%= user.first_name || user.username || "Client" %> <%= user.last_name || "" %>'.trim(),
+
+      // Saved address book
+      savedWallets: window.__SAVED_WALLETS__ || [],
+      selectedSavedId: '',
+
+      submitting: false,
+
+      get numAmount() {
+        return parseFloat(this.amount) || 0;
+      },
+
+      get isValidAmount() {
+        return this.numAmount >= 10 && this.numAmount <= this.maxFree;
+      },
+
+      get finalDestinationAddress() {
+        if (this.methodType === 'linked') {
+          return this.selectedWallet ? this.selectedWallet.wallet_address : '';
+        }
+        if (this.methodType === 'crypto') {
+          return this.cryptoAddress.trim();
+        }
+        if (this.methodType === 'bank') {
+          return `Bank: ${this.bankName.trim()} | IBAN/Acc: ${this.iban.trim()} | SWIFT: ${this.swift.trim()} | Beneficiary: ${this.beneficiaryName.trim()}`;
+        }
+        return '';
+      },
+
+      get finalMethodName() {
+        if (this.methodType === 'linked') {
+          return `Linked Web3 (${this.selectedWallet ? (this.selectedWallet.wallet_type + ' - ' + this.selectedWallet.network_name) : 'Web3'})`;
+        }
+        if (this.methodType === 'crypto') {
+          const ca = this.cryptoAssets.find(a => a.id === this.cryptoAsset);
+          return ca ? ca.name : 'Crypto Address';
+        }
+        return 'Institutional Bank Wire';
+      },
+
+      fillPercentage(pct) {
+        if (this.maxFree <= 0) return;
+        const val = +(this.maxFree * (pct / 100)).toFixed(2);
+        this.amount = val;
+      },
+
+      async pasteFromClipboard() {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            this.cryptoAddress = text.trim();
+            if (window.showToast) window.showToast('Address pasted from clipboard', 'info');
+          }
+        } catch (e) {
+          const text = prompt('Paste your recipient wallet address:');
+          if (text) this.cryptoAddress = text.trim();
+        }
+      },
+
+      applySavedAddress() {
+        if (!this.selectedSavedId) return;
+        const saved = this.savedWallets.find(w => String(w.id) === String(this.selectedSavedId));
+        if (saved) {
+          this.cryptoAddress = saved.wallet_address || saved.address || '';
+        }
+      }
+    };
+  }
+</script>
+
+<div class="min-h-[calc(100vh-4rem)] py-10 px-4 sm:px-6 lg:px-8 bg-surface-base" x-data="withdrawalDesk()">
     <div class="max-w-4xl mx-auto space-y-8">
         
         <%- include('../partials/cashier-tabs') %>
 
+        <!-- Clean, Uncluttered Header -->
         <div class="text-center space-y-2">
-            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold font-mono shadow-sm">
-                <span>🔒 SECURE SETTLEMENT DESK</span>
-            </div>
             <h1 class="text-3xl sm:text-4xl font-extrabold text-content-primary font-serif tracking-tight">Withdraw Funds</h1>
-            <p class="text-xs sm:text-sm text-content-secondary max-w-lg mx-auto">Instant liquidity dispatch to whitelisted crypto addresses or domestic/international bank wires.</p>
+            <p class="text-xs sm:text-sm text-content-secondary max-w-lg mx-auto">Instant liquidity dispatch to linked Web3 wallets, whitelisted crypto addresses, or bank wires.</p>
         </div>
 
-        <div class="max-w-xl mx-auto space-y-6 glass-card rounded-3xl p-6 sm:p-8 border border-surface-border shadow-2xl">
-            
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-                <div class="p-3 bg-surface-overlay rounded-2xl border border-surface-border">
-                    <span class="text-content-tertiary uppercase text-[10px] block font-sans">Cash Balance</span>
-                    <strong class="text-content-primary text-sm font-bold">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></strong>
-                </div>
-                <div class="p-3 bg-surface-overlay rounded-2xl border border-surface-border">
-                    <span class="text-content-tertiary uppercase text-[10px] block font-sans">Used Margin</span>
-                    <strong class="text-warning text-sm font-bold">$<%= Number(typeof usedMargin !== 'undefined' ? usedMargin : 0).toLocaleString(undefined, {minimumFractionDigits: 2}) %></strong>
-                </div>
-                <div class="p-3 bg-gain/10 rounded-2xl border border-gain/30">
-                    <span class="text-gain uppercase text-[10px] block font-bold font-sans">Free to Withdraw</span>
-                    <strong class="text-gain text-sm font-extrabold">$<%= Number(typeof freeMargin !== 'undefined' ? freeMargin : user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></strong>
+        <!-- Prominent Flash Alerts -->
+        <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
+            <div class="p-5 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-start space-x-3 shadow-sm">
+                <span class="text-lg">⚠️</span>
+                <div class="space-y-1">
+                    <h4 class="font-bold text-rose-700 dark:text-rose-300 uppercase font-mono text-[11px]">Withdrawal Notice</h4>
+                    <p class="text-rose-800 dark:text-rose-200 leading-relaxed"><%= flash.error %></p>
                 </div>
             </div>
+        <% } %>
 
-            <form action="/withdraw" method="POST" class="space-y-4 text-xs font-mono">
+        <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
+            <div class="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-start space-x-3 shadow-sm">
+                <span class="text-lg">✓</span>
+                <div class="space-y-1">
+                    <h4 class="font-bold text-emerald-700 dark:text-emerald-300 uppercase font-mono text-[11px]">Request Dispatched</h4>
+                    <p class="text-emerald-800 dark:text-emerald-200 leading-relaxed"><%= flash.success %></p>
+                </div>
+            </div>
+        <% } %>
+
+        <!-- Available Liquidity Strip -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs font-mono">
+            <div class="p-4 bg-surface-overlay dark:bg-[#141517] rounded-2xl border border-surface-border shadow-sm">
+                <span class="text-content-secondary uppercase text-[10px] block font-sans font-semibold mb-1">Account Balance</span>
+                <strong class="text-content-primary text-base font-bold">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
+            </div>
+            <div class="p-4 bg-surface-overlay dark:bg-[#141517] rounded-2xl border border-surface-border shadow-sm">
+                <span class="text-content-secondary uppercase text-[10px] block font-sans font-semibold mb-1">Committed Margin</span>
+                <strong class="text-amber-500 text-base font-bold">$<%= Number(typeof usedMargin !== 'undefined' ? usedMargin : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
+            </div>
+            <div class="p-4 bg-gain/10 rounded-2xl border border-gain/30 shadow-sm">
+                <span class="text-gain uppercase text-[10px] block font-bold font-sans mb-1">Available to Withdraw</span>
+                <strong class="text-gain text-base font-extrabold">$<%= Number(typeof freeMargin !== 'undefined' ? freeMargin : user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
+            </div>
+        </div>
+
+        <!-- Main Withdrawal Desk Card -->
+        <div class="bg-surface-overlay dark:bg-[#141517] rounded-3xl p-6 sm:p-8 border border-surface-border shadow-xl space-y-6">
+            
+            <form action="/withdraw" method="POST" @submit="submitting = true" class="space-y-6 text-xs font-mono">
                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                <input type="hidden" name="method" :value="finalMethodName" />
+                <input type="hidden" name="address" :value="finalDestinationAddress" />
 
-                <div>
-                    <label class="block text-xs font-semibold text-content-secondary uppercase mb-1 font-sans">Withdrawal Amount ($ USD) *</label>
-                    <input type="number" step="any" min="10" max="<%= typeof freeMargin !== 'undefined' ? freeMargin : user.balance %>" name="amount" required placeholder="e.g. 2500" class="w-full bg-surface-overlay border border-surface-border focus:border-primary text-content-primary rounded-xl px-4 py-3 text-lg font-bold font-mono outline-none transition" />
+                <!-- 1. Withdrawal Amount Section -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-content-primary uppercase font-sans">Withdrawal Amount ($ USD)</label>
+                        <span class="text-[11px] text-content-secondary">Min: $10.00 &bull; Max: $<%= Number(typeof freeMargin !== 'undefined' ? freeMargin : user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></span>
+                    </div>
+
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-content-secondary font-mono">$</span>
+                        <input type="number" step="any" min="10" max="<%= typeof freeMargin !== 'undefined' ? freeMargin : user.balance %>"
+                               name="amount" x-model="amount" required placeholder="0.00"
+                               class="w-full bg-surface-base dark:bg-slate-900 border border-surface-border focus:border-primary text-content-primary rounded-2xl pl-9 pr-4 py-3.5 text-xl font-bold font-mono outline-none transition shadow-inner" />
+                    </div>
+
+                    <!-- Quick Fill Chips -->
+                    <div class="flex flex-wrap items-center gap-2 pt-1 font-sans">
+                        <button type="button" @click="amount = 100" class="px-3 py-1.5 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary font-semibold text-xs transition">$100</button>
+                        <button type="button" @click="amount = 500" class="px-3 py-1.5 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary font-semibold text-xs transition">$500</button>
+                        <button type="button" @click="amount = 1000" class="px-3 py-1.5 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary font-semibold text-xs transition">$1,000</button>
+                        <button type="button" @click="fillPercentage(25)" class="px-3 py-1.5 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary font-semibold text-xs transition">25%</button>
+                        <button type="button" @click="fillPercentage(50)" class="px-3 py-1.5 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary font-semibold text-xs transition">50%</button>
+                        <button type="button" @click="fillPercentage(100)" class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 font-bold text-xs transition">Max Free</button>
+                    </div>
+
+                    <!-- Overdraw warning -->
+                    <template x-if="numAmount > maxFree">
+                        <p class="text-[11px] text-rose-500 font-sans pt-1">
+                            Amount exceeds your available free margin ($<span x-text="maxFree.toLocaleString(undefined, {minimumFractionDigits: 2})"></span>). Please close open positions or reduce amount.
+                        </p>
+                    </template>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-content-secondary uppercase mb-1 font-sans">Payout Method *</label>
-                    <select name="method" class="w-full bg-surface-overlay border border-surface-border focus:border-primary text-content-primary rounded-xl px-4 py-3 text-xs font-bold outline-none transition">
-                        <option value="Crypto Wallet (USDT / BTC / ETH)">Crypto Instant Transfer (USDT, BTC, ETH)</option>
-                        <option value="Bank Account (Wire Transfer)">Bank Wire Transfer (SWIFT / Fedwire)</option>
-                    </select>
+                <!-- 2. Payout Method Selector -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-content-primary uppercase font-sans">Payout Destination Method</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans">
+                        <!-- Linked Web3 Option -->
+                        <button type="button" @click="methodType = 'linked'"
+                                :class="methodType === 'linked' ? 'border-primary bg-primary/5 text-primary font-bold shadow-sm' : 'border-surface-border bg-surface-base dark:bg-slate-900 text-content-secondary hover:text-content-primary'"
+                                class="p-3.5 rounded-2xl border text-left transition flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <span class="text-xl">⚡</span>
+                                <div>
+                                    <div class="text-xs">Linked Web3 Wallet</div>
+                                    <div class="text-[10px] text-content-secondary font-normal" x-text="connectedWallets.length > 0 ? connectedWallets.length + ' Linked' : 'None Linked'"></div>
+                                </div>
+                            </div>
+                            <span class="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center p-0.5">
+                                <span class="w-full h-full rounded-full bg-current" x-show="methodType === 'linked'"></span>
+                            </span>
+                        </button>
+
+                        <!-- Direct Crypto Option -->
+                        <button type="button" @click="methodType = 'crypto'"
+                                :class="methodType === 'crypto' ? 'border-primary bg-primary/5 text-primary font-bold shadow-sm' : 'border-surface-border bg-surface-base dark:bg-slate-900 text-content-secondary hover:text-content-primary'"
+                                class="p-3.5 rounded-2xl border text-left transition flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <span class="text-xl">🪙</span>
+                                <div>
+                                    <div class="text-xs">Direct Crypto Address</div>
+                                    <div class="text-[10px] text-content-secondary font-normal">BTC, ETH, USDT, SOL</div>
+                                </div>
+                            </div>
+                            <span class="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center p-0.5">
+                                <span class="w-full h-full rounded-full bg-current" x-show="methodType === 'crypto'"></span>
+                            </span>
+                        </button>
+
+                        <!-- Bank Wire Option -->
+                        <button type="button" @click="methodType = 'bank'"
+                                :class="methodType === 'bank' ? 'border-primary bg-primary/5 text-primary font-bold shadow-sm' : 'border-surface-border bg-surface-base dark:bg-slate-900 text-content-secondary hover:text-content-primary'"
+                                class="p-3.5 rounded-2xl border text-left transition flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <span class="text-xl">🏛️</span>
+                                <div>
+                                    <div class="text-xs">Bank Wire Transfer</div>
+                                    <div class="text-[10px] text-content-secondary font-normal">SWIFT / Fedwire</div>
+                                </div>
+                            </div>
+                            <span class="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center p-0.5">
+                                <span class="w-full h-full rounded-full bg-current" x-show="methodType === 'bank'"></span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-content-secondary uppercase mb-1 font-sans">Destination Address / IBAN / Account No. *</label>
-                    <input type="text" name="address" required placeholder="e.g. 0x... / bc1... / US89..." class="w-full bg-surface-overlay border border-surface-border focus:border-primary text-content-primary rounded-xl px-4 py-3 text-xs font-bold outline-none transition" />
+                <!-- 3A. Linked Web3 Wallet Fields -->
+                <div x-show="methodType === 'linked'" class="p-5 rounded-2xl bg-surface-base dark:bg-slate-900 border border-surface-border space-y-4">
+                    <template x-if="connectedWallets.length > 0">
+                        <div class="space-y-3 font-sans">
+                            <label class="block text-xs font-semibold text-content-secondary uppercase">Select Linked Destination Wallet</label>
+                            <div class="space-y-2">
+                                <template x-for="cw in connectedWallets" :key="cw.id || cw.wallet_address">
+                                    <div @click="selectedWallet = cw" 
+                                         :class="selectedWallet && selectedWallet.wallet_address.toLowerCase() === cw.wallet_address.toLowerCase() ? 'border-primary bg-primary/5' : 'border-surface-border hover:border-surface-border'"
+                                         class="p-3.5 rounded-xl border bg-surface-overlay dark:bg-[#141517] cursor-pointer transition flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                                ⚡
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-xs text-content-primary flex items-center space-x-2">
+                                                    <span x-text="cw.wallet_type || 'Web3 Wallet'"></span>
+                                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-mono">Linked</span>
+                                                </div>
+                                                <div class="text-[11px] text-content-secondary font-mono" x-text="cw.wallet_address.slice(0, 10) + '...' + cw.wallet_address.slice(-6)"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right text-xs font-mono">
+                                            <span class="text-content-secondary text-[11px]" x-text="cw.network_name || 'EVM'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="connectedWallets.length === 0">
+                        <div class="text-center py-4 space-y-2 font-sans">
+                            <p class="text-xs text-content-secondary">You haven't paired any external Web3 wallets yet.</p>
+                            <a href="/wallet?tab=connected&action=connect" class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow-md">
+                                <span>⚡</span>
+                                <span>Connect Web3 Wallet Now &rarr;</span>
+                            </a>
+                        </div>
+                    </template>
                 </div>
 
-                <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/20 transition text-xs uppercase tracking-wider font-sans cursor-pointer">
-                    Submit Withdrawal Request &rarr;
+                <!-- 3B. Direct Crypto Address Fields -->
+                <div x-show="methodType === 'crypto'" class="p-5 rounded-2xl bg-surface-base dark:bg-slate-900 border border-surface-border space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1 font-sans">Cryptocurrency Asset</label>
+                            <select x-model="cryptoAsset" class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-3 text-xs font-bold outline-none transition font-sans">
+                                <template x-for="a in cryptoAssets" :key="a.id">
+                                    <option :value="a.id" x-text="a.name"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <!-- Saved Address Book Picker (if any) -->
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1 font-sans">Saved Address Book</label>
+                            <select x-model="selectedSavedId" @change="applySavedAddress()" class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-3 text-xs font-semibold outline-none transition font-sans">
+                                <option value="">Select from Address Book (Optional)</option>
+                                <template x-for="sw in savedWallets" :key="sw.id">
+                                    <option :value="sw.id" x-text="(sw.label || sw.currency || 'Wallet') + ' - ' + (sw.wallet_address || sw.address).slice(0, 10) + '...'"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1 font-sans">
+                            <label class="text-xs font-semibold text-content-secondary uppercase">Recipient Wallet Address *</label>
+                            <button type="button" @click="pasteFromClipboard()" class="text-xs text-primary hover:underline flex items-center space-x-1 font-semibold">
+                                <span>📋 Paste</span>
+                            </button>
+                        </div>
+                        <input type="text" x-model="cryptoAddress" required placeholder="Paste receiving address (e.g. 0x... or bc1...)"
+                               class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-4 py-3 text-xs font-bold font-mono outline-none transition" />
+                    </div>
+                </div>
+
+                <!-- 3C. Bank Wire Fields -->
+                <div x-show="methodType === 'bank'" class="p-5 rounded-2xl bg-surface-base dark:bg-slate-900 border border-surface-border space-y-3 font-sans">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1">Beneficiary Legal Name *</label>
+                            <input type="text" x-model="beneficiaryName" placeholder="Full name on bank account"
+                                   class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none transition" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1">Bank Name *</label>
+                            <input type="text" x-model="bankName" placeholder="e.g. JPMorgan Chase / Barclays"
+                                   class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none transition" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1">IBAN / Account Number *</label>
+                            <input type="text" x-model="iban" placeholder="IBAN or domestic account number"
+                                   class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold outline-none transition" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-content-secondary uppercase mb-1">SWIFT / BIC / Routing *</label>
+                            <input type="text" x-model="swift" placeholder="e.g. CHASUS33"
+                                   class="w-full bg-surface-overlay dark:bg-[#141517] border border-surface-border focus:border-primary text-content-primary rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold outline-none transition" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Fee & Net Settlement Breakdown -->
+                <div class="p-4 rounded-2xl bg-surface-base dark:bg-slate-900/60 border border-surface-border text-xs font-mono space-y-2">
+                    <div class="flex items-center justify-between text-content-secondary">
+                        <span>Requested Amount:</span>
+                        <span class="text-content-primary font-bold" x-text="'$' + (numAmount > 0 ? numAmount.toLocaleString(undefined, {minimumFractionDigits: 2}) : '0.00')"></span>
+                    </div>
+                    <div class="flex items-center justify-between text-content-secondary">
+                        <span>Liquidity Clearance Fee:</span>
+                        <span class="text-emerald-500 font-bold">$0.00 (Zero Fee)</span>
+                    </div>
+                    <div class="pt-2 border-t border-surface-border flex items-center justify-between text-sm">
+                        <span class="font-bold text-content-primary font-sans">Net Dispatched to You:</span>
+                        <span class="text-gain font-extrabold text-base" x-text="'$' + (numAmount > 0 ? numAmount.toLocaleString(undefined, {minimumFractionDigits: 2}) : '0.00')"></span>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" :disabled="submitting || !isValidAmount || !finalDestinationAddress"
+                        :class="submitting || !isValidAmount || !finalDestinationAddress ? 'opacity-50 cursor-not-allowed bg-primary/70' : 'bg-primary hover:bg-primary-dark shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5'"
+                        class="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-lg transition transform font-sans flex items-center justify-center space-x-2 cursor-pointer">
+                    <template x-if="!submitting">
+                        <div class="flex items-center space-x-2">
+                            <span>Submit Withdrawal Request</span>
+                            <span>&rarr;</span>
+                        </div>
+                    </template>
+                    <template x-if="submitting">
+                        <div class="flex items-center space-x-2 font-mono">
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            <span>Routing to Liquidity Dispatch...</span>
+                        </div>
+                    </template>
                 </button>
             </form>
 
         </div>
+
+        <!-- Recent Withdrawal Ledger -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-content-primary font-serif">Recent Withdrawal Requests</h3>
+                <a href="/transactions" class="text-xs text-primary hover:underline font-semibold font-sans">View Full Transaction Ledger &rarr;</a>
+            </div>
+
+            <div class="bg-surface-overlay dark:bg-[#141517] rounded-3xl border border-surface-border shadow-sm overflow-hidden">
+                <% if (typeof recentWithdrawals !== 'undefined' && recentWithdrawals.length > 0) { %>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead class="bg-surface-base dark:bg-slate-900 border-b border-surface-border text-content-secondary uppercase text-[10px]">
+                                <tr>
+                                    <th class="py-3 px-5">Ref / ID</th>
+                                    <th class="py-3 px-4">Amount</th>
+                                    <th class="py-3 px-4">Destination Method</th>
+                                    <th class="py-3 px-4">Date</th>
+                                    <th class="py-3 px-5 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border">
+                                <% recentWithdrawals.forEach(tx => { %>
+                                    <tr class="hover:bg-surface-base/50 transition">
+                                        <td class="py-3.5 px-5 font-bold text-content-primary">
+                                            #<%= tx.reference || tx.id %>
+                                        </td>
+                                        <td class="py-3.5 px-4 font-bold text-content-primary">
+                                            $<%= Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-content-secondary truncate max-w-[200px]" title="<%= tx.description || tx.method %>">
+                                            <%= tx.method || 'Crypto Transfer' %>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-content-secondary">
+                                            <%= tx.created_at ? new Date(tx.created_at).toLocaleDateString() : 'Recent' %>
+                                        </td>
+                                        <td class="py-3.5 px-5 text-right font-sans">
+                                            <% if (tx.status === 'completed' || tx.status === 'approved') { %>
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                                    Dispatched
+                                                </span>
+                                            <% } else if (tx.status === 'declined' || tx.status === 'rejected') { %>
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                                    Declined
+                                                </span>
+                                            <% } else { %>
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                                    Pending Clearance
+                                                </span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="py-12 text-center text-xs text-content-secondary space-y-1">
+                        <p class="font-semibold text-content-primary">No previous withdrawals on record</p>
+                        <p class="text-[11px]">When you request a payout, its live settlement clearance status will appear here.</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
     </div>
 </div>
 

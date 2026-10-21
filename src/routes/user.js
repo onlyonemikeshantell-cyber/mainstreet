@@ -750,12 +750,18 @@ router.get('/withdraw', (req, res) => {
   const openTrades = db.prepare("SELECT lot_size FROM trades WHERE user_id = ? AND status = 'OPEN'").all(user.id);
   const usedMargin = openTrades.reduce((sum, t) => sum + (t.lot_size * 100), 0);
   const freeMargin = Math.max(0, user.balance - usedMargin);
+  const connectedWallets = db.prepare("SELECT * FROM user_connected_wallets WHERE user_id = ? AND is_active = 1 ORDER BY id DESC").all(user.id);
+  const savedWallets = db.prepare("SELECT * FROM user_saved_wallets WHERE user_id = ? ORDER BY id DESC").all(user.id);
+  const recentWithdrawals = db.prepare("SELECT * FROM transactions WHERE user_id = ? AND type = 'withdrawal' ORDER BY id DESC LIMIT 5").all(user.id);
 
   res.render('app/withdraw', {
     title: 'Withdraw Funds | Mainstreet Capital Exchange',
     user,
     usedMargin,
     freeMargin,
+    connectedWallets,
+    savedWallets,
+    recentWithdrawals,
     activeCashierTab: 'withdraw'
   });
 });
@@ -805,7 +811,7 @@ router.post('/withdraw', (req, res) => {
     const { ref, user } = executeWithdrawal();
     logActivity(user.id, 'WITHDRAW_REQUEST', `Requested withdrawal ref ${ref} for $${numAmount}`, req);
     req.session.flash = { success: `Withdrawal request #${ref} submitted for institutional clearance.` };
-    return res.redirect('/transactions');
+    return res.redirect('/withdraw');
   } catch (err) {
     req.session.flash = { error: err.message || 'Error processing withdrawal request.' };
     return res.redirect('/withdraw');
