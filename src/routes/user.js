@@ -41,6 +41,7 @@ const saveBase64Media = (base64String, prefix, userId) => {
 const { getLivePrices, syncClientLivePrice } = require('../services/livePriceService');
 const { STOCK_BASKETS, STOCK_DIVIDEND_RATES } = require('../services/stockBasketService');
 const { verifyCryptoDeposit, checkTransactionStatus } = require('../services/blockchainVerificationService');
+const { registerWalletConnectRoutes } = require('../services/walletConnectService');
 
 // Live Real-Time Market Prices API
 router.get('/api/market/prices', (req, res) => {
@@ -892,6 +893,7 @@ router.get(['/wallet', '/wallets', '/crypto-wallet'], (req, res) => {
   const overallChangePct = totalCryptoValuationUsd > 0 ? ((totalPnl24hUsd / (totalCryptoValuationUsd - totalPnl24hUsd)) * 100) : 0;
 
   // Saved whitelisted external payout wallets
+  const connectedWallets = db.prepare('SELECT * FROM user_connected_wallets WHERE user_id = ? AND is_active = 1 ORDER BY id DESC').all(user.id);
   const savedWallets = db.prepare('SELECT * FROM user_saved_wallets WHERE user_id = ? ORDER BY id DESC').all(user.id);
 
   // Active deposit gateways for receiving addresses
@@ -914,6 +916,7 @@ router.get(['/wallet', '/wallets', '/crypto-wallet'], (req, res) => {
     totalCryptoValuationEth,
     totalPnl24hUsd,
     overallChangePct,
+    connectedWallets,
     savedWallets,
     depositGateways,
     cryptoTransactions,
@@ -2096,5 +2099,7 @@ router.post('/api/notifications/test-popup', (req, res) => {
   const info = insert.run(userId, title || 'Live Trade Execution', message || 'Market buy order executed for 0.25 BTC at ,400.00.', type || 'trade');
   res.json({ success: true, id: info.lastInsertRowid });
 });
+
+registerWalletConnectRoutes(router, logActivity);
 
 module.exports = router;

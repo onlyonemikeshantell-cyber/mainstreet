@@ -28,6 +28,9 @@ try {
   if (!smtpCols.includes('resend_api_key')) db.exec("ALTER TABLE smtp_settings ADD COLUMN resend_api_key TEXT DEFAULT ''");
   if (!smtpCols.includes('provider')) db.exec("ALTER TABLE smtp_settings ADD COLUMN provider TEXT DEFAULT 'resend'");
 
+  // User Connected External Web3 Wallets Table
+  db.exec("CREATE TABLE IF NOT EXISTS user_connected_wallets (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, wallet_address TEXT NOT NULL, wallet_type TEXT DEFAULT 'walletconnect', chain_id TEXT DEFAULT '0x1', network_name TEXT DEFAULT 'Ethereum Mainnet', balance_cache REAL DEFAULT 0.0, currency_symbol TEXT DEFAULT 'ETH', is_active INTEGER DEFAULT 1, last_connected_at DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));");
+
   // Ensure major ETFs exist in market_settings
   const etfInsert = db.prepare(`
     INSERT OR IGNORE INTO market_settings (symbol, name, category, spread, leverage, min_lot, max_lot, is_tradable)
