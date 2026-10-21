@@ -25,8 +25,6 @@ function initCopyTradingWorker(db, intervalMs = 45000) {
       console.error('[WORKER ERROR: CopyTrading]:', err.message);
     }
   }, intervalMs);
-
-  copyTradingTimer.unref();
 }
 
 /**
@@ -44,11 +42,13 @@ function initLiquidationWorker(db, intervalMs = 2500) {
       const prices = getLivePrices();
 
       openTrades.forEach(trade => {
+        if (!trade || !trade.symbol) return;
+        const sym = (trade.symbol || '').toUpperCase();
         let currentPrice = trade.current_price;
-        if (trade.symbol.includes('BTC') && prices['BTC']) currentPrice = prices['BTC'].price;
-        else if (trade.symbol.includes('ETH') && prices['ETH']) currentPrice = prices['ETH'].price;
-        else if (trade.symbol.includes('SOL') && prices['SOL']) currentPrice = prices['SOL'].price;
-        else if (trade.symbol.includes('BNB') && prices['BNB']) currentPrice = prices['BNB'].price;
+        if (sym.includes('BTC') && prices['BTC']) currentPrice = prices['BTC'].price;
+        else if (sym.includes('ETH') && prices['ETH']) currentPrice = prices['ETH'].price;
+        else if (sym.includes('SOL') && prices['SOL']) currentPrice = prices['SOL'].price;
+        else if (sym.includes('BNB') && prices['BNB']) currentPrice = prices['BNB'].price;
 
         // Update current price in DB
         db.prepare('UPDATE trades SET current_price = ? WHERE id = ?').run(currentPrice, trade.id);
@@ -76,7 +76,7 @@ function initLiquidationWorker(db, intervalMs = 2500) {
 
         if (shouldClose) {
           const diff = trade.type === 'BUY' ? (currentPrice - trade.open_price) : (trade.open_price - currentPrice);
-          const multiplier = trade.symbol.includes('EUR') || trade.symbol.includes('GBP') ? 100000 : 1;
+          const multiplier = sym.includes('EUR') || sym.includes('GBP') ? 100000 : 1;
           const finalPnL = +(diff * trade.lot_size * multiplier).toFixed(2);
 
           // Settle Trade atomically
@@ -100,8 +100,6 @@ function initLiquidationWorker(db, intervalMs = 2500) {
       console.error('[WORKER ERROR: TP/SL Engine]:', err.message);
     }
   }, intervalMs);
-
-  tpSlTimer.unref();
 }
 
 function startWorkers(db) {
