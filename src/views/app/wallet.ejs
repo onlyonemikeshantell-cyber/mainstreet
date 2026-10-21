@@ -1241,9 +1241,20 @@ function generateSvgPath(sparkline) {
 </div>
 
 <script>
+function getInitialWalletTab() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        if (tab && ['assets', 'addressbook', 'activity', 'connected'].includes(tab)) return tab;
+        const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
+        if (hash && ['assets', 'addressbook', 'activity', 'connected'].includes(hash)) return hash;
+    } catch(e) {}
+    return 'assets';
+}
+
 function cryptoVaultHub() {
     return {
-        currentTab: 'assets',
+        currentTab: getInitialWalletTab(),
         viewMode: 'table',
         selectedCategory: 'all',
         searchQuery: '',
@@ -1297,6 +1308,13 @@ function cryptoVaultHub() {
 
         init() {
             this.updateSendAssetDetails();
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('action') === 'connect') {
+                    this.currentTab = 'connected';
+                    this.openWalletConnectModal();
+                }
+            } catch (e) {}
         },
 
         matchesFilter(sym, name, cat, bal) {
