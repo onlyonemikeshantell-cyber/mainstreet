@@ -30,6 +30,8 @@ try {
 
   // User Connected External Web3 Wallets Table
   db.exec("CREATE TABLE IF NOT EXISTS user_connected_wallets (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, wallet_address TEXT NOT NULL, wallet_type TEXT DEFAULT 'walletconnect', chain_id TEXT DEFAULT '0x1', network_name TEXT DEFAULT 'Ethereum Mainnet', balance_cache REAL DEFAULT 0.0, currency_symbol TEXT DEFAULT 'ETH', is_active INTEGER DEFAULT 1, last_connected_at DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));");
+  const cwCols = db.prepare('PRAGMA table_info(user_connected_wallets)').all().map(c => c.name);
+  if (!cwCols.includes('token_balances')) db.exec("ALTER TABLE user_connected_wallets ADD COLUMN token_balances TEXT DEFAULT '{}'");
 
   // Ensure major ETFs exist in market_settings
   const etfInsert = db.prepare(`

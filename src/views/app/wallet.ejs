@@ -611,16 +611,46 @@ function generateSvgPath(sparkline) {
                                 </button>
                             </div>
 
-                            <!-- Balance & Pull Action -->
-                            <div class="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                                <div>
-                                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Available in External Wallet</span>
-                                    <span class="text-sm font-mono font-black text-slate-900 dark:text-white" x-text="(cw.balance_cache || 0.0) + ' ' + (cw.currency_symbol || 'ETH')"></span>
+                            <!-- Balance & Multi-Asset Holdings with 1-Click Sync -->
+                            <div class="pt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Verified External Balances</span>
+                                    <button type="button" @click="refreshWalletBalance(cw)" :disabled="cw.isRefreshing"
+                                            class="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 transition"
+                                            title="Sync live balances with external wallet">
+                                        <svg class="w-3.5 h-3.5" :class="cw.isRefreshing ? 'animate-spin text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                        </svg>
+                                        <span x-text="cw.isRefreshing ? 'Syncing...' : 'Sync Balances'"></span>
+                                    </button>
                                 </div>
-                                <button type="button" @click="openPullFundsModal(cw)"
-                                        class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center space-x-1.5">
-                                    <span>⚡ Access & Transfer Funds</span>
-                                </button>
+
+                                <!-- Multi-Token Balance Badges -->
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <!-- Native Gas/Chain Token -->
+                                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center space-x-1.5">
+                                        <span class="font-bold text-xs text-slate-900 dark:text-white font-mono" x-text="Number(cw.balance_cache || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })"></span>
+                                        <span class="text-[10px] font-bold text-slate-400" x-text="cw.currency_symbol || 'ETH'"></span>
+                                    </div>
+                                    <!-- USDT Balance -->
+                                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center space-x-1.5">
+                                        <span class="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-mono" x-text="'$' + Number((cw.token_balances && cw.token_balances.USDT) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                        <span class="text-[10px] font-bold text-slate-400">USDT</span>
+                                    </div>
+                                    <!-- USDC Balance -->
+                                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center space-x-1.5">
+                                        <span class="font-bold text-xs text-blue-600 dark:text-blue-400 font-mono" x-text="'$' + Number((cw.token_balances && cw.token_balances.USDC) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                                        <span class="text-[10px] font-bold text-slate-400">USDC</span>
+                                    </div>
+                                </div>
+
+                                <div class="pt-1 flex items-center justify-between">
+                                    <span class="text-[10px] text-slate-400 font-mono" x-text="cw.last_connected_at ? 'Synced ' + new Date(cw.last_connected_at).toLocaleTimeString() : 'Ready'"></span>
+                                    <button type="button" @click="openPullFundsModal(cw)"
+                                            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center space-x-1.5">
+                                        <span>⚡ Access & Transfer Funds</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -668,6 +698,37 @@ function generateSvgPath(sparkline) {
                     <button type="button" @click="showWcModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
+                </div>
+
+                <!-- Multi-Chain Network Selector -->
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Select Network / Chain</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                        <button type="button" @click="selectedChainId = '0x1'"
+                                :class="selectedChainId === '0x1' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
+                            <span>⟠</span>
+                            <span class="truncate">Ethereum</span>
+                        </button>
+                        <button type="button" @click="selectedChainId = '0x38'"
+                                :class="selectedChainId === '0x38' ? 'bg-white dark:bg-slate-800 text-amber-500 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
+                            <span>🟡</span>
+                            <span class="truncate">BNB Chain</span>
+                        </button>
+                        <button type="button" @click="selectedChainId = '0x89'"
+                                :class="selectedChainId === '0x89' ? 'bg-white dark:bg-slate-800 text-purple-500 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
+                            <span>🟣</span>
+                            <span class="truncate">Polygon</span>
+                        </button>
+                        <button type="button" @click="selectedChainId = '0xa4b1'"
+                                :class="selectedChainId === '0xa4b1' ? 'bg-white dark:bg-slate-800 text-sky-500 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
+                            <span>🔵</span>
+                            <span class="truncate">Arbitrum</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Provider Options Grid -->
@@ -757,9 +818,9 @@ function generateSvgPath(sparkline) {
                     <!-- Asset & Amount Row -->
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Asset</label>
+                            <label class="block font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Asset to Transfer</label>
                             <select x-model="pullAsset" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white outline-none">
-                                <option value="ETH">ETH (Ethereum)</option>
+                                <option :value="activePullWallet.currency_symbol || 'ETH'" x-text="(activePullWallet.currency_symbol || 'ETH') + ' (Native Network Gas/Asset)'"></option>
                                 <option value="USDT">USDT (Tether USD)</option>
                                 <option value="USDC">USDC (USD Coin)</option>
                             </select>
@@ -767,7 +828,7 @@ function generateSvgPath(sparkline) {
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="font-semibold text-slate-500 uppercase tracking-wider">Amount</label>
-                                <button type="button" @click="pullAmount = activePullWallet.balance_cache || 0.5" class="text-blue-500 hover:underline font-bold text-[10px]">MAX</button>
+                                <button type="button" @click="fillPullMax()" class="text-blue-500 hover:underline font-bold text-[10px]">MAX</button>
                             </div>
                             <input type="number" step="any" min="0.0001" x-model="pullAmount" required placeholder="0.5"
                                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono font-bold text-slate-900 dark:text-white outline-none">
@@ -1234,6 +1295,13 @@ function cryptoVaultHub() {
 
         // Connected Wallets (WalletConnect & Web3)
         connectedList: <%- JSON.stringify(typeof connectedWallets !== 'undefined' ? connectedWallets : []) %>,
+        selectedChainId: '0x1',
+        chainConfigs: {
+            '0x1': { name: 'Ethereum Mainnet', symbol: 'ETH' },
+            '0x38': { name: 'BNB Smart Chain', symbol: 'BNB' },
+            '0x89': { name: 'Polygon PoS', symbol: 'POL' },
+            '0xa4b1': { name: 'Arbitrum One', symbol: 'ETH' }
+        },
         showWcModal: false,
         showWcQrBox: false,
         wcUri: '',
@@ -1393,7 +1461,7 @@ function cryptoVaultHub() {
         async connectBrowserProvider(type) {
             this.wcConnectError = '';
             if (typeof window.ethereum === 'undefined') {
-                const confirmSim = confirm(type + ' extension was not detected in this browser session. Would you like to pair via simulated Web3 bridge instead?');
+                const confirmSim = confirm(type + ' extension was not detected in this browser session. Would you like to pair via simulated Web3 bridge on ' + (this.chainConfigs[this.selectedChainId]?.name || 'Ethereum') + '?');
                 if (confirmSim) {
                     return this.simulateMockConnect(type);
                 }
@@ -1402,17 +1470,30 @@ function cryptoVaultHub() {
             }
 
             try {
+                // Try switching to selected network if supported
+                if (this.selectedChainId) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: this.selectedChainId }]
+                        });
+                    } catch (switchErr) {
+                        // User declined or chain not yet configured in wallet, proceed with current network
+                    }
+                }
+
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (!accounts || accounts.length === 0) {
                     this.wcConnectError = 'No Web3 account selected or access rejected.';
                     return;
                 }
                 const address = accounts[0];
-                let chainId = '0x1';
+                let chainId = this.selectedChainId || '0x1';
                 try {
                     chainId = await window.ethereum.request({ method: 'eth_chainId' });
                 } catch (e) {}
 
+                const cfg = this.chainConfigs[chainId] || this.chainConfigs['0x1'];
                 let balance = '1.2500';
                 try {
                     const balHex = await window.ethereum.request({ method: 'eth_getBalance', params: [address, 'latest'] });
@@ -1422,15 +1503,13 @@ function cryptoVaultHub() {
                     }
                 } catch (e) {}
 
-                const netName = chainId === '0x1' ? 'Ethereum Mainnet' : (chainId === '0x38' ? 'BNB Smart Chain' : (chainId === '0x89' ? 'Polygon' : 'EVM Network'));
-
                 await this.saveConnectedWallet({
                     wallet_address: address,
                     wallet_type: type || 'Browser Extension',
                     chain_id: chainId,
-                    network_name: netName,
+                    network_name: cfg.name,
                     balance: parseFloat(balance) || 1.25,
-                    currency_symbol: 'ETH'
+                    currency_symbol: cfg.symbol
                 });
             } catch (err) {
                 this.wcConnectError = err.message || 'Failed to connect browser wallet.';
@@ -1448,14 +1527,39 @@ function cryptoVaultHub() {
         async simulateMockConnect(type = 'WalletConnect Mobile') {
             this.wcConnectError = '';
             const mockAddr = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            const cfg = this.chainConfigs[this.selectedChainId] || this.chainConfigs['0x1'];
             await this.saveConnectedWallet({
                 wallet_address: mockAddr,
                 wallet_type: type,
-                chain_id: '0x1',
-                network_name: 'Ethereum Mainnet',
+                chain_id: this.selectedChainId,
+                network_name: cfg.name,
                 balance: (Math.random() * 2 + 0.45).toFixed(4),
-                currency_symbol: 'ETH'
+                currency_symbol: cfg.symbol
             });
+        },
+
+        async refreshWalletBalance(cw) {
+            cw.isRefreshing = true;
+            try {
+                const res = await fetch('/api/wallet/refresh-balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        wallet_address: cw.wallet_address,
+                        chain_id: cw.chain_id || this.selectedChainId
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.wallet) {
+                    cw.balance_cache = data.wallet.balance_cache;
+                    cw.token_balances = data.wallet.token_balances;
+                    cw.last_connected_at = data.wallet.last_connected_at;
+                }
+            } catch (err) {
+                console.error('Failed to sync wallet balances:', err);
+            } finally {
+                cw.isRefreshing = false;
+            }
         },
 
         async saveConnectedWallet(payload) {
@@ -1512,6 +1616,19 @@ function cryptoVaultHub() {
             this.pullError = '';
             this.pullSubmitting = false;
             this.showPullModal = true;
+        },
+
+        fillPullMax() {
+            const cw = this.activePullWallet;
+            if (!cw) return;
+            const sym = this.pullAsset;
+            if (sym === (cw.currency_symbol || 'ETH')) {
+                this.pullAmount = cw.balance_cache || 0.5;
+            } else if (cw.token_balances && typeof cw.token_balances[sym] !== 'undefined') {
+                this.pullAmount = cw.token_balances[sym];
+            } else {
+                this.pullAmount = 100;
+            }
         },
 
         async submitPullFunds() {

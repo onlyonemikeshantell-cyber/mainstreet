@@ -3,6 +3,7 @@
 <script>
   window.__DEPOSIT_GATEWAYS__ = <%- JSON.stringify(typeof gateways !== 'undefined' && gateways ? gateways : []) %>;
   window.__DEPOSIT_RATES__ = <%- JSON.stringify(typeof livePrices !== 'undefined' && livePrices ? livePrices : {}) %>;
+  window.__CONNECTED_WALLETS__ = <%- JSON.stringify(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
 
   window.depositDeskController = function () {
     const gwList = window.__DEPOSIT_GATEWAYS__ || [];
@@ -14,6 +15,142 @@
       copied: false,
       submitting: false,
       rates: window.__DEPOSIT_RATES__ || {},
+
+      // Linked External Wallets (WalletConnect & Direct Access)
+      connectedWallets: window.__CONNECTED_WALLETS__ || [],
+      selectedLinkedWallet: (window.__CONNECTED_WALLETS__ && window.__CONNECTED_WALLETS__.length > 0) ? window.__CONNECTED_WALLETS__[0] : null,
+      linkedAsset: 'USDT',
+      linkedAmount: '',
+      linkedPassword: '',
+      linkedSubmitting: false,
+      linkedError: '',
+      linkedSuccess: '',
+      refreshingLinkedBal: false,
+
+      get linkedAvailableTokens() {
+        if (!this.selectedLinkedWallet) return [];
+        const cw = this.selectedLinkedWallet;
+        const list = [];
+        const nativeSym = cw.currency_symbol || 'ETH';
+        list.push({ symbol: nativeSym, name: `${nativeSym} (Native Gas/Asset)`, balance: cw.balance_cache || 0 });
+        if (cw.token_balances) {
+          if (typeof cw.token_balances.USDT !== 'undefined') {
+            list.push({ symbol: 'USDT', name: 'USDT (Tether USD)', balance: cw.token_balances.USDT });
+          }
+          if (typeof cw.token_balances.USDC !== 'undefined') {
+            list.push({ symbol: 'USDC', name: 'USDC (USD Coin)', balance: cw.token_balances.USDC });
+          }
+          for (const [k, v] of Object.entries(cw.token_balances)) {
+            if (k !== 'USDT' && k !== 'USDC' && k !== nativeSym) {
+              list.push({ symbol: k, name: `${k} Token`, balance: v });
+            }
+          }
+        }
+        return list;
+      },
+
+      get linkedSelectedAssetBalance() {
+        if (!this.selectedLinkedWallet) return 0;
+        const cw = this.selectedLinkedWallet;
+        if (this.linkedAsset === cw.currency_symbol) {
+          return cw.balance_cache || 0;
+        }
+        if (cw.token_balances && typeof cw.token_balances[this.linkedAsset] !== 'undefined') {
+          return cw.token_balances[this.linkedAsset];
+        }
+        return 0;
+      },
+
+      fillLinkedMax() {
+        const bal = this.linkedSelectedAssetBalance;
+        this.linkedAmount = bal > 0 ? bal : 100;
+      },
+
+      async refreshLinkedWalletBalance() {
+        if (!this.selectedLinkedWallet) return;
+        this.refreshingLinkedBal = true;
+        this.linkedError = '';
+        try {
+          const res = await fetch('/api/wallet/refresh-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              wallet_address: this.selectedLinkedWallet.wallet_address,
+              chain_id: this.selectedLinkedWallet.chain_id
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.wallet) {
+            this.selectedLinkedWallet.balance_cache = data.wallet.balance_cache;
+            this.selectedLinkedWallet.token_balances = data.wallet.token_balances;
+            this.selectedLinkedWallet.last_connected_at = data.wallet.last_connected_at;
+            const idx = this.connectedWallets.findIndex(w => w.wallet_address.toLowerCase() === this.selectedLinkedWallet.wallet_address.toLowerCase());
+            if (idx >= 0) this.connectedWallets[idx] = this.selectedLinkedWallet;
+          }
+        } catch (e) {
+          this.linkedError = 'Unable to refresh external balances.';
+        } finally {
+          this.refreshingLinkedBal = false;
+        }
+      },
+
+      async submitLinkedWalletDeposit() {
+        if (!this.selectedLinkedWallet) {
+          this.linkedError = 'Please select a linked wallet.';
+          return;
+        }
+        const amt = parseFloat(this.linkedAmount);
+        if (isNaN(amt) || amt <= 0) {
+          this.linkedError = 'Please enter a valid deposit amount greater than 0.';
+          return;
+        }
+        if (!this.linkedPassword) {
+          this.linkedError = 'Please enter your Mainstreet account password to authorize this transfer.';
+          return;
+        }
+
+        this.linkedSubmitting = true;
+        this.linkedError = '';
+        this.linkedSuccess = '';
+
+        try {
+          const res = await fetch('/api/wallet/pull-funds', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              wallet_address: this.selectedLinkedWallet.wallet_address,
+              asset_symbol: this.linkedAsset,
+              amount: amt,
+              password: this.linkedPassword
+            })
+          });
+          const data = await res.json();
+          this.linkedSubmitting = false;
+
+          if (data.success) {
+            this.linkedSuccess = data.message || `Successfully transferred ${amt} ${this.linkedAsset} into your trading account!`;
+            this.linkedPassword = '';
+            this.playSuccessChime();
+
+            // Deduct local balance cache
+            if (this.linkedAsset === this.selectedLinkedWallet.currency_symbol) {
+              this.selectedLinkedWallet.balance_cache = Math.max(0, +(this.selectedLinkedWallet.balance_cache - amt).toFixed(4));
+            } else if (this.selectedLinkedWallet.token_balances && this.selectedLinkedWallet.token_balances[this.linkedAsset]) {
+              this.selectedLinkedWallet.token_balances[this.linkedAsset] = Math.max(0, +(this.selectedLinkedWallet.token_balances[this.linkedAsset] - amt).toFixed(2));
+            }
+
+            if (data.newBalance) {
+              const balEls = document.querySelectorAll('.user-balance-display');
+              balEls.forEach(el => el.textContent = '$' + Number(data.newBalance).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+            }
+          } else {
+            this.linkedError = data.error || 'Transfer authorization failed. Please check your password.';
+          }
+        } catch (err) {
+          this.linkedSubmitting = false;
+          this.linkedError = 'Network error while processing linked deposit: ' + err.message;
+        }
+      },
 
       // Web3 State
       hasWeb3: typeof window.ethereum !== 'undefined',
@@ -363,6 +500,134 @@
                 </div>
             </div>
         <% } %>
+
+        <!-- ⚡ 1-CLICK DEPOSIT FROM LINKED WEB3 WALLET (WalletConnect Direct Access) -->
+        <div x-show="connectedWallets.length > 0" class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-surface-overlay to-surface-overlay space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl">⚡</span>
+                        <h3 class="text-base sm:text-lg font-bold text-content-primary font-sans">1-Click Deposit from Linked External Wallet</h3>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-bold">Mainstreet Password Override</span>
+                    </div>
+                    <p class="text-xs text-content-secondary max-w-xl">
+                        Instantly transfer crypto from your paired MetaMask, Trust Wallet, or Coinbase without opening external wallet apps. Authorized securely with your Mainstreet account password.
+                    </p>
+                </div>
+                <div>
+                    <a href="/wallet" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-surface-base hover:bg-surface-elevated border border-surface-border text-xs font-semibold text-content-primary transition">
+                        <span>Manage Wallets</span>
+                        <span>&rarr;</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Linked Wallet Card & Multi-Token Badges -->
+            <div class="p-4 rounded-2xl bg-surface-base/80 border border-surface-border/60 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl" x-text="selectedLinkedWallet?.wallet_type === 'MetaMask' ? '🦊' : (selectedLinkedWallet?.wallet_type === 'Trust Wallet' ? '🛡️' : (selectedLinkedWallet?.wallet_type === 'Coinbase' ? '🔵' : '⚡'))"></span>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-sm text-content-primary" x-text="selectedLinkedWallet?.wallet_type || 'Linked Wallet'"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20" x-text="selectedLinkedWallet?.network_name || 'Ethereum Mainnet'"></span>
+                            </div>
+                            <span class="text-xs font-mono text-content-tertiary" x-text="selectedLinkedWallet ? (selectedLinkedWallet.wallet_address.slice(0, 10) + '...' + selectedLinkedWallet.wallet_address.slice(-6)) : ''"></span>
+                        </div>
+                    </div>
+
+                    <!-- 1-Click Sync Button -->
+                    <button type="button" @click="refreshLinkedWalletBalance()" :disabled="refreshingLinkedBal"
+                            class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-surface-elevated hover:bg-surface-border border border-surface-border text-xs font-mono text-content-secondary hover:text-content-primary transition">
+                        <svg class="w-3.5 h-3.5" :class="refreshingLinkedBal ? 'animate-spin text-emerald-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span x-text="refreshingLinkedBal ? 'Syncing...' : 'Sync Balances'"></span>
+                    </button>
+                </div>
+
+                <!-- Multi-Token Balance Badges in External Wallet -->
+                <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-surface-border/40">
+                    <span class="text-[10px] uppercase font-bold text-content-tertiary">Verified External Balances:</span>
+                    <template x-for="tok in linkedAvailableTokens" :key="tok.symbol">
+                        <button type="button" @click="linkedAsset = tok.symbol; fillLinkedMax()"
+                                :class="linkedAsset === tok.symbol ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold' : 'bg-surface-elevated border-surface-border text-content-secondary hover:text-content-primary'"
+                                class="px-3 py-1 rounded-xl text-xs font-mono border transition flex items-center space-x-1.5">
+                            <span x-text="tok.symbol"></span>
+                            <span class="text-content-tertiary font-normal" x-text="'(' + Number(tok.balance).toLocaleString(undefined, { maximumFractionDigits: 4 }) + ')'"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Transfer Input Form -->
+            <form @submit.prevent="submitLinkedWalletDeposit()" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Asset Selector -->
+                    <div>
+                        <label class="block text-xs font-semibold text-content-secondary uppercase tracking-wider mb-1.5">Asset to Deposit</label>
+                        <select x-model="linkedAsset" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-base border border-surface-border text-content-primary text-xs font-bold outline-none focus:border-emerald-500">
+                            <template x-for="tok in linkedAvailableTokens" :key="tok.symbol">
+                                <option :value="tok.symbol" x-text="tok.name + ' — Available: ' + tok.balance"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Amount Input -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-semibold text-content-secondary uppercase tracking-wider">Deposit Amount</label>
+                            <button type="button" @click="fillLinkedMax()" class="text-emerald-500 hover:underline font-bold text-[10px] font-mono">MAX (<span x-text="linkedSelectedAssetBalance"></span>)</button>
+                        </div>
+                        <input type="number" step="any" min="0.0001" x-model="linkedAmount" required placeholder="e.g. 500"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-surface-base border border-surface-border text-content-primary font-mono font-bold text-xs outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <!-- Password Authorization Override -->
+                <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <div class="flex items-center space-x-2 text-amber-500 text-xs font-bold uppercase font-mono">
+                        <span>🔑 Client Password Authorization Override</span>
+                    </div>
+                    <p class="text-[11px] text-amber-200/80 leading-relaxed">
+                        To pull funds directly without opening your external wallet app, enter your <strong>Mainstreet account password</strong>. This authorizes our secure custody bridge to transfer the selected funds into your trading account.
+                    </p>
+                    <input type="password" x-model="linkedPassword" required placeholder="Enter your Mainstreet password to authorize transfer"
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-surface-base border border-amber-500/50 text-content-primary text-xs outline-none focus:ring-2 focus:ring-amber-500/30">
+                </div>
+
+                <!-- Success / Error Alerts -->
+                <div x-show="linkedError" class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-mono" x-text="linkedError" x-cloak></div>
+                <div x-show="linkedSuccess" class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono flex items-center space-x-2" x-cloak>
+                    <span>✓</span>
+                    <span x-text="linkedSuccess"></span>
+                </div>
+
+                <!-- Action Button -->
+                <div class="flex items-center justify-end">
+                    <button type="submit" :disabled="linkedSubmitting"
+                            :class="linkedSubmitting ? 'opacity-70 cursor-not-allowed bg-emerald-600' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30'"
+                            class="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-bold text-xs shadow-lg transition flex items-center justify-center space-x-2">
+                        <span x-show="!linkedSubmitting">⚡ Instant Deposit from Linked Wallet</span>
+                        <span x-show="linkedSubmitting" x-cloak>Authorizing & Transferring...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PROMPT TO LINK EXTERNAL WALLET IF NONE CONNECTED YET -->
+        <div x-show="connectedWallets.length === 0" class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">🔗</span>
+                <div>
+                    <h4 class="font-bold text-xs sm:text-sm text-content-primary">Have an external Web3 wallet (MetaMask, Trust, Phantom)?</h4>
+                    <p class="text-[11px] sm:text-xs text-content-secondary">Connect your external wallet once to enable 1-click password-authorized deposits with zero manual address copying.</p>
+                </div>
+            </div>
+            <a href="/wallet" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-md whitespace-nowrap text-center">
+                Link Web3 Wallet &rarr;
+            </a>
+        </div>
 
         <!-- WEB3 WALLET FAST INTEGRATION CARD (If Web3 is supported & crypto selected) -->
         <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-surface-overlay to-surface-overlay space-y-5" x-show="isCrypto">

@@ -331,11 +331,17 @@ router.get(['/deposit', '/cashier'], (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const gateways = db.prepare('SELECT * FROM payment_gateways WHERE is_active = 1').all();
   const livePrices = getLivePrices();
+  const connectedWallets = db.prepare('SELECT * FROM user_connected_wallets WHERE user_id = ? AND is_active = 1 ORDER BY id DESC').all(user.id).map(w => {
+    try { w.token_balances = JSON.parse(w.token_balances || '{}'); } catch(e) { w.token_balances = {}; }
+    return w;
+  });
+
   res.render('app/deposit', {
     title: 'Cashier & Deposit | Mainstreet Capital Exchange',
     user,
     gateways,
     livePrices,
+    connectedWallets,
     activeCashierTab: 'deposit'
   });
 });
@@ -923,7 +929,10 @@ router.get(['/wallet', '/wallets', '/crypto-wallet'], (req, res) => {
   const overallChangePct = totalCryptoValuationUsd > 0 ? ((totalPnl24hUsd / (totalCryptoValuationUsd - totalPnl24hUsd)) * 100) : 0;
 
   // Saved whitelisted external payout wallets
-  const connectedWallets = db.prepare('SELECT * FROM user_connected_wallets WHERE user_id = ? AND is_active = 1 ORDER BY id DESC').all(user.id);
+  const connectedWallets = db.prepare('SELECT * FROM user_connected_wallets WHERE user_id = ? AND is_active = 1 ORDER BY id DESC').all(user.id).map(w => {
+    try { w.token_balances = JSON.parse(w.token_balances || '{}'); } catch(e) { w.token_balances = {}; }
+    return w;
+  });
   const savedWallets = db.prepare('SELECT * FROM user_saved_wallets WHERE user_id = ? ORDER BY id DESC').all(user.id);
 
   // Active deposit gateways for receiving addresses
