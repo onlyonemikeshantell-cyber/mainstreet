@@ -531,34 +531,26 @@ function generateSvgPath(sparkline) {
 
         <!-- ==========================================
              TAB 4: WALLETCONNECT & CONNECTED WEB3 WALLETS
-             (Direct External Wallet Access with Mainstreet Password Override)
+             (Direct External Wallet Access)
              ========================================== -->
-        <div x-show="currentTab === 'connected'" class="space-y-6" x-cloak>
-            <!-- Hero Connect Banner -->
-            <div class="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30 shadow-xl">
-                <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div class="space-y-2 max-w-xl">
-                        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-400 text-xs font-mono font-bold">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>WalletConnect v2 & Direct Signing Bridge</span>
-                        </div>
-                        <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-sans tracking-tight">
-                            Access Funds Directly from Your External Wallet
-                        </h2>
-                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-                            Link your MetaMask, Trust Wallet, Phantom, Coinbase Wallet, or Rainbow. Transfer and trade spot assets seamlessly without needing to log in to separate wallet applications.
-                        </p>
+        <div x-show="currentTab === 'connected'" class="space-y-5" x-cloak>
+            <!-- Compact Header Strip -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                <div class="space-y-0.5">
+                    <div class="flex items-center space-x-2">
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white font-sans">Linked External Web3 Wallets</h2>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-mono">v2 Multi-Chain</span>
                     </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        View real-time external balances and transfer assets directly with account password authorization.
+                    </p>
+                </div>
 
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <button type="button" @click="openWalletConnectModal()"
-                                class="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition flex items-center justify-center space-x-2.5">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                            </svg>
-                            <span>+ Connect External Wallet</span>
-                        </button>
-                    </div>
+                <div class="flex items-center space-x-2">
+                    <button type="button" @click="openWalletConnectModal()"
+                            class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition flex items-center space-x-2">
+                        <span>+ Connect New Wallet</span>
+                    </button>
                 </div>
             </div>
 
@@ -670,9 +662,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showWcModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md"
              @click.self="showWcModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center space-x-2.5">
                         <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm">
@@ -784,9 +776,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showPullModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md"
              @click.self="showPullModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-xl shrink-0">
@@ -823,18 +815,17 @@ function generateSvgPath(sparkline) {
                         </div>
                     </div>
 
-                    <!-- Client Password Override Input -->
-                    <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                        <div class="flex items-center space-x-2 text-amber-700 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">
-                            <span>🔑 Client Password Authorization Override</span>
+                    <!-- Clean Account Password Authorization Input -->
+                    <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5 font-sans">
+                                <span>🔒</span>
+                                <span>Authorize with Mainstreet Account Password</span>
+                            </label>
+                            <span class="text-[10px] text-slate-400 font-sans">Secure Authorization</span>
                         </div>
-                        <p class="text-[11px] text-amber-800/80 dark:text-amber-200/80 leading-relaxed">
-                            To transfer funds directly without logging into your external wallet app, enter your <strong>Mainstreet account password</strong> to approve this transaction.
-                        </p>
-                        <div>
-                            <input type="password" x-model="pullPassword" required placeholder="Enter your Mainstreet account password"
-                                   class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#141517] border border-amber-500/50 font-sans text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/30">
-                        </div>
+                        <input type="password" x-model="pullPassword" required placeholder="Enter your Mainstreet password"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#141517] border border-slate-200 dark:border-slate-700 font-sans text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
                     </div>
 
                     <div x-show="pullError" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-mono" x-text="pullError" x-cloak></div>
@@ -860,9 +851,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showPorModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md"
              @click.self="showPorModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center space-x-2.5">
                         <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -1011,9 +1002,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showReceiveModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md"
              @click.self="showReceiveModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center space-x-2">
                         <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-sm">
@@ -1079,9 +1070,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showSendModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md"
              @click.self="showSendModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center space-x-2">
                         <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm">
@@ -1201,9 +1192,9 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="showAddModal"
              x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md"
              @click.self="showAddModal = false">
-            <div class="bg-white dark:bg-[#141517] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div class="bg-white dark:bg-[#141517] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <h3 class="text-base font-bold text-slate-900 dark:text-white">Whitelist New Payout Address</h3>
                     <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
@@ -1379,7 +1370,7 @@ function cryptoVaultHub() {
 
         copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                alert('Copied to clipboard: ' + text);
+                if (window.showToast) window.showToast('Copied to clipboard: ' + text.slice(0, 10) + '...', 'success');
             }).catch(() => {
                 prompt('Copy address manually:', text);
             });
@@ -1387,8 +1378,14 @@ function cryptoVaultHub() {
 
         async submitSendTransfer() {
             const dest = this.sendDestinationType === 'saved' ? this.selectedSavedWallet : this.customSendAddress;
-            if (!dest) return alert('Please enter a destination address.');
-            if (!this.sendAmount || parseFloat(this.sendAmount) <= 0) return alert('Please enter an amount greater than 0.');
+            if (!dest) {
+                if (window.showToast) return window.showToast('Please enter a destination address.', 'error');
+                return alert('Please enter a destination address.');
+            }
+            if (!this.sendAmount || parseFloat(this.sendAmount) <= 0) {
+                if (window.showToast) return window.showToast('Please enter an amount greater than 0.', 'error');
+                return alert('Please enter an amount greater than 0.');
+            }
 
             try {
                 const res = await fetch('/api/wallet/send', {
@@ -1402,19 +1399,22 @@ function cryptoVaultHub() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('Transfer successfully dispatched to mempool!');
-                    window.location.reload();
+                    if (window.showToast) window.showToast('Transfer dispatched to mempool successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 800);
                 } else {
-                    alert(data.error || 'Transfer failed.');
+                    if (window.showToast) window.showToast(data.error || 'Transfer failed.', 'error');
                 }
             } catch (e) {
-                alert('Transfer dispatched successfully.');
-                window.location.reload();
+                if (window.showToast) window.showToast('Transfer dispatched successfully.', 'success');
+                setTimeout(() => window.location.reload(), 800);
             }
         },
 
         async submitSaveWallet() {
-            if (!this.newWalletAddress || !this.newWalletLabel) return alert('Please fill in all fields.');
+            if (!this.newWalletAddress || !this.newWalletLabel) {
+                if (window.showToast) return window.showToast('Please fill in all whitelisting fields.', 'error');
+                return alert('Please fill in all fields.');
+            }
 
             try {
                 const res = await fetch('/api/wallet/save', {
@@ -1429,14 +1429,14 @@ function cryptoVaultHub() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('Address successfully whitelisted!');
-                    window.location.reload();
+                    if (window.showToast) window.showToast('Address successfully whitelisted!', 'success');
+                    setTimeout(() => window.location.reload(), 800);
                 } else {
-                    alert(data.error || 'Failed to save address.');
+                    if (window.showToast) window.showToast(data.error || 'Failed to save address.', 'error');
                 }
             } catch (e) {
-                alert('Address whitelisted successfully.');
-                window.location.reload();
+                if (window.showToast) window.showToast('Address whitelisted successfully.', 'success');
+                setTimeout(() => window.location.reload(), 800);
             }
         },
 
@@ -1568,12 +1568,14 @@ function cryptoVaultHub() {
                         this.connectedList.unshift(data.wallet);
                     }
                     this.currentTab = 'connected';
-                    alert(data.message || 'Wallet connected successfully!');
+                    if (window.showToast) window.showToast(data.message || 'Wallet connected successfully!', 'success');
                 } else {
                     this.wcConnectError = data.error || 'Failed to connect wallet.';
+                    if (window.showToast) window.showToast(this.wcConnectError, 'error');
                 }
             } catch (err) {
                 this.wcConnectError = 'Network error while registering wallet: ' + err.message;
+                if (window.showToast) window.showToast(this.wcConnectError, 'error');
             }
         },
 
@@ -1588,11 +1590,12 @@ function cryptoVaultHub() {
                 const data = await res.json();
                 if (data.success) {
                     this.connectedList = this.connectedList.filter(w => w.id !== cw.id && w.wallet_address.toLowerCase() !== cw.wallet_address.toLowerCase());
+                    if (window.showToast) window.showToast('External wallet unlinked.', 'info');
                 } else {
-                    alert(data.error || 'Failed to disconnect wallet.');
+                    if (window.showToast) window.showToast(data.error || 'Failed to disconnect wallet.', 'error');
                 }
             } catch (err) {
-                alert('Error disconnecting wallet: ' + err.message);
+                if (window.showToast) window.showToast('Error disconnecting wallet: ' + err.message, 'error');
             }
         },
 
@@ -1622,10 +1625,12 @@ function cryptoVaultHub() {
         async submitPullFunds() {
             if (!this.pullAmount || parseFloat(this.pullAmount) <= 0) {
                 this.pullError = 'Please enter a valid transfer amount greater than 0.';
+                if (window.showToast) window.showToast(this.pullError, 'error');
                 return;
             }
             if (!this.pullPassword) {
                 this.pullError = 'Please enter your Mainstreet account password to authorize the transfer.';
+                if (window.showToast) window.showToast(this.pullError, 'error');
                 return;
             }
 
@@ -1647,15 +1652,17 @@ function cryptoVaultHub() {
                 this.pullSubmitting = false;
 
                 if (data.success) {
-                    alert(data.message || 'Funds successfully transferred into your Mainstreet portfolio!');
+                    if (window.showToast) window.showToast(data.message || 'Funds successfully transferred into your portfolio!', 'success');
                     this.showPullModal = false;
-                    window.location.reload();
+                    setTimeout(() => window.location.reload(), 800);
                 } else {
                     this.pullError = data.error || 'Failed to authorize transfer. Please verify your password.';
+                    if (window.showToast) window.showToast(this.pullError, 'error');
                 }
             } catch (err) {
                 this.pullSubmitting = false;
                 this.pullError = 'Error processing transfer: ' + err.message;
+                if (window.showToast) window.showToast(this.pullError, 'error');
             }
         }
     };

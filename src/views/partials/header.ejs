@@ -433,6 +433,45 @@
         </div>
     <% } %>
 
+    <!-- Global Modern Fintech Toast Notification Stack -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[99999] flex flex-col space-y-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+    <script>
+    window.showToast = function(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto transform transition-all duration-300 ease-out -translate-y-2 opacity-0 flex items-center space-x-3 p-4 rounded-2xl shadow-2xl border backdrop-blur-xl text-xs font-sans font-semibold ${
+            type === 'success' 
+                ? 'bg-slate-900/95 dark:bg-black/95 text-white border-emerald-500/40 shadow-emerald-500/10' 
+                : (type === 'error' ? 'bg-slate-900/95 dark:bg-black/95 text-white border-rose-500/40 shadow-rose-500/10' : 'bg-slate-900/95 dark:bg-black/95 text-white border-blue-500/40 shadow-blue-500/10')
+        }`;
+        
+        const iconSvg = type === 'success' 
+            ? '<div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</div>'
+            : (type === 'error' 
+                ? '<div class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-xs shrink-0">✕</div>'
+                : '<div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">ℹ</div>');
+
+        toast.innerHTML = `
+            ${iconSvg}
+            <div class="flex-1 leading-snug">${message}</div>
+            <button type="button" class="text-slate-400 hover:text-white transition p-1" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        container.appendChild(toast);
+        
+        requestAnimationFrame(() => {
+            toast.classList.remove('-translate-y-2', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+        });
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('-translate-y-2', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3600);
+    };
+    </script>
+
     <!-- Flash Message Toast Notification -->
     <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
         <div x-data="{ show: true }" x-show="show" class="fixed bottom-5 right-5 z-[9999] max-w-sm apple-glass text-content-primary px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 transition-all duration-300">
