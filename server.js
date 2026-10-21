@@ -24,6 +24,9 @@ const userRoutes = require('./src/routes/user');
 const adminRoutes = require('./src/routes/admin');
 const retirementRoutes = require('./src/routes/retirement');
 
+// Import Background Workers
+const { startWorkers } = require('./src/workers/tradingWorkers');
+
 const app = express();
 const PORT = process.env.PORT || 3333;
 
@@ -153,9 +156,8 @@ app.use('/', userRoutes);
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).render('public/home', { 
-    title: 'Mainstreet Capital Exchange | Page Not Found',
-    flash: { error: 'The requested page could not be located. Redirected to home.' }
+  res.status(404).render('errors/404', { 
+    title: '404 - Page Not Located | Mainstreet Capital Exchange'
   });
 });
 
@@ -165,96 +167,8 @@ app.use((err, req, res, next) => {
   res.status(500).send('Internal Server Error');
 });
 
-// ==============================================================================
-// BACKGROUND WORKER: Automated Copy Trading Micro-Profit Accrual
-// ==============================================================================
-setInterval(() => {
-  try {
-    const activeSubs = db.prepare("SELECT * FROM copy_subscriptions WHERE status = 'active'").all();
-    if (activeSubs && activeSubs.length > 0) {
-      const updateStmt = db.prepare('UPDATE copy_subscriptions SET current_profit = current_profit + ? WHERE id = ?');
-      activeSubs.forEach(sub => {
-        // Accrue a realistic random micro-return (+0.02% to +0.08% of allocated capital)
-        const microRate = (Math.random() * 0.0006 + 0.0002);
-        const profitGain = +(sub.allocated_amount * microRate).toFixed(2);
-        updateStmt.run(profitGain, sub.id);
-      });
-    }
-  } catch (err) {
-    console.error('Copy Trading Accrual Worker Error:', err.message);
-  }
-}, 45000); // Runs every 45 seconds
-
-// Start Server
-// ==============================================================================
-// BACKGROUND WORKER: Automated Take Profit & Stop Loss (TP/SL) Liquidation
-// ==============================================================================
-const { getLivePrices } = require('./src/services/livePriceService');
-
-setInterval(() => {
-  try {
-    const openTrades = db.prepare("SELECT * FROM trades WHERE status = 'OPEN'").all();
-    if (!openTrades || openTrades.length === 0) return;
-
-    const prices = getLivePrices();
-    
-    openTrades.forEach(trade => {
-      let currentPrice = trade.current_price;
-      if (trade.symbol.includes('BTC') && prices['BTC']) currentPrice = prices['BTC'].price;
-      else if (trade.symbol.includes('ETH') && prices['ETH']) currentPrice = prices['ETH'].price;
-      else if (trade.symbol.includes('SOL') && prices['SOL']) currentPrice = prices['SOL'].price;
-      else if (trade.symbol.includes('BNB') && prices['BNB']) currentPrice = prices['BNB'].price;
-
-      // Update current price
-      db.prepare('UPDATE trades SET current_price = ? WHERE id = ?').run(currentPrice, trade.id);
-
-      let shouldClose = false;
-      let closeReason = '';
-
-      if (trade.type === 'BUY') {
-        if (trade.take_profit && currentPrice >= trade.take_profit) {
-          shouldClose = true;
-          closeReason = 'TAKE_PROFIT_TRIGGER';
-        } else if (trade.stop_loss && currentPrice <= trade.stop_loss) {
-          shouldClose = true;
-          closeReason = 'STOP_LOSS_TRIGGER';
-        }
-      } else if (trade.type === 'SELL') {
-        if (trade.take_profit && currentPrice <= trade.take_profit) {
-          shouldClose = true;
-          closeReason = 'TAKE_PROFIT_TRIGGER';
-        } else if (trade.stop_loss && currentPrice >= trade.stop_loss) {
-          shouldClose = true;
-          closeReason = 'STOP_LOSS_TRIGGER';
-        }
-      }
-
-      if (shouldClose) {
-        const diff = trade.type === 'BUY' ? (currentPrice - trade.open_price) : (trade.open_price - currentPrice);
-        const multiplier = trade.symbol.includes('EUR') || trade.symbol.includes('GBP') ? 100000 : 1;
-        const finalPnL = +(diff * trade.lot_size * multiplier).toFixed(2);
-
-        // Settle Trade
-        db.prepare(`
-          UPDATE trades 
-          SET status = 'CLOSED', close_price = ?, profit_loss = ?, closed_at = CURRENT_TIMESTAMP 
-          WHERE id = ?
-        `).run(currentPrice, finalPnL, trade.id);
-
-        // Update User Balance
-        const u = db.prepare('SELECT balance, equity FROM users WHERE id = ?').get(trade.user_id);
-        if (u) {
-          const newBal = u.balance + finalPnL;
-          db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, trade.user_id);
-        }
-
-        console.log(`[TP/SL Engine] Auto-closed Trade #${trade.id} (${trade.symbol} ${trade.type}) @ $${currentPrice} [${closeReason}] -> P&L: $${finalPnL}`);
-      }
-    });
-  } catch (err) {
-    console.error('TP/SL Worker Error:', err.message);
-  }
-}, 2500);
+// Initialize Background Workers (Copy Trading Accrual & TP/SL Liquidation)
+startWorkers(db);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);

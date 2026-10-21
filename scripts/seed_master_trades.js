@@ -1,5 +1,5 @@
 const path = require('path');
-const db = require('./src/db');
+const db = require('../src/db');
 
 const count = db.prepare('SELECT COUNT(*) as count FROM master_trades').get().count;
 if (count === 0) {

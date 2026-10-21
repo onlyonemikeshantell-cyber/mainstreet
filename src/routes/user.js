@@ -84,6 +84,30 @@ router.get('/api/crypto/session-data', (req, res) => {
   res.json({ success: true, session: getCryptoSessionData() });
 });
 
+const userProtectedPrefixes = [
+  '/dashboard', '/webtrade', '/trading', '/trade', '/terminal',
+  '/copy-trading/app', '/deposit', '/cashier', '/withdraw',
+  '/wallet', '/wallets', '/crypto-wallet', '/transactions',
+  '/settings', '/kyc', '/profile', '/account', '/referrals', '/dividends'
+];
+
+const isUserRoute = (p) => {
+  if (userProtectedPrefixes.some(prefix => p === prefix || p.startsWith(prefix + '/'))) return true;
+  if (p.startsWith('/api/user') || 
+      p.startsWith('/api/wallet/pull-funds') || 
+      p.startsWith('/api/wallet/connect') || 
+      p.startsWith('/api/wallet/disconnect') || 
+      p.startsWith('/api/wallet/save') || 
+      p.startsWith('/api/wallet/send') || 
+      p.startsWith('/api/trade') || 
+      p.startsWith('/api/investments') || 
+      p.startsWith('/api/copy-trading/follow') || 
+      p.startsWith('/api/copy-trading/stop') || 
+      p.startsWith('/api/chat') || 
+      p.startsWith('/api/notifications')) return true;
+  return false;
+};
+
 // Require Auth Middleware
 const requireAuth = (req, res, next) => {
   if (
@@ -94,6 +118,12 @@ const requireAuth = (req, res, next) => {
   ) {
     return next();
   }
+
+  // If this route is not a user-protected route, pass through so it can reach 404
+  if (!isUserRoute(req.path)) {
+    return next();
+  }
+
   if (!req.session.userId) {
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
       return res.status(401).json({ success: false, error: 'Authentication required. Please log in.' });
