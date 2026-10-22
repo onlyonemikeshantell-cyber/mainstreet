@@ -4,7 +4,7 @@ const db = require('../db');
 
 // Generate Branded HTML Template
 const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') => {
-  const appBaseUrl = process.env.APP_URL || 'https://mainstreetcapitalexchange.com';
+  const appBaseUrl = process.env.APP_URL || 'https://mainstreetcapitalx.com';
   return `
     <!DOCTYPE html>
     <html>
@@ -48,7 +48,7 @@ const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') =>
         </div>
         <div class="footer">
           <p>&copy; ${new Date().getFullYear()} MAINSTREET CAPITAL EXCHANGE Global Markets Ltd. Institutional Multi-Asset Execution.<br>
-          If you have questions, please contact our 24/7 Desk at <a href="mailto:support@mainstreetcapitalexchange.com">support@mainstreetcapitalexchange.com</a>.</p>
+          If you have questions, please contact our 24/7 Desk at <a href="mailto:support@mainstreetcapitalx.com">support@mainstreetcapitalx.com</a>.</p>
         </div>
       </div>
     </body>
@@ -59,7 +59,7 @@ const generateEmailHtml = (subject, content, recipientName = 'Valued Trader') =>
 // Helper: Send via Resend REST Engine
 const sendViaResend = async ({ apiKey, to, subject, html, text, fromName, fromEmail }) => {
   const resend = new Resend(apiKey.trim());
-  const from = (fromEmail && !fromEmail.includes('localhost') && !fromEmail.includes('tradexedge.com') && !fromEmail.includes('mainstreetcapitalexchange.com'))
+  const from = (fromEmail && !fromEmail.includes('localhost') && !fromEmail.includes('tradexedge.com') && !fromEmail.includes('mainstreetcapitalx.com'))
     ? `${fromName || 'Mainstreet Capital Exchange'} <${fromEmail}>`
     : `${fromName || 'Mainstreet Capital Exchange'} <onboarding@resend.dev>`;
 
@@ -103,7 +103,7 @@ const sendEmail = async (options) => {
   const user = (process.env.SMTP_USER || smtp.user || '').trim();
   const pass = (process.env.SMTP_PASS || smtp.pass || '').trim();
   const fromName = process.env.SMTP_FROM_NAME || smtp.from_name || 'Mainstreet Capital Exchange Support';
-  const fromEmail = (process.env.SMTP_FROM_EMAIL || smtp.from_email || user || 'support@mainstreetcapitalexchange.com').trim();
+  const fromEmail = (process.env.SMTP_FROM_EMAIL || smtp.from_email || user || 'support@mainstreetcapitalx.com').trim();
   const isActive = (process.env.SMTP_ACTIVE === 'true' || process.env.SMTP_ACTIVE === '1') || !!smtp.is_active;
 
   const htmlContent = html || generateEmailHtml(subject, message, to.split('@')[0]);

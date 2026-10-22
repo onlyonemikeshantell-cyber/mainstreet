@@ -2857,7 +2857,7 @@
                         </div>
                         <div>
                             <label class="block text-content-secondary uppercase mb-1">Sender Email</label>
-                            <input type="email" name="from_email" value="<%= smtp.from_email || 'support@mainstreetcapitalexchange.com' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
+                            <input type="email" name="from_email" value="<%= smtp.from_email || 'support@mainstreetcapitalx.com' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
                         </div>
                         <div class="grid grid-cols-3 gap-2">
                             <div class="col-span-2">
@@ -3603,7 +3603,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block uppercase font-semibold text-content-secondary mb-1">Support Email</label>
-                                <input type="email" name="support_email" value="<%= systemSettings.support_email || 'support@mainstreetcapitalexchange.com' %>" required class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2 outline-none" />
+                                <input type="email" name="support_email" value="<%= systemSettings.support_email || 'support@mainstreetcapitalx.com' %>" required class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2 outline-none" />
                             </div>
                             <div>
                                 <label class="block uppercase font-semibold text-content-secondary mb-1">Support Phone</label>
@@ -4004,7 +4004,7 @@
                             <input type="hidden" name="_token" value="<%= csrfToken %>" />
                             <div>
                                 <label class="block uppercase font-semibold text-content-secondary mb-1">Test Recipient Email *</label>
-                                <input type="email" name="test_recipient" value="<%= user.email %>" required placeholder="admin@mainstreetcapitalexchange.com" class="w-full bg-surface-base border border-primary text-content-primary rounded-xl px-3 py-2 outline-none font-bold" />
+                                <input type="email" name="test_recipient" value="<%= user.email %>" required placeholder="admin@mainstreetcapitalx.com" class="w-full bg-surface-base border border-primary text-content-primary rounded-xl px-3 py-2 outline-none font-bold" />
                             </div>
                             <button type="submit" class="w-full bg-gain hover:bg-gain/90 text-surface-base font-bold py-2.5 rounded-xl text-xs font-sans shadow-md transition">
                                 Send Diagnostic Test Email

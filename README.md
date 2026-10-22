@@ -1,6 +1,6 @@
 # Mainstreet Capital Exchange — Multi-Asset Trading Platform
 
-A full-stack, institutional-grade multi-asset trading platform for **Mainstreet Capital Exchange** (mainstreetcapitalexchange.com).
+A full-stack, institutional-grade multi-asset trading platform for **Mainstreet Capital Exchange** (mainstreetcapitalx.com).
 
 ---
 
@@ -32,8 +32,8 @@ The server is actively running in the background at:
 
 | Role | Email / Username | Password | Initial Balance |
 | :--- | :--- | :--- | :--- |
-| **Demo Trader** | `trader@mainstreetcapitalexchange.com` / `trader` | `Trader123!` | $25,000.00 USD |
-| **Administrator** | `admin@mainstreetcapitalexchange.com` / `admin` | `Admin123!` | $50,000.00 USD |
+| **Demo Trader** | `trader@mainstreetcapitalx.com` / `trader` | `Trader123!` | $25,000.00 USD |
+| **Administrator** | `admin@mainstreetcapitalx.com` / `admin` | `Admin123!` | $50,000.00 USD |
 
 ---
 

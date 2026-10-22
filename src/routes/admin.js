@@ -1013,7 +1013,7 @@ router.post(['/babyoku/mailer/smtp', '/admin/mailer/smtp'], (req, res) => {
     user || '',
     pass || '',
     from_name || 'Mainstreet Capital Exchange Support',
-    from_email || 'support@mainstreetcapitalexchange.com',
+    from_email || 'support@mainstreetcapitalx.com',
     is_active === '1' || is_active === 'on' || is_active === 1 ? 1 : 0,
     (resend_api_key || '').trim(),
     provider || (resend_api_key ? 'resend' : 'smtp')

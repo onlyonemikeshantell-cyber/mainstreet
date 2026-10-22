@@ -223,7 +223,7 @@ db.exec(`
     user TEXT DEFAULT '',
     pass TEXT DEFAULT '',
     from_name TEXT DEFAULT 'Mainstreet Capital Exchange Desk',
-    from_email TEXT DEFAULT 'support@mainstreetcapital.exchange',
+    from_email TEXT DEFAULT 'support@mainstreetcapitalx.com',
     is_active INTEGER DEFAULT 0,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -384,7 +384,7 @@ db.exec(`
     id INTEGER PRIMARY KEY,
     site_name TEXT DEFAULT 'Mainstreet Capital Exchange',
     site_title TEXT DEFAULT 'Institutional Multi-Asset Trading & Prime Execution',
-    support_email TEXT DEFAULT 'support@mainstreetcapital.exchange',
+    support_email TEXT DEFAULT 'support@mainstreetcapitalx.com',
     support_phone TEXT DEFAULT '+1 (800) 892-3401',
     office_address TEXT DEFAULT '100 Wall Street, 24th Floor, New York, NY 10005',
     primary_currency TEXT DEFAULT 'USD',
@@ -408,14 +408,14 @@ const sysCount = db.prepare('SELECT COUNT(*) as count FROM system_settings').get
 if (sysCount === 0) {
   db.prepare(`
     INSERT INTO system_settings (id, site_name, site_title, support_email, support_phone, office_address, primary_currency, default_leverage, default_welcome_bonus, min_deposit, min_withdrawal, max_withdrawal, margin_call_level, stop_out_level, copy_profit_interval, maintenance_mode, auto_credit_deposit, admin_2fa_required)
-    VALUES (1, 'Mainstreet Capital Exchange', 'Institutional Multi-Asset Trading & Prime Execution', 'support@mainstreetcapital.exchange', '+1 (800) 892-3401', '100 Wall Street, 24th Floor, New York, NY 10005', 'USD', 100, 10000.00, 50.00, 100.00, 50000.00, 50.0, 20.0, 45, 0, 1, 0)
+    VALUES (1, 'Mainstreet Capital Exchange', 'Institutional Multi-Asset Trading & Prime Execution', 'support@mainstreetcapitalx.com', '+1 (800) 892-3401', '100 Wall Street, 24th Floor, New York, NY 10005', 'USD', 100, 10000.00, 50.00, 100.00, 50000.00, 50.0, 20.0, 45, 0, 1, 0)
   `).run();
 } else {
   db.prepare(`
     UPDATE system_settings 
     SET site_name = 'Mainstreet Capital Exchange', 
         site_title = 'Institutional Multi-Asset Trading & Prime Execution', 
-        support_email = 'support@mainstreetcapital.exchange'
+        support_email = 'support@mainstreetcapitalx.com'
     WHERE id = 1
   `).run();
 }
@@ -776,6 +776,6 @@ const smtpCount = db.prepare('SELECT COUNT(*) as count FROM smtp_settings').get(
 if (smtpCount === 0) {
   db.prepare(`
     INSERT INTO smtp_settings (id, host, port, user, pass, from_name, from_email, is_active)
-    VALUES (1, 'smtp.gmail.com', 587, '', '', 'Mainstreet Capital Exchange Broker Support', 'support@mainstreetcapitalexchange.com', 0)
+    VALUES (1, 'smtp.gmail.com', 587, '', '', 'Mainstreet Capital Exchange Broker Support', 'support@mainstreetcapitalx.com', 0)
   `).run();
 }
