@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: tradexedge-platform
+    name: mainstreet-exchange
     runtime: node
     plan: free
     region: oregon
@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: APP_URL
+        value: https://mainstreetcapitalx.com
       - key: SESSION_SECRET
         generateValue: true
       - key: PORT
