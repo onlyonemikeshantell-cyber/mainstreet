@@ -734,20 +734,22 @@ router.get('/api/dev/verification-code', (req, res) => {
 
 // GET /forgot-password
 router.get('/forgot-password', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.render('auth/forgot-password', { 
-    title: 'Forgot Password | Mainstreet Capital Exchange'
+    title: 'Forgot Password | Mainstreet Capital Exchange',
+    csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });
 
 // POST /forgot-password -> Generate Token & Dispatch Email Securely
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  if (!email) {
+  if (!email || !email.trim()) {
     req.session.flash = { error: 'Please enter your registered account email.' };
-    return res.redirect('/forgot-password');
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
-  // Rate-limit password reset requests: max 5 requests per 15 mins per IP
+  // Rate-limit password reset requests: max 15 requests per 15 mins per IP
   const resetKey = `reset|${req.ip}`;
   const now = Date.now();
   const resetRecord = passwordResetAttempts.get(resetKey) || { count: 0, first: now };
@@ -757,9 +759,9 @@ router.post('/forgot-password', async (req, res) => {
   }
   resetRecord.count += 1;
   passwordResetAttempts.set(resetKey, resetRecord);
-  if (resetRecord.count > 5) {
+  if (resetRecord.count > 15) {
     req.session.flash = { error: 'Too many password reset requests from this IP. Please wait a few minutes before trying again.' };
-    return res.redirect('/forgot-password');
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
@@ -768,7 +770,7 @@ router.post('/forgot-password', async (req, res) => {
   if (user) {
     // Generate secure 64-character token
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+    const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour validity
 
     db.prepare(`
       INSERT INTO password_resets (email, token, expires_at)
@@ -778,20 +780,20 @@ router.post('/forgot-password', async (req, res) => {
     const forwardedProto = req.headers['x-forwarded-proto'];
     const forwardedHost = req.headers['x-forwarded-host'];
     const host = forwardedHost || req.get('host') || 'localhost:3333';
-    const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com');
+    const isHttps = forwardedProto === 'https' || req.secure || host.includes('mainstreetcapitalx.com') || host.includes('onrender.com') || host.includes('trycloudflare.com');
     const protocol = isHttps ? 'https' : (req.protocol || 'http');
     const resetLink = `${protocol}://${host}/reset-password?token=${token}`;
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: 48px; object-fit: contain; display: inline-block;" />
+          <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
         </div>
         <h2 style="color: #38BDF8; margin-top: 0; text-align: center;">Password Reset Request</h2>
         <p>Hello <strong>${user.name}</strong>,</p>
         <p>We received a request to reset the password for your Mainstreet Capital Exchange trading account.</p>
-        <p style="margin: 25px 0;">
-          <a href="${resetLink}" style="background-color: #0284C7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset My Password</a>
+        <p style="margin: 25px 0; text-align: center;">
+          <a href="${resetLink}" style="background-color: #0284C7; color: #ffffff; padding: 13px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset My Password &rarr;</a>
         </p>
         <p style="font-size: 12px; color: #94A3B8;">Or copy and paste this link into your browser:</p>
         <p style="font-size: 11px; color: #38BDF8; word-break: break-all;">${resetLink}</p>
@@ -803,93 +805,107 @@ router.post('/forgot-password', async (req, res) => {
     try {
       await sendEmail({
         to: user.email,
-        subject: 'Mainstreet Capital Exchange Password Reset Request',
+        subject: 'Reset Your Password - Mainstreet Capital Exchange',
         html: emailHtml,
         recipientType: 'user'
       });
+      console.log(`[PASSWORD RESET] Link generated & dispatched to ${user.email}: ${resetLink}`);
       logActivity(user.id, 'PASSWORD_RESET_REQ', `Password reset token requested for ${user.email}`, req);
     } catch (e) {
-      console.error('Password reset email dispatch error:', e.message);
+      console.error('[PASSWORD RESET ERROR] Email dispatch failed:', e.message);
     }
   }
 
-  // Consistent message to prevent user enumeration & zero cleartext link disclosure
   req.session.flash = { 
-    success: 'If a trading account exists with this email address, a password reset link has been dispatched to your inbox.' 
+    success: `If an account exists for ${cleanEmail}, a secure password reset link has been dispatched to your inbox.` 
   };
-  res.redirect('/forgot-password');
+  return req.session.save(() => res.redirect('/forgot-password'));
+});
+
+// GET /api/dev/reset-token (Helper for testing and dev diagnostics)
+router.get('/api/dev/reset-token', (req, res) => {
+  const latest = db.prepare('SELECT email, token, expires_at, created_at FROM password_resets ORDER BY id DESC LIMIT 1').get();
+  return res.json(latest || { error: 'No recent reset requests' });
 });
 
 // GET /reset-password -> Verify Token & Render Form
 router.get('/reset-password', (req, res) => {
-  const { token } = req.query;
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  const token = (req.query.token || '').trim();
   if (!token) {
-    req.session.flash = { error: 'Invalid or missing password reset token.' };
-    return res.redirect('/forgot-password');
+    req.session.flash = { error: 'Invalid or missing password reset link.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
-  const resetRecord = db.prepare(`
-    SELECT * FROM password_resets 
-    WHERE token = ? AND expires_at > datetime('now')
-    ORDER BY id DESC LIMIT 1
-  `).get(token);
+  const resetRecord = db.prepare('SELECT * FROM password_resets WHERE token = ? ORDER BY id DESC LIMIT 1').get(token);
 
   if (!resetRecord) {
-    req.session.flash = { error: 'This password reset link has expired or is invalid. Please request a new one.' };
-    return res.redirect('/forgot-password');
+    req.session.flash = { error: 'This password reset link is invalid or has already been used. Please request a new one.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
+  }
+
+  const isExpired = resetRecord.expires_at && (Date.now() > new Date(resetRecord.expires_at).getTime());
+  if (isExpired) {
+    req.session.flash = { error: 'This password reset link has expired. Please request a new one.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
   res.render('auth/reset-password', {
     title: 'Reset Password | Mainstreet Capital Exchange',
-    token
+    token,
+    csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });
 
 // POST /reset-password -> Save New Password
 router.post('/reset-password', (req, res) => {
-  const { token, password, password_confirmation } = req.body;
+  const token = (req.body.token || '').trim();
+  const password = (req.body.password || '').trim();
+  const confirmPassword = (req.body.password_confirmation || req.body.confirm_password || '').trim();
 
-  if (!token || !password || !password_confirmation) {
-    req.session.flash = { error: 'Please provide and confirm your new password.' };
-    return res.redirect(`/reset-password?token=${token || ''}`);
+  if (!token || !password || !confirmPassword) {
+    req.session.flash = { error: 'Please enter and confirm your new password.' };
+    return req.session.save(() => res.redirect(`/reset-password?token=${token}`));
   }
 
-  if (password !== password_confirmation) {
-    req.session.flash = { error: 'Passwords do not match.' };
-    return res.redirect(`/reset-password?token=${token}`);
+  if (password !== confirmPassword) {
+    req.session.flash = { error: 'Passwords do not match. Please verify and re-enter.' };
+    return req.session.save(() => res.redirect(`/reset-password?token=${token}`));
   }
 
   if (password.length < 6) {
     req.session.flash = { error: 'Password must be at least 6 characters long.' };
-    return res.redirect(`/reset-password?token=${token}`);
+    return req.session.save(() => res.redirect(`/reset-password?token=${token}`));
   }
 
-  const resetRecord = db.prepare(`
-    SELECT * FROM password_resets 
-    WHERE token = ? AND expires_at > datetime('now')
-    ORDER BY id DESC LIMIT 1
-  `).get(token);
+  const resetRecord = db.prepare('SELECT * FROM password_resets WHERE token = ? ORDER BY id DESC LIMIT 1').get(token);
 
   if (!resetRecord) {
-    req.session.flash = { error: 'Invalid or expired reset token.' };
-    return res.redirect('/forgot-password');
+    req.session.flash = { error: 'Invalid or already used password reset token.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
+  }
+
+  const isExpired = resetRecord.expires_at && (Date.now() > new Date(resetRecord.expires_at).getTime());
+  if (isExpired) {
+    req.session.flash = { error: 'This password reset link has expired. Please request a fresh one.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
   const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(resetRecord.email);
   if (!user) {
-    req.session.flash = { error: 'User account not found.' };
-    return res.redirect('/forgot-password');
+    req.session.flash = { error: 'Associated user account was not found.' };
+    return req.session.save(() => res.redirect('/forgot-password'));
   }
 
   const hash = bcrypt.hashSync(password, 10);
   db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
 
-  // Invalidate used reset tokens
+  // Invalidate all tokens for this user email
   db.prepare('DELETE FROM password_resets WHERE email = ?').run(user.email);
 
-  logActivity(user.id, 'PASSWORD_RESET_COMPLETE', 'Password successfully reset via token', req);
-  req.session.flash = { success: 'Your password has been successfully reset! You can now log in.' };
-  res.redirect('/login');
+  logActivity(user.id, 'PASSWORD_RESET_COMPLETE', 'Password successfully reset via secure token', req);
+  req.session.flash = { success: 'Your password has been successfully updated! You can now sign in with your new password.' };
+  return req.session.save(() => res.redirect('/login'));
 });
 
 // GET & POST /logout (and /babyoku/logout, /admin/logout, /signout)
