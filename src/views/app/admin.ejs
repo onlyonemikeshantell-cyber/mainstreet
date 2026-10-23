@@ -20,30 +20,59 @@
         theme: {
             extend: {
                 fontFamily: {
-                    sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-                    serif: ['"Outfit"', 'sans-serif'],
-                    mono: ['"JetBrains Mono"', 'monospace'],
+                    sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Inter"', 'system-ui', 'sans-serif'],
+                    display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Inter"', 'system-ui', 'sans-serif'],
+                    serif: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Inter"', 'system-ui', 'sans-serif'],
+                    mono: ['"Plus Jakarta Sans"', '"Outfit"', '"JetBrains Mono"', 'monospace'],
+                    numeral: ['"Plus Jakarta Sans"', '"Outfit"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
                 },
                 colors: {
                     surface: {
-                        base: '#070A13',
-                        raised: '#0D1424',
-                        overlay: '#162238',
+                        base: '#0B0F19',
+                        raised: '#161617',
+                        overlay: '#1E2024',
                         border: 'rgba(255, 255, 255, 0.08)',
+                        'border-light': 'rgba(255, 255, 255, 0.04)',
                     },
                     content: {
-                        primary: '#F8FAFC',
-                        secondary: '#94A3B8',
-                        tertiary: '#64748B',
+                        primary: '#F5F5F7',
+                        secondary: '#86868B',
+                        tertiary: '#A1A1A6',
+                        inverse: '#FFFFFF',
                     },
                     primary: {
-                        DEFAULT: '#0284C7',
-                        light: '#38BDF8',
-                        dark: '#0369A1',
+                        DEFAULT: '#0071E3',
+                        light: '#2997FF',
+                        dark: '#0077ED',
+                        subtle: 'rgba(0, 113, 227, 0.12)',
+                        accent: '#FF9F0A',
                     },
-                    gain: { DEFAULT: '#10B981' },
-                    loss: { DEFAULT: '#EF4444' },
-                    warning: { DEFAULT: '#F59E0B' },
+                    gain: {
+                        DEFAULT: '#34C759',
+                        light: '#30D158',
+                        subtle: 'rgba(52, 199, 89, 0.12)',
+                    },
+                    loss: {
+                        DEFAULT: '#FF3B30',
+                        light: '#FF453A',
+                        subtle: 'rgba(255, 59, 48, 0.12)',
+                    },
+                    warning: {
+                        DEFAULT: '#FF9F0A',
+                    },
+                },
+                boxShadow: {
+                    'apple': '0 2px 14px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02)',
+                    'apple-hover': '0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04)',
+                    'apple-card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                    'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.35)',
+                    'glass-hover': '0 20px 40px -15px rgba(0, 113, 227, 0.25)',
+                    'elevated': '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
+                },
+                borderRadius: {
+                    'apple': '22px',
+                    'apple-lg': '28px',
+                    'apple-xl': '34px',
                 }
             }
         }
@@ -56,56 +85,47 @@
     <style>
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #040711; }
-        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #0284C7; }
+        ::-webkit-scrollbar-track { background: #0B0F19; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0071E3; }
 
         body {
             position: relative;
-            background-color: #030712;
+            background-color: #0B0F19;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.15) 0px, transparent 55%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 45%),
-                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+                radial-gradient(at 0% 0%, rgba(0, 113, 227, 0.10) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 40%),
+                radial-gradient(at 50% 100%, rgba(52, 199, 89, 0.04) 0px, transparent 50%);
+            background-size: 100% 100%;
+            color: #F5F5F7;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
         }
 
-        .luxury-glass-panel {
-            background: linear-gradient(180deg, rgba(13, 21, 38, 0.85) 0%, rgba(8, 14, 28, 0.95) 100%);
+        /* Apple VisionOS Luxury Glass Surfaces */
+        .luxury-glass-panel,
+        .apple-card-elevated {
+            background: rgba(22, 22, 23, 0.82);
             backdrop-filter: blur(28px);
             -webkit-backdrop-filter: blur(28px);
-            border: 1px solid rgba(255, 255, 255, 0.09);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        }
-        .luxury-glass-card {
-            background: linear-gradient(135deg, rgba(15, 24, 46, 0.72) 0%, rgba(9, 15, 30, 0.88) 100%);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.09);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .luxury-glass-card {
+            background: rgba(22, 22, 23, 0.72);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 22px;
+            box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.35);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
         }
-        .luxury-glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 10%;
-            right: 10%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
-            opacity: 0.6;
-            transition: opacity 0.3s ease;
-        }
         .luxury-glass-card:hover {
-            border-color: rgba(56, 189, 248, 0.45);
-            box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.85), 0 0 35px rgba(2, 132, 199, 0.22);
+            border-color: rgba(255, 255, 255, 0.16);
+            box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 113, 227, 0.14);
             transform: translateY(-2px);
-        }
-        .luxury-glass-card:hover::before {
-            opacity: 1;
         }
 
         .hub-nav-card {
@@ -116,230 +136,170 @@
         }
 
         .metallic-text {
-            background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%);
+            background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #86868B 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        .metallic-cyan {
-            background: linear-gradient(135deg, #FFFFFF 0%, #38BDF8 50%, #0284C7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .metallic-gold {
-            background: linear-gradient(135deg, #FFFBEB 0%, #F59E0B 50%, #D97706 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .metallic-emerald {
-            background: linear-gradient(135deg, #FFFFFF 0%, #34D399 50%, #059669 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .icon-3d-badge {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.875rem;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            transform-style: preserve-3d;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-        .icon-3d-badge:hover {
-            transform: perspective(500px) translateY(-3px) rotateX(10deg) rotateY(-8deg) scale(1.12);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 25px -4px var(--icon-glow, rgba(2, 132, 199, 0.5));
         }
 
-        .neon-pill {
-            position: relative;
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            background: rgba(2, 132, 199, 0.1);
-            box-shadow: 0 0 15px rgba(2, 132, 199, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        /* Institutional Cyber Elements */
-        .cyber-table-container {
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(3, 7, 18, 0.6);
-            backdrop-filter: blur(16px);
-            overflow: hidden;
-        }
-        .cyber-table thead th {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #94A3B8;
-            padding: 0.85rem 1rem;
-            background: rgba(255, 255, 255, 0.02);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        }
-        .cyber-table tbody tr {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .cyber-table tbody tr:hover {
-            background: rgba(56, 189, 248, 0.04);
-        }
-        .cyber-table tbody td {
-            padding: 0.85rem 1rem;
-            font-size: 0.75rem;
-        }
-
+        /* Apple Status Pills */
         .pill-emerald {
             display: inline-flex;
             align-items: center;
             gap: 0.375rem;
-            padding: 0.2rem 0.6rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 9999px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
             font-size: 0.6875rem;
-            font-weight: 700;
-            color: #34D399;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+            font-weight: 600;
+            color: #30D158;
+            background: rgba(52, 199, 89, 0.12);
+            border: 1px solid rgba(52, 199, 89, 0.24);
         }
         .pill-rose {
             display: inline-flex;
             align-items: center;
             gap: 0.375rem;
-            padding: 0.2rem 0.6rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 9999px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
             font-size: 0.6875rem;
-            font-weight: 700;
-            color: #F87171;
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+            font-weight: 600;
+            color: #FF453A;
+            background: rgba(255, 59, 48, 0.12);
+            border: 1px solid rgba(255, 59, 48, 0.24);
         }
         .pill-amber {
             display: inline-flex;
             align-items: center;
             gap: 0.375rem;
-            padding: 0.2rem 0.6rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 9999px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
             font-size: 0.6875rem;
-            font-weight: 700;
-            color: #FBBF24;
-            background: rgba(245, 158, 11, 0.12);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+            font-weight: 600;
+            color: #FF9F0A;
+            background: rgba(255, 159, 10, 0.12);
+            border: 1px solid rgba(255, 159, 10, 0.24);
         }
         .pill-sky {
             display: inline-flex;
             align-items: center;
             gap: 0.375rem;
-            padding: 0.2rem 0.6rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 9999px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
             font-size: 0.6875rem;
-            font-weight: 700;
-            color: #38BDF8;
-            background: rgba(56, 189, 248, 0.12);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+            font-weight: 600;
+            color: #2997FF;
+            background: rgba(0, 113, 227, 0.12);
+            border: 1px solid rgba(0, 113, 227, 0.24);
         }
 
+        /* Apple Interactive Buttons */
         .btn-cyber {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.375rem;
-            padding: 0.45rem 0.85rem;
-            border-radius: 0.75rem;
-            font-size: 0.72rem;
-            font-weight: 700;
+            padding: 0.45rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             cursor: pointer;
         }
         .btn-cyber-primary {
-            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            background: #0071E3;
             color: #FFFFFF;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 113, 227, 0.35);
         }
         .btn-cyber-primary:hover {
-            background: linear-gradient(135deg, #0369A1 0%, #0284C7 100%);
-            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            background: #0077ED;
+            box-shadow: 0 4px 16px rgba(0, 113, 227, 0.45);
             transform: translateY(-1px);
         }
         .btn-cyber-emerald {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.2) 100%);
-            color: #34D399;
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            background: rgba(52, 199, 89, 0.16);
+            color: #30D158;
+            border: 1px solid rgba(52, 199, 89, 0.3);
         }
         .btn-cyber-emerald:hover {
-            background: #10B981;
-            color: #030712;
-            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+            background: #34C759;
+            color: #FFFFFF;
             transform: translateY(-1px);
         }
         .btn-cyber-rose {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.15) 100%);
-            color: #F87171;
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            background: rgba(255, 59, 48, 0.16);
+            color: #FF453A;
+            border: 1px solid rgba(255, 59, 48, 0.3);
         }
         .btn-cyber-rose:hover {
-            background: #EF4444;
+            background: #FF3B30;
             color: #FFFFFF;
-            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
             transform: translateY(-1px);
         }
         .btn-cyber-ghost {
-            background: rgba(255, 255, 255, 0.04);
-            color: #CBD5E1;
-            border: 1px solid rgba(255, 255, 255, 0.09);
+            background: rgba(255, 255, 255, 0.05);
+            color: #F5F5F7;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .btn-cyber-ghost:hover {
-            background: rgba(255, 255, 255, 0.09);
-            color: #FFFFFF;
-            border-color: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.1);
             transform: translateY(-1px);
         }
 
-        .quant-card-cyber {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.85) 0%, rgba(9, 14, 26, 0.95) 100%);
+        /* Apple VisionOS Tables */
+        .cyber-table-container {
+            border-radius: 24px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 1.25rem;
+            background: rgba(22, 22, 23, 0.72);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+        }
+        .cyber-table thead th {
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #86868B;
+            font-weight: 600;
+            padding: 0.9rem 1.1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .cyber-table tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background 0.15s ease;
+        }
+        .cyber-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.035);
+        }
+        .cyber-table tbody td {
+            padding: 0.9rem 1.1rem;
+            font-size: 0.8125rem;
+            color: #F5F5F7;
+        }
+
+        .quant-card-cyber {
+            background: rgba(22, 22, 23, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
             backdrop-filter: blur(24px);
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
             overflow: hidden;
         }
-        .quant-card-cyber::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.6), transparent);
-            opacity: 0.5;
-            transition: opacity 0.3s ease;
-        }
         .quant-card-cyber:hover {
-            border-color: rgba(56, 189, 248, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.9), 0 0 30px rgba(2, 132, 199, 0.2);
-        }
-        .quant-card-cyber:hover::before {
-            opacity: 1;
+            border-color: rgba(255, 255, 255, 0.16);
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 113, 227, 0.15);
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-[#070A13] text-[#F8FAFC] font-sans antialiased min-h-screen selection:bg-primary/30 selection:text-white"
+<body class="bg-[#0B0F19] text-[#F5F5F7] font-sans antialiased min-h-screen selection:bg-primary/30 selection:text-white"
       x-data="{ 
     activeTab: 'overview',
     sidebarOpen: true,
@@ -549,7 +509,7 @@
 
     <!-- Sidebar Container -->
     <aside :class="mobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-           class="fixed top-0 bottom-0 left-0 w-64 z-50 bg-[#0A0F1D]/95 border-r border-white/[0.08] backdrop-blur-2xl transition-transform duration-300 ease-in-out flex flex-col justify-between">
+           class="fixed top-0 bottom-0 left-0 w-64 z-50 bg-[#161617]/95 border-r border-white/[0.08] backdrop-blur-3xl transition-transform duration-300 ease-in-out flex flex-col justify-between">
         
         <!-- Brand Header -->
         <div class="h-16 px-5 flex items-center justify-between border-b border-white/[0.08]">
@@ -577,9 +537,7 @@
                 <div class="space-y-0.5">
                     <!-- Overview -->
                     <button type="button" @click="activeTab = 'overview'; mobileMenu = false"
-                            :class="activeTab === 'overview' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'overview' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'overview' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -592,9 +550,7 @@
 
                     <!-- STP Book -->
                     <button type="button" @click="activeTab = 'trades'; mobileMenu = false"
-                            :class="activeTab === 'trades' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'trades' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'trades' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -609,9 +565,7 @@
 
                     <!-- Master Quants -->
                     <button type="button" @click="activeTab = 'copy'; mobileMenu = false"
-                            :class="activeTab === 'copy' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'copy' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'copy' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -626,9 +580,7 @@
 
                     <!-- Market Feeds -->
                     <button type="button" @click="activeTab = 'markets'; mobileMenu = false"
-                            :class="activeTab === 'markets' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'markets' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'markets' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -650,9 +602,7 @@
                 <div class="space-y-0.5">
                     <!-- Trader Accounts -->
                     <button type="button" @click="activeTab = 'users'; mobileMenu = false"
-                            :class="activeTab === 'users' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'users' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'users' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -667,9 +617,7 @@
 
                     <!-- KYC Verification -->
                     <button type="button" @click="activeTab = 'kyc'; mobileMenu = false"
-                            :class="activeTab === 'kyc' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'kyc' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'kyc' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -690,9 +638,7 @@
 
                     <!-- Audit & Reports -->
                     <button type="button" @click="activeTab = 'reports'; mobileMenu = false"
-                            :class="activeTab === 'reports' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'reports' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'reports' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -714,9 +660,7 @@
                 <div class="space-y-0.5">
                     <!-- Financial Ledger -->
                     <button type="button" @click="activeTab = 'transactions'; mobileMenu = false"
-                            :class="activeTab === 'transactions' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'transactions' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'transactions' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -737,9 +681,7 @@
 
                     <!-- Retirement Vaults -->
                     <button type="button" @click="activeTab = 'retirement'; mobileMenu = false"
-                            :class="activeTab === 'retirement' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'retirement' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'retirement' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -763,9 +705,7 @@
                 <div class="space-y-0.5">
                     <!-- Console Settings -->
                     <button type="button" @click="activeTab = 'settings'; mobileMenu = false"
-                            :class="activeTab === 'settings' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'settings' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'settings' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -779,9 +719,7 @@
 
                     <!-- Broadcast Mailer -->
                     <button type="button" @click="activeTab = 'mailer'; mobileMenu = false"
-                            :class="activeTab === 'mailer' 
-                                ? 'bg-sky-500/15 text-sky-300 font-semibold border-l-2 border-sky-400 pl-3.5 pr-3 py-2 rounded-r-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-4 py-2 rounded-xl'"
+                            :class="activeTab === 'mailer' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
                             class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
                         <div class="flex items-center space-x-2.5 min-w-0">
                             <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'mailer' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -824,7 +762,7 @@
     <!-- ============================================================================== -->
     <!-- 2. EXECUTIVE TOP COMMAND BAR                                                    -->
     <!-- ============================================================================== -->
-    <header class="sticky top-0 z-30 h-14 sm:h-16 bg-[#070A13]/90 border-b border-white/[0.08] backdrop-blur-xl lg:pl-64 flex items-center justify-between px-3 sm:px-6">
+    <header class="sticky top-0 z-30 h-16 bg-[#161617]/85 border-b border-white/[0.08] backdrop-blur-2xl lg:pl-64 flex items-center justify-between px-4 sm:px-8">
         
         <div class="flex items-center space-x-2 sm:space-x-3">
             <!-- Mobile Sidebar Hamburger -->
@@ -866,7 +804,7 @@
             <!-- Quick Action Dropdown -->
             <div class="relative" x-data="{ open: false }" @click.outside="open = false">
                 <button type="button" @click="open = !open"
-                        class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold font-sans text-xs flex items-center space-x-1.5 sm:space-x-2 shadow-md shadow-sky-600/20 transition cursor-pointer">
+                        class="px-4 py-2 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-xs flex items-center space-x-2 shadow-[0_2px_10px_rgba(0,113,227,0.3)] hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)] active:scale-[0.98] transition-all cursor-pointer">
                     <svg class="w-3.5 h-3.5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     <span class="hidden sm:inline">Quick Actions</span>
                     <span class="sm:hidden">Action</span>
@@ -876,7 +814,7 @@
                      x-transition:enter="transition ease-out duration-100"
                      x-transition:enter-start="transform opacity-0 scale-95"
                      x-transition:enter-end="transform opacity-100 scale-100"
-                     class="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0D1424] border border-white/10 shadow-2xl p-2 space-y-1 z-50 text-xs font-sans" x-cloak>
+                     class="absolute right-0 mt-2 w-56 rounded-[26px] bg-[#161617]/95 border border-white/10 backdrop-blur-2xl shadow-2xl p-2 space-y-1 z-50 text-xs font-sans" x-cloak>
                     <button type="button" @click="open = false; injectTradeModal = true" class="w-full text-left px-3 py-2 rounded-xl text-slate-200 hover:bg-white/[0.08] hover:text-white flex items-center space-x-2.5 transition cursor-pointer">
                         <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                         <span>Inject STP Trade</span>
@@ -904,19 +842,19 @@
     </header>
 
     <!-- MOBILE QUICK-TAB PILL BAR (Horizontal swipeable strip) -->
-    <div class="lg:hidden sticky top-14 sm:top-16 z-25 bg-[#080D1A]/95 border-b border-white/[0.08] backdrop-blur-xl px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-2 text-xs select-none shadow-sm">
+    <div class="lg:hidden sticky top-14 sm:top-16 z-25 bg-[#161617]/95 border-b border-white/[0.08] backdrop-blur-2xl px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-2 text-xs select-none shadow-sm">
         <button type="button" @click="activeTab = 'overview'" 
-                :class="activeTab === 'overview' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'overview' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Overview</span>
         </button>
         <button type="button" @click="activeTab = 'users'" 
-                :class="activeTab === 'users' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'users' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Traders (<%= users.length %>)</span>
         </button>
         <button type="button" @click="activeTab = 'transactions'" 
-                :class="activeTab === 'transactions' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'transactions' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Ledger</span>
             <% if (totalStats.pendingWithdrawals > 0) { %>
@@ -924,7 +862,7 @@
             <% } %>
         </button>
         <button type="button" @click="activeTab = 'kyc'" 
-                :class="activeTab === 'kyc' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'kyc' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>KYC</span>
             <% if (totalStats.pendingKyc > 0) { %>
@@ -932,39 +870,39 @@
             <% } %>
         </button>
         <button type="button" @click="activeTab = 'trades'" 
-                :class="activeTab === 'trades' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'trades' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Orders (<%= openTrades.length %>)</span>
         </button>
         <button type="button" @click="activeTab = 'copy'" 
-                :class="activeTab === 'copy' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'copy' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Quants (<%= masterTraders.length %>)</span>
         </button>
         <button type="button" @click="activeTab = 'markets'" 
-                :class="activeTab === 'markets' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'markets' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Markets</span>
         </button>
         <button type="button" @click="activeTab = 'retirement'" 
-                :class="activeTab === 'retirement' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'retirement' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Retirement (<%= totalStats.totalRetirementAccounts %>)</span>
         </button>
         <button type="button" @click="activeTab = 'settings'" 
-                :class="activeTab === 'settings' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'settings' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Settings</span>
         </button>
         <button type="button" @click="activeTab = 'mailer'" 
-                :class="activeTab === 'mailer' ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
+                :class="activeTab === 'mailer' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
                 class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>Mailer</span>
         </button>
     </div>
 
     <!-- REAL-TIME INSTITUTIONAL TICKER RIBBON -->
-    <div class="h-9 sm:h-10 bg-[#040814]/95 border-b border-white/[0.08] backdrop-blur-xl lg:pl-64 flex items-center justify-between px-3 sm:px-6 text-[10px] sm:text-[11px] font-mono select-none z-20 overflow-x-auto no-scrollbar shadow-inner">
+    <div class="h-10 bg-[#161617]/60 border-b border-white/[0.08] backdrop-blur-md lg:pl-64 flex items-center justify-between px-3 sm:px-6 text-[10px] sm:text-[11px] font-mono select-none z-20 overflow-x-auto no-scrollbar shadow-inner">
         <div class="flex items-center space-x-4 sm:space-x-6 whitespace-nowrap">
             <div class="flex items-center space-x-1.5 sm:space-x-2">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]"></span>
@@ -1000,7 +938,7 @@
     <!-- ============================================================================== -->
     <!-- MOBILE FIXED BOTTOM DOCK (Native App Feel)                                     -->
     <!-- ============================================================================== -->
-    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070A13]/95 border-t border-white/[0.1] backdrop-blur-2xl px-2 py-1.5 flex items-center justify-around text-[10px] font-medium select-none shadow-2xl">
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#161617]/95 border-t border-white/[0.08] backdrop-blur-2xl px-2 py-1.5 flex items-center justify-around text-[10px] font-medium select-none shadow-2xl">
         <!-- Overview / Dashboard -->
         <button type="button" @click="activeTab = 'overview'" 
                 :class="activeTab === 'overview' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'"
@@ -1024,7 +962,7 @@
             <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
             <span>Ledger</span>
             <% if (totalStats.pendingWithdrawals > 0) { %>
-                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#070A13] animate-pulse"></span>
+                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#0B0F19] animate-pulse"></span>
             <% } %>
         </button>
 
@@ -1035,7 +973,7 @@
             <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
             <span>KYC</span>
             <% if (totalStats.pendingKyc > 0) { %>
-                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 ring-2 ring-[#070A13] animate-pulse"></span>
+                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 ring-2 ring-[#0B0F19] animate-pulse"></span>
             <% } %>
         </button>
 
@@ -1051,7 +989,7 @@
     <div x-show="mobileMoreSheet" 
          class="fixed inset-0 z-50 lg:hidden flex flex-col justify-end" x-cloak>
         <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="mobileMoreSheet = false"></div>
-        <div class="relative bg-[#0D1424] border-t border-white/10 rounded-t-3xl p-5 space-y-4 max-h-[82vh] overflow-y-auto shadow-2xl">
+        <div class="relative bg-[#161617] border-t border-white/10 rounded-t-3xl p-5 space-y-4 max-h-[82vh] overflow-y-auto shadow-2xl">
             <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-1"></div>
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <span class="font-serif font-extrabold text-sm text-white">All Desks & Features</span>
@@ -1556,7 +1494,7 @@
                                 <div class="flex items-center space-x-3.5">
                                     <div class="relative">
                                         <img src="<%= m.avatar %>" alt="<%= m.name %>" class="w-12 h-12 rounded-2xl border-2 border-sky-400/40 object-cover flex-shrink-0 shadow-lg shadow-sky-500/10" />
-                                        <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#090E1A] flex items-center justify-center text-white shadow-sm">
+                                        <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#161617] flex items-center justify-center text-white shadow-sm">
                                             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                         </span>
                                     </div>
@@ -1927,7 +1865,7 @@
                     <!-- Mobile Active Orders Card Stack -->
                     <div class="md:hidden space-y-3">
                         <% openTrades.forEach(t => { %>
-                            <div class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
+                            <div class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#161617]/90 shadow-lg">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-mono text-slate-400 font-bold">#TRD-<%= t.id %></span>
                                     <span class="<%= t.type === 'BUY' ? 'pill-emerald' : 'pill-rose' %> text-[9px] py-0.5 px-2">
@@ -2063,7 +2001,7 @@
                     <input type="text" 
                            x-model="traderSearch" 
                            placeholder="Filter traders by name, email, or #ID..." 
-                           class="w-full bg-[#070A13] border border-white/[0.1] rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400/30 font-mono transition" />
+                           class="w-full bg-[#0B0F19] border border-white/[0.1] rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400/30 font-mono transition" />
                     <button type="button" x-show="traderSearch" @click="traderSearch = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">&times;</button>
                 </div>
 
@@ -2195,7 +2133,7 @@
             <div class="md:hidden space-y-3">
                 <% users.forEach(u => { %>
                     <div x-show="matchesTrader('<%= (u.name || '').replace(/['\\]/g, '') %>', '<%= (u.email || '').replace(/['\\]/g, '') %>', <%= u.id %>, '<%= u.role %>')"
-                         class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
+                         class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#161617]/90 shadow-lg">
                         <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center space-x-3 min-w-0">
                                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500/20 to-primary/30 border border-sky-400/40 text-sky-300 font-black font-serif flex items-center justify-center flex-shrink-0 text-sm shadow-md">
@@ -2238,7 +2176,7 @@
                                     <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                     <input type="hidden" name="user_id" value="<%= u.id %>" />
                                     <select name="trade_mode" onchange="this.form.submit()" 
-                                            class="w-full bg-[#070A13] border border-white/[0.12] <%= u.trade_mode === 'always_win' ? 'text-emerald-400' : (u.trade_mode === 'always_loss' ? 'text-rose-400' : 'text-slate-200') %> text-[10px] rounded-lg px-2 py-1 outline-none font-bold font-mono cursor-pointer">
+                                            class="w-full bg-[#0B0F19] border border-white/[0.12] <%= u.trade_mode === 'always_win' ? 'text-emerald-400' : (u.trade_mode === 'always_loss' ? 'text-rose-400' : 'text-slate-200') %> text-[10px] rounded-lg px-2 py-1 outline-none font-bold font-mono cursor-pointer">
                                         <option value="normal" <%= (u.trade_mode || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
                                         <option value="always_win" <%= u.trade_mode === 'always_win' ? 'selected' : '' %>>🟢 Always Win</option>
                                         <option value="always_loss" <%= u.trade_mode === 'always_loss' ? 'selected' : '' %>>🔴 Forced Loss</option>
@@ -2349,7 +2287,7 @@
                     </h3>
                     <div class="flex items-center space-x-3 text-xs font-mono">
                         <span class="text-slate-400">Page <strong class="text-white" x-text="txPage"></strong> of <strong class="text-white" x-text="txTotalPages"></strong> (<%= transactions.length %> total records)</span>
-                        <select x-model.number="txPerPage" @change="txPage = 1" class="bg-[#0D1424] border border-white/10 rounded-lg px-2 py-1 text-xs text-slate-300 outline-none">
+                        <select x-model.number="txPerPage" @change="txPage = 1" class="bg-[#161617] border border-white/10 rounded-lg px-2 py-1 text-xs text-slate-300 outline-none">
                             <option value="5">5 / page</option>
                             <option value="8">8 / page</option>
                             <option value="12">12 / page</option>
@@ -2443,7 +2381,7 @@
                 <!-- Mobile Transactions Card Stack -->
                 <div class="md:hidden space-y-3">
                     <% transactions.forEach((t, txIdx) => { %>
-                        <div x-show="Math.floor(<%= txIdx %> / txPerPage) + 1 === txPage" class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
+                        <div x-show="Math.floor(<%= txIdx %> / txPerPage) + 1 === txPage" class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#161617]/90 shadow-lg">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-mono text-slate-400 font-bold"><%= t.reference || 'TX-' + t.id %></span>
                                 <div>
@@ -2679,7 +2617,7 @@
                 <!-- Mobile KYC Cards Stack -->
                 <div class="md:hidden space-y-3">
                     <% kycList.forEach(k => { %>
-                        <div class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0D1424]/90 shadow-lg">
+                        <div class="luxury-glass-card p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#161617]/90 shadow-lg">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-mono text-slate-400 font-bold">#KYC-<%= k.id %></span>
                                 <div>
@@ -4735,7 +4673,7 @@
 
     <!-- 10. SET USER BALANCE MODAL (EXACT CASH & 13 CRYPTOCURRENCIES) -->
     <div x-show="setBalanceModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4" x-cloak>
-        <div class="bg-[#0D1424] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-2xl w-full p-4 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+        <div class="bg-[#161617] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-2xl w-full p-4 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
             
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-surface-border pb-4">
@@ -4767,7 +4705,7 @@
                         <div class="relative">
                             <span class="absolute left-3.5 top-2.5 text-sm font-bold text-content-tertiary font-mono">$</span>
                             <input type="number" step="0.01" name="exact_balance" x-model="selectedUserBal.balance" required 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" />
                         </div>
                     </div>
 
@@ -4779,7 +4717,7 @@
                         <div class="relative">
                             <span class="absolute left-3.5 top-2.5 text-sm font-bold text-content-tertiary font-mono">$</span>
                             <input type="number" step="0.01" name="exact_equity" x-model="selectedUserBal.equity" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" />
                         </div>
                     </div>
                 </div>
@@ -4806,7 +4744,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$64.8k</span>
                             </label>
                             <input type="number" step="any" name="btc_balance" x-model="selectedUserBal.btc" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 2. Ethereum (ETH) -->
@@ -4819,7 +4757,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$3,540</span>
                             </label>
                             <input type="number" step="any" name="eth_balance" x-model="selectedUserBal.eth" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 3. Tether (USDT) -->
@@ -4832,7 +4770,7 @@
                                 <span class="text-[9px] text-content-tertiary">$1.00</span>
                             </label>
                             <input type="number" step="any" name="usdt_balance" x-model="selectedUserBal.usdt" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 4. Solana (SOL) -->
@@ -4845,7 +4783,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$148.5</span>
                             </label>
                             <input type="number" step="any" name="sol_balance" x-model="selectedUserBal.sol" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 5. BNB Chain (BNB) -->
@@ -4858,7 +4796,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$582</span>
                             </label>
                             <input type="number" step="any" name="bnb_balance" x-model="selectedUserBal.bnb" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 6. Ripple (XRP) -->
@@ -4871,7 +4809,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$0.58</span>
                             </label>
                             <input type="number" step="any" name="xrp_balance" x-model="selectedUserBal.xrp" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 7. Cardano (ADA) -->
@@ -4884,7 +4822,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$0.38</span>
                             </label>
                             <input type="number" step="any" name="ada_balance" x-model="selectedUserBal.ada" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 8. Dogecoin (DOGE) -->
@@ -4897,7 +4835,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$0.10</span>
                             </label>
                             <input type="number" step="any" name="doge_balance" x-model="selectedUserBal.doge" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 9. Avalanche (AVAX) -->
@@ -4910,7 +4848,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$24.5</span>
                             </label>
                             <input type="number" step="any" name="avax_balance" x-model="selectedUserBal.avax" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 10. Chainlink (LINK) -->
@@ -4923,7 +4861,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$11.8</span>
                             </label>
                             <input type="number" step="any" name="link_balance" x-model="selectedUserBal.link" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 11. Sui (SUI) -->
@@ -4936,7 +4874,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$0.88</span>
                             </label>
                             <input type="number" step="any" name="sui_balance" x-model="selectedUserBal.sui" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 12. Toncoin (TON) -->
@@ -4949,7 +4887,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$5.60</span>
                             </label>
                             <input type="number" step="any" name="ton_balance" x-model="selectedUserBal.ton" placeholder="0.00" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- 13. Pepe (PEPE) -->
@@ -4962,7 +4900,7 @@
                                 <span class="text-[9px] text-content-tertiary">~$0.0000085</span>
                             </label>
                             <input type="number" step="any" name="pepe_balance" x-model="selectedUserBal.pepe" placeholder="0" 
-                                   class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                                   class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                     </div>
@@ -5065,7 +5003,7 @@
                         </button>
                     </div>
                     <div class="relative">
-                        <input :type="showPass ? 'text' : 'password'" name="new_password" required minlength="6" placeholder="Enter new strong password" class="w-full bg-[#0B1120] border border-gray-700 text-white rounded px-3 pr-10 py-2.5 text-sm outline-none focus:border-primary" />
+                        <input :type="showPass ? 'text' : 'password'" name="new_password" required minlength="6" placeholder="Enter new strong password" class="w-full bg-[#0B0F19] border border-gray-700 text-white rounded px-3 pr-10 py-2.5 text-sm outline-none focus:border-primary" />
                         <button type="button" @click="showPass = !showPass" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sky-400 transition p-1" title="Toggle password visibility (Spy password)">
                             <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             <svg x-show="showPass" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
@@ -5205,7 +5143,7 @@
 
 <!-- 15. INTERACTIVE KYC DOCUMENT LIGHTBOX INSPECTOR MODAL -->
     <div x-show="inspectKycModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4" x-cloak>
-        <div class="bg-[#0D1424] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-5 max-h-[95vh] overflow-y-auto">
+        <div class="bg-[#161617] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-5 max-h-[95vh] overflow-y-auto">
             
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-white/10 pb-4">
@@ -5274,7 +5212,7 @@
     <!-- UNIFIED MULTI-BALANCE ADJUSTMENT MODAL (CASH & CRYPTO BALANCES)               -->
     <!-- ============================================================================== -->
     <div x-show="multiBalanceModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4" x-cloak>
-        <div class="bg-[#0D1424] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-2xl w-full p-4 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+        <div class="bg-[#161617] text-white rounded-2xl sm:rounded-3xl border border-white/10 max-w-2xl w-full p-4 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-white/10 pb-4">
@@ -5301,7 +5239,7 @@
                     </label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-3 text-sm font-bold text-content-tertiary font-mono">$</span>
-                        <input type="number" step="0.01" name="cash_balance" x-model="selectedUserMultiBal.cash" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" required />
+                        <input type="number" step="0.01" name="cash_balance" x-model="selectedUserMultiBal.cash" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-content-primary outline-none focus:border-primary shadow-sm" required />
                     </div>
                 </div>
 
@@ -5320,7 +5258,7 @@
                                 <span class="text-[#F7931A]">₿ Bitcoin (BTC)</span>
                                 <span class="text-[10px] text-content-tertiary">~$64,800/BTC</span>
                             </label>
-                            <input type="number" step="any" name="btc_balance" x-model="selectedUserMultiBal.btc" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="btc_balance" x-model="selectedUserMultiBal.btc" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- Ethereum (ETH) -->
@@ -5329,7 +5267,7 @@
                                 <span class="text-[#627EEA]">Ξ Ethereum (ETH)</span>
                                 <span class="text-[10px] text-content-tertiary">~$3,540/ETH</span>
                             </label>
-                            <input type="number" step="any" name="eth_balance" x-model="selectedUserMultiBal.eth" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="eth_balance" x-model="selectedUserMultiBal.eth" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- Tether (USDT) -->
@@ -5338,7 +5276,7 @@
                                 <span class="text-[#26A17B]">₮ Tether (USDT)</span>
                                 <span class="text-[10px] text-content-tertiary">~$1.00/USDT</span>
                             </label>
-                            <input type="number" step="any" name="usdt_balance" x-model="selectedUserMultiBal.usdt" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="usdt_balance" x-model="selectedUserMultiBal.usdt" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- Solana (SOL) -->
@@ -5347,7 +5285,7 @@
                                 <span class="text-[#14F195] font-mono font-bold">Solana (SOL)</span>
                                 <span class="text-[10px] text-content-tertiary">~$148.50/SOL</span>
                             </label>
-                            <input type="number" step="any" name="sol_balance" x-model="selectedUserMultiBal.sol" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="sol_balance" x-model="selectedUserMultiBal.sol" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- BNB Chain (BNB) -->
@@ -5356,7 +5294,7 @@
                                 <span class="text-[#F3BA2F]">🟡 BNB Chain (BNB)</span>
                                 <span class="text-[10px] text-content-tertiary">~$582.00/BNB</span>
                             </label>
-                            <input type="number" step="any" name="bnb_balance" x-model="selectedUserMultiBal.bnb" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="bnb_balance" x-model="selectedUserMultiBal.bnb" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                         <!-- Ripple (XRP) -->
@@ -5365,7 +5303,7 @@
                                 <span class="text-sky-400 font-mono font-bold">Ripple (XRP)</span>
                                 <span class="text-[10px] text-content-tertiary">~$0.58/XRP</span>
                             </label>
-                            <input type="number" step="any" name="xrp_balance" x-model="selectedUserMultiBal.xrp" placeholder="0.00" class="w-full bg-[#0B1120] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
+                            <input type="number" step="any" name="xrp_balance" x-model="selectedUserMultiBal.xrp" placeholder="0.00" class="w-full bg-[#0B0F19] border border-gray-700 text-white border-surface-border rounded-lg px-3 py-2 text-xs font-bold text-content-primary outline-none focus:border-primary" />
                         </div>
 
                     </div>
