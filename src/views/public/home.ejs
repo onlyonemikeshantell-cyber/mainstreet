@@ -1557,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </h2>
 
             <p class="text-base sm:text-lg text-[#86868b] dark:text-[#a1a1a6] leading-relaxed font-normal mt-3.5">
-                You don't need years of technical analysis or Python algorithmic models. Select an audited quant master, explore their live execution tape, simulate your compounding returns in real-time, and let institutional Equinix NY4 fiber mirror trades automatically into your segregated custody account.
+                You don't need years of technical analysis or Python algorithmic models. Select an audited quant master, explore their live execution tape, and let institutional Equinix NY4 fiber mirror trades automatically into your segregated custody account.
             </p>
         </div>
 
@@ -1919,95 +1919,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </template>
                 </div>
 
-                <!-- ============================================================== -->
-                <!-- REAL-TIME INTERACTIVE ALPHA SIMULATOR WIDGET                    -->
-                <!-- ============================================================== -->
-                <div class="p-5 sm:p-6 rounded-[28px] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/[0.12] space-y-5 shadow-lg relative overflow-hidden">
-                    
-                    <!-- Simulator Header -->
-                    <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3.5">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-8 h-8 rounded-xl bg-gain/15 text-gain flex items-center justify-center font-bold">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Interactive Alpha Compounding Simulator</h4>
-                                <p class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                                    Simulating with <strong class="text-primary dark:text-primary-light" x-text="currentTrader.name"></strong>
-                                </p>
-                            </div>
-                        </div>
-                        <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-gain/10 text-gain border border-gain/20 font-numeral tracking-tight" x-text="multiplier + 'x Multiplier'"></span>
-                    </div>
-
-                    <!-- Capital Allocation Range Slider & Preset Pills -->
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider">Select Capital Allocation</span>
-                            <span class="text-base font-extrabold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="'$' + allocAmount.toLocaleString() + ' USD'"></span>
-                        </div>
-
-                        <!-- Range Slider -->
-                        <input type="range" 
-                               min="500" 
-                               max="25000" 
-                               step="250" 
-                               x-model.number="allocAmount" 
-                               class="w-full h-2.5 bg-black/[0.06] dark:bg-white/[0.12] rounded-lg appearance-none cursor-pointer accent-primary" />
-
-                        <!-- Preset Pills -->
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <template x-for="amt in presetAmounts" :key="amt">
-                                <button type="button" 
-                                        @click="setAmount(amt)" 
-                                        :class="allocAmount === amt 
-                                            ? 'bg-primary text-white shadow-xs font-bold' 
-                                            : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] font-medium'"
-                                        class="px-3 py-1 rounded-full text-xs font-numeral tracking-tight transition active:scale-95">
-                                    $<span x-text="amt.toLocaleString()"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- High-Impact Alpha vs. S&P 500 Comparison Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        
-                        <!-- Mainstreet Capital Exchange Mirror Projected Return -->
-                        <div class="p-3.5 rounded-2xl bg-gain/[0.06] dark:bg-gain/[0.1] border border-gain/20 space-y-1">
-                            <div class="flex items-center justify-between text-[11px] text-gain font-semibold">
-                                <span>Mainstreet Capital Quant Strategy</span>
-                                <span class="font-numeral" x-text="'+' + Number(currentTrader.roi).toFixed(1) + '%'"></span>
-                            </div>
-                            <div class="text-xl sm:text-2xl font-extrabold text-gain font-numeral tracking-tight" x-text="'$' + projectedTotal.toLocaleString()"></div>
-                            <span class="text-[10px] text-gain/80 font-medium block">
-                                Capital: $<span class="font-numeral" x-text="allocAmount.toLocaleString()"></span> + Profit: <span class="font-numeral" x-text="'+$' + projectedProfit.toLocaleString()"></span>
-                            </span>
-                        </div>
-
-                        <!-- Benchmark Comparison (S&P 500) -->
-                        <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.08] space-y-1">
-                            <div class="flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] font-semibold">
-                                <span>Traditional Index (S&P 500)</span>
-                                <span class="font-numeral">+10.2%</span>
-                            </div>
-                            <div class="text-xl sm:text-2xl font-extrabold text-[#1d1d1f] dark:text-[#f5f5f7] font-numeral tracking-tight" x-text="'$' + benchmarkTotal.toLocaleString()"></div>
-                            <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block">
-                                Capital: $<span class="font-numeral" x-text="allocAmount.toLocaleString()"></span> + Profit: <span class="font-numeral" x-text="'+$' + benchmarkProfit.toLocaleString()"></span>
-                            </span>
-                        </div>
-
-                    </div>
-
-                    <!-- Direct Mirror Action CTA Button -->
-                    <button type="button" 
-                            @click="openMirrorModal(currentTrader)" 
-                            class="w-full py-3.5 rounded-full bg-primary hover:bg-primary-dark text-white font-semibold text-sm shadow-[0_4px_16px_rgba(0,113,227,0.35)] transition active:scale-[0.98] flex items-center justify-center space-x-2">
-                        <span>Mirror <span x-text="currentTrader.name"></span> with $<span class="font-numeral tracking-tight" x-text="allocAmount.toLocaleString()"></span></span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    </button>
-
-                </div>
+                
 
                 <!-- Additional Navigation Links -->
                 <div class="flex flex-col sm:flex-row items-center gap-3 pt-2">
