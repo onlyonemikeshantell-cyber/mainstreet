@@ -24,8 +24,10 @@
          diditBackImg: '',
          diditSelfieImg: '',
          diditProgress: 0,
-         diditStatusText: 'Initializing Didit AI Neural Model...',
+         diditStatusText: 'Processing biometric clearance...',
          diditScore: 99.4,
+         diditCameraActive: false,
+         diditCameraStream: null,
 
          startDidit() {
              this.diditModal = true;
@@ -39,22 +41,70 @@
              this.diditStep = 'doc_front';
          },
 
+         async startDiditCamera(facing = 'environment') {
+             this.stopDiditCamera();
+             try {
+                 const stream = await navigator.mediaDevices.getUserMedia({
+                     video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }
+                 });
+                 this.diditCameraStream = stream;
+                 this.diditCameraActive = true;
+                 this.$nextTick(() => {
+                     const v = document.getElementById('settingsDiditVideo');
+                     if (v) { v.srcObject = stream; v.play(); }
+                 });
+             } catch (e) {
+                 console.error('Camera access error:', e);
+                 this.diditCameraActive = false;
+                 alert('Camera access not granted or not available. Please upload your document photo.');
+             }
+         },
+
+         stopDiditCamera() {
+             if (this.diditCameraStream) {
+                 this.diditCameraStream.getTracks().forEach(t => t.stop());
+                 this.diditCameraStream = null;
+             }
+             this.diditCameraActive = false;
+         },
+
+         captureDiditFrame(type) {
+             const v = document.getElementById('settingsDiditVideo');
+             if (!v) return;
+             const canvas = document.createElement('canvas');
+             canvas.width = v.videoWidth || 1280;
+             canvas.height = v.videoHeight || 720;
+             canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+             const img = canvas.toDataURL('image/jpeg', 0.92);
+             if (type === 'front') this.diditFrontImg = img;
+             else if (type === 'back') this.diditBackImg = img;
+             else if (type === 'selfie') this.diditSelfieImg = img;
+             this.stopDiditCamera();
+         },
+
+         async launchDiditHosted() {
+             try {
+                 const res = await fetch('/api/kyc/didit/session', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ email: '<%= user.email %>' })
+                 });
+                 const data = await res.json();
+                 if (data.url && (data.url.startsWith('http://') || data.url.startsWith('https://'))) {
+                     window.location.href = data.url;
+                 } else {
+                     this.startDiditCamera('environment');
+                 }
+             } catch(e) {
+                 this.startDiditCamera('environment');
+             }
+         },
+
          async submitDiditVerification() {
+             this.stopDiditCamera();
              this.diditStep = 'processing';
-             this.diditProgress = 20;
-             this.diditStatusText = 'Running optical character recognition & document tampering detection...';
-             
-             await new Promise(r => setTimeout(r, 900));
-             this.diditProgress = 50;
-             this.diditStatusText = 'Comparing 3D facial biometric topology against document portrait...';
-             
-             await new Promise(r => setTimeout(r, 900));
-             this.diditProgress = 80;
-             this.diditStatusText = 'Screening global PEP, OFAC, and AML compliance watchlists...';
-             
-             await new Promise(r => setTimeout(r, 800));
-             this.diditProgress = 100;
-             this.diditStatusText = 'Generating cryptographically signed Didit attestation...';
+             this.diditProgress = 40;
+             this.diditStatusText = 'Ingesting biometric document data...';
              
              try {
                  const res = await fetch('/api/kyc/didit/complete', {
@@ -77,12 +127,13 @@
                  });
                  const data = await res.json();
                  if (data.success) {
+                     this.diditProgress = 100;
                      this.diditStep = 'success';
                      setTimeout(() => {
                          window.location.reload();
-                     }, 1600);
+                     }, 1500);
                  } else {
-                     alert(data.error || 'Didit verification could not be finalized. Please retry or use the backup manual upload.');
+                     alert(data.error || 'Didit verification could not be finalized. Please retry or upload manual documents.');
                      this.diditStep = 'select';
                  }
              } catch (err) {
@@ -608,14 +659,14 @@
                         <p class="text-[11px] text-content-secondary">Session ID: <span class="text-indigo-400 font-bold" x-text="diditDocNumber"></span></p>
                     </div>
                 </div>
-                <button type="button" @click="diditModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold leading-none cursor-pointer">&times;</button>
+                <button type="button" @click="diditModal = false; stopDiditCamera();" class="text-content-tertiary hover:text-content-primary text-2xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
 
             <!-- STEP 1: SELECT DOCUMENT TYPE -->
             <div x-show="diditStep === 'select'" class="space-y-4">
                 <div class="text-center space-y-1">
                     <h4 class="text-sm font-bold text-content-primary">Select Government Identification</h4>
-                    <p class="text-content-secondary text-[11px]">Choose an official document for automated neural optical scan.</p>
+                    <p class="text-content-secondary text-[11px]">Choose an official document for automated optical scan & biometric liveness.</p>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
@@ -640,6 +691,32 @@
                         <div class="text-[10px] text-content-tertiary">State/Provincial permit</div>
                     </button>
                 </div>
+
+                <div class="pt-3 border-t border-surface-border text-center">
+                    <button type="button" @click="launchDiditHosted()"
+                            class="px-5 py-2.5 rounded-xl border border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-xs transition cursor-pointer inline-flex items-center space-x-2">
+                        <span>🌐 Launch Official Didit Portal (verify.didit.me)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- LIVE CAMERA VIEWFINDER (Shared across steps) -->
+            <div x-show="diditCameraActive" class="rounded-2xl border border-indigo-500/50 bg-black p-3 space-y-3" x-cloak>
+                <div class="flex items-center justify-between text-white text-[11px] font-mono">
+                    <span class="font-bold uppercase tracking-wider text-indigo-400" x-text="'LIVE CAMERA: ' + (diditStep === 'doc_front' ? 'FRONT ID' : (diditStep === 'doc_back' ? 'BACK ID' : 'BIOMETRIC SELFIE'))"></span>
+                    <button type="button" @click="stopDiditCamera()" class="text-slate-400 hover:text-white font-bold">&times;</button>
+                </div>
+                <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                    <video id="settingsDiditVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                    <div x-show="diditStep !== 'liveness'" class="absolute inset-4 border-2 border-indigo-400/70 rounded-xl pointer-events-none"></div>
+                    <div x-show="diditStep === 'liveness'" class="absolute w-36 h-48 border-2 border-cyan-400 rounded-full pointer-events-none"></div>
+                </div>
+                <div class="text-center pt-1">
+                    <button type="button" @click="captureDiditFrame(diditStep === 'doc_front' ? 'front' : (diditStep === 'doc_back' ? 'back' : 'selfie'))"
+                            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase shadow-md transition cursor-pointer">
+                        <span x-text="diditStep === 'doc_front' ? 'Capture Front ID' : (diditStep === 'doc_back' ? 'Capture Back ID' : 'Capture Live Selfie')"></span>
+                    </button>
+                </div>
             </div>
 
             <!-- STEP 2: DOCUMENT FRONT SCAN -->
@@ -653,17 +730,21 @@
                     <template x-if="diditFrontImg">
                         <img :src="diditFrontImg" class="max-h-40 rounded-xl object-contain shadow-md" />
                     </template>
-                    <template x-if="!diditFrontImg">
+                    <template x-if="!diditFrontImg && !diditCameraActive">
                         <div class="text-center space-y-2">
-                            <div class="text-4xl text-indigo-400 animate-pulse">📷</div>
+                            <div class="text-4xl text-indigo-400">📷</div>
                             <div class="font-bold text-content-primary text-xs">Upload or Snap Front Document Photo</div>
-                            <span class="text-[10px] text-content-tertiary block">Supports JPG, PNG (or click Instant AI Sample)</span>
+                            <span class="text-[10px] text-content-tertiary block">Supports live webcam snap or JPG/PNG upload</span>
                         </div>
                     </template>
                     
-                    <div class="flex items-center space-x-2 pt-2">
+                    <div class="flex items-center space-x-2 pt-2" x-show="!diditCameraActive">
+                        <button type="button" @click="startDiditCamera('environment')"
+                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
+                            <span>📸 Activate Camera</span>
+                        </button>
                         <label class="px-4 py-2 rounded-xl bg-surface-base hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload Photo</span>
+                            <span>Upload File</span>
                             <input type="file" accept="image/*" class="hidden" @change="
                                 const f = $event.target.files[0];
                                 if (f) {
@@ -673,18 +754,14 @@
                                 }
                             " />
                         </label>
-                        <button type="button" @click="diditFrontImg = '/storage/kyc/default_front.jpg'"
-                                class="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition cursor-pointer">
-                            ⚡ Instant AI Sample
-                        </button>
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'select'" class="text-content-secondary hover:text-content-primary cursor-pointer">
+                    <button type="button" @click="diditStep = 'select'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
                         &larr; Back
                     </button>
-                    <button type="button" :disabled="!diditFrontImg" @click="diditStep = 'doc_back'"
+                    <button type="button" :disabled="!diditFrontImg" @click="diditStep = 'doc_back'; stopDiditCamera();"
                             :class="diditFrontImg ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer' : 'bg-surface-overlay text-content-tertiary cursor-not-allowed'"
                             class="px-6 py-2.5 rounded-xl font-bold transition">
                         Next: Back Side &rarr;
@@ -703,17 +780,21 @@
                     <template x-if="diditBackImg">
                         <img :src="diditBackImg" class="max-h-40 rounded-xl object-contain shadow-md" />
                     </template>
-                    <template x-if="!diditBackImg">
+                    <template x-if="!diditBackImg && !diditCameraActive">
                         <div class="text-center space-y-2">
-                            <div class="text-4xl text-indigo-400 animate-pulse">📷</div>
+                            <div class="text-4xl text-indigo-400">📷</div>
                             <div class="font-bold text-content-primary text-xs">Upload or Snap Back Document Photo</div>
                             <span class="text-[10px] text-content-tertiary block">Ensure MRZ / barcode area is crisp & legible</span>
                         </div>
                     </template>
                     
-                    <div class="flex items-center space-x-2 pt-2">
+                    <div class="flex items-center space-x-2 pt-2" x-show="!diditCameraActive">
+                        <button type="button" @click="startDiditCamera('environment')"
+                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
+                            <span>📸 Activate Camera</span>
+                        </button>
                         <label class="px-4 py-2 rounded-xl bg-surface-base hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload Photo</span>
+                            <span>Upload File</span>
                             <input type="file" accept="image/*" class="hidden" @change="
                                 const f = $event.target.files[0];
                                 if (f) {
@@ -723,18 +804,14 @@
                                 }
                             " />
                         </label>
-                        <button type="button" @click="diditBackImg = '/storage/kyc/default_back.jpg'"
-                                class="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition cursor-pointer">
-                            ⚡ Instant AI Sample
-                        </button>
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'doc_front'" class="text-content-secondary hover:text-content-primary cursor-pointer">
+                    <button type="button" @click="diditStep = 'doc_front'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
                         &larr; Back
                     </button>
-                    <button type="button" :disabled="!diditBackImg" @click="diditStep = 'liveness'"
+                    <button type="button" :disabled="!diditBackImg" @click="diditStep = 'liveness'; stopDiditCamera();"
                             :class="diditBackImg ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer' : 'bg-surface-overlay text-content-tertiary cursor-not-allowed'"
                             class="px-6 py-2.5 rounded-xl font-bold transition">
                         Next: 3D Face Liveness &rarr;
@@ -749,21 +826,23 @@
                     <p class="text-content-secondary text-[11px]">Center your face inside the biometric targeting ring.</p>
                 </div>
 
-                <div class="relative rounded-2xl bg-surface-base border border-surface-border p-6 flex flex-col items-center justify-center space-y-4 min-h-[220px]">
-                    <div class="relative w-36 h-36 rounded-full border-4 border-indigo-500/30 flex items-center justify-center overflow-hidden shadow-inner">
-                        <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                        <div class="text-5xl">👤</div>
-                        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse"></div>
-                    </div>
+                <div class="relative rounded-2xl bg-surface-base border border-surface-border p-6 flex flex-col items-center justify-center space-y-4 min-h-[200px]">
+                    <template x-if="diditSelfieImg">
+                        <img :src="diditSelfieImg" class="max-h-40 rounded-xl object-contain shadow-md" />
+                    </template>
+                    <template x-if="!diditSelfieImg && !diditCameraActive">
+                        <div class="relative w-32 h-32 rounded-full border-4 border-indigo-500/30 flex items-center justify-center overflow-hidden shadow-inner">
+                            <div class="text-5xl">👤</div>
+                        </div>
+                    </template>
 
-                    <div class="text-center space-y-1">
-                        <div class="text-xs font-bold text-cyan-400 font-mono">Biometric Mesh: Calibrated</div>
-                        <p class="text-[11px] text-content-secondary">Looking directly at the lens • Depth vectors confirmed</p>
-                    </div>
-
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2" x-show="!diditCameraActive">
+                        <button type="button" @click="startDiditCamera('user')"
+                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
+                            <span>📸 Activate Selfie Camera</span>
+                        </button>
                         <label class="px-4 py-2 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload Live Selfie</span>
+                            <span>Upload Selfie</span>
                             <input type="file" accept="image/*" class="hidden" @change="
                                 const f = $event.target.files[0];
                                 if (f) {
@@ -773,20 +852,16 @@
                                 }
                             " />
                         </label>
-                        <button type="button" @click="diditSelfieImg = '/storage/kyc/default_front.jpg'"
-                                class="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition cursor-pointer">
-                            ⚡ Instant Biometric Capture
-                        </button>
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'doc_back'" class="text-content-secondary hover:text-content-primary cursor-pointer">
+                    <button type="button" @click="diditStep = 'doc_back'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
                         &larr; Back
                     </button>
-                    <button type="button" @click="submitDiditVerification()"
-                            class="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 cursor-pointer">
-                        Verify & Issue Clearance &rarr;
+                    <button type="button" :disabled="!diditSelfieImg" @click="submitDiditVerification()"
+                            class="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50">
+                        Submit Clearance &rarr;
                     </button>
                 </div>
             </div>
