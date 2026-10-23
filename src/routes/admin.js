@@ -1191,7 +1191,7 @@ router.post(['/babyoku/pnl-generator/execute', '/admin/pnl-generator/execute'], 
 
 // Direct GET /admin/settings route
 router.get(['/babyoku/settings', '/admin/settings'], (req, res) => {
-  res.redirect('/admin#settings');
+  res.redirect('/babyoku#settings');
 });
 
 // Update Platform Branding & Contact Settings
