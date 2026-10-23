@@ -1220,18 +1220,24 @@ router.post('/api/kyc/didit/complete', (req, res) => {
     decision = 'Approved'
   } = req.body;
 
-  const frontPath = saveBase64Media(front_image, 'didit_front', user.id) || '/storage/kyc/didit_verified_front.png';
-  const backPath = saveBase64Media(back_image, 'didit_back', user.id) || '/storage/kyc/didit_verified_back.png';
-  const selfiePath = saveBase64Media(selfie_image, 'didit_selfie', user.id) || '/storage/kyc/didit_verified_selfie.png';
+  const resolvePath = (img, prefix, fallback) => {
+    if (img && typeof img === 'string' && img.startsWith('/')) return img;
+    return saveBase64Media(img, prefix, user.id) || fallback;
+  };
+
+  const frontPath = resolvePath(front_image, 'didit_front', '/storage/kyc/didit_verified_front.png');
+  const backPath = resolvePath(back_image, 'didit_back', '/storage/kyc/didit_verified_back.png');
+  const selfiePath = resolvePath(selfie_image, 'didit_selfie', '/storage/kyc/didit_verified_selfie.png');
 
   const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
-  // Client submission always queues for compliance review; only verified webhooks or admins approve
-  const status = 'pending';
+  const isAutoApprove = (systemSettings.didit_auto_approve === 1) && (decision === 'Approved' || parseFloat(score) >= 80);
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
+  const userKycStatus = isAutoApprove ? 'verified' : 'pending';
 
   // Insert Didit verification record
   db.prepare(`
     INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'didit', ?, ?, NULL)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'didit', ?, ?, ?)
   `).run(
     user.id,
     doc_type,
@@ -1239,25 +1245,32 @@ router.post('/api/kyc/didit/complete', (req, res) => {
     frontPath,
     backPath,
     selfiePath,
-    status,
+    docStatus,
     session_id || ('didit_' + Date.now()),
-    parseFloat(score) || 99.4
+    parseFloat(score) || 99.4,
+    isAutoApprove ? new Date().toISOString() : null
   );
 
-  db.prepare("UPDATE users SET kyc_status = 'pending' WHERE id = ?").run(user.id);
+  db.prepare("UPDATE users SET kyc_status = ? WHERE id = ?").run(userKycStatus, user.id);
   try {
+    const notifTitle = isAutoApprove ? 'Didit Biometric Verification Approved' : 'Didit KYC Under Review';
+    const notifMsg = isAutoApprove 
+      ? 'Didit AI Protocol has confirmed your identity. Your account is now Tier-1 Verified.'
+      : 'Your biometric identity verification has been received and queued for institutional compliance confirmation.';
     db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
-      .run(user.id, 'Didit KYC Under Review', 'Your biometric identity verification has been received and queued for institutional compliance confirmation.');
+      .run(user.id, notifTitle, notifMsg);
   } catch (e) {}
-  logActivity(user.id, 'KYC_DIDIT_SUBMITTED', `Submitted Didit KYC session ${session_id}`, req);
+  logActivity(user.id, 'KYC_DIDIT_SUBMITTED', `Submitted Didit KYC session ${session_id} (Status: ${docStatus})`, req);
 
   req.session.flash = {
-    success: 'Identity documents submitted successfully. Compliance verification is currently processing.'
+    success: isAutoApprove
+      ? 'Identity verified successfully! Institutional Tier-1 access is now active.'
+      : 'Identity documents submitted successfully. Compliance verification is currently processing.'
   };
 
   return res.json({
     success: true,
-    status: 'pending',
+    status: docStatus,
     redirect: '/settings'
   });
 });

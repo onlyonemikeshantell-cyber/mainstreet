@@ -57,14 +57,46 @@ router.use((req, res, next) => {
   next();
 });
 
-// Secure KYC Document Serving (Admin Only, Strict Path Traversal Protection)
-router.get(['/babyoku/kyc/file/:filename', '/admin/kyc/file/:filename', '/storage/kyc/:filename'], requireAdmin, (req, res) => {
-  const safeFilename = path.basename(req.params.filename);
-  const filePath = path.join(__dirname, '..', '..', 'storage', 'kyc', safeFilename);
-  if (!fs.existsSync(filePath)) {
+// Secure KYC Document Serving (Admin Full Access, User Self-Document Access)
+const getKycFilePath = (filename) => {
+  const safeFilename = path.basename(filename);
+  const primaryPath = process.env.DATA_DIR 
+    ? path.join(process.env.DATA_DIR, 'kyc', safeFilename)
+    : path.join(__dirname, '..', '..', 'storage', 'kyc', safeFilename);
+  if (fs.existsSync(primaryPath)) return primaryPath;
+  const fallbackPath = path.join(__dirname, '..', '..', 'storage', 'kyc', safeFilename);
+  if (fs.existsSync(fallbackPath)) return fallbackPath;
+  return null;
+};
+
+router.get(['/babyoku/kyc/file/:filename', '/admin/kyc/file/:filename'], requireAdmin, (req, res) => {
+  const filePath = getKycFilePath(req.params.filename);
+  if (!filePath) {
     return res.status(404).send('KYC document not found');
   }
   res.sendFile(filePath);
+});
+
+router.get('/storage/kyc/:filename', (req, res) => {
+  const safeFilename = path.basename(req.params.filename);
+  const filePath = getKycFilePath(safeFilename);
+  if (!filePath) {
+    return res.status(404).send('KYC document not found');
+  }
+
+  // Public sample assets used in UI / walkthroughs
+  if (safeFilename.startsWith('default_') || safeFilename.startsWith('didit_verified_')) {
+    return res.sendFile(filePath);
+  }
+
+  // Authenticated trader access to own documents or admin
+  const currentUserId = req.session.userId;
+  const isAdmin = req.session.adminId || (currentUserId && db.prepare('SELECT role FROM users WHERE id = ?').get(currentUserId)?.role === 'admin');
+  if (isAdmin || (currentUserId && safeFilename.includes(`_user_${currentUserId}_`))) {
+    return res.sendFile(filePath);
+  }
+
+  return res.status(403).send('Access denied');
 });
 
 // Unified Mailer Service (Resend / SMTP / Sandbox)
@@ -577,6 +609,23 @@ router.post(['/babyoku/user/status', '/admin/user/status'], (req, res) => {
   const { user_id, is_active } = req.body;
   db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(parseInt(is_active) || 1, user_id);
   req.session.flash = { success: `User status updated.` };
+  res.redirect('/babyoku');
+});
+
+router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], (req, res) => {
+  const { user_id, kyc_status } = req.body;
+  const validStatus = ['verified', 'pending', 'rejected', 'unverified'].includes(kyc_status) ? kyc_status : 'verified';
+  db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(validStatus, user_id);
+  if (validStatus === 'verified') {
+    db.prepare("UPDATE kyc_documents SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
+    try {
+      db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
+        .run(user_id, 'Compliance Verification Confirmed', 'Administrator has approved your account for Tier-1 Verified status.');
+    } catch(e) {}
+  } else if (validStatus === 'rejected') {
+    db.prepare("UPDATE kyc_documents SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
+  }
+  req.session.flash = { success: `KYC status for User #${user_id} updated to ${validStatus.toUpperCase()}!` };
   res.redirect('/babyoku');
 });
 

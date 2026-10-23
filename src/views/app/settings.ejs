@@ -59,8 +59,12 @@
              try {
                  const res = await fetch('/api/kyc/didit/complete', {
                      method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
+                     headers: { 
+                         'Content-Type': 'application/json',
+                         'x-csrf-token': '<%= csrfToken %>'
+                     },
                      body: JSON.stringify({
+                         _token: '<%= csrfToken %>',
                          session_id: 'didit_sess_' + Date.now(),
                          doc_type: this.diditDocType,
                          doc_number: this.diditDocNumber,
@@ -78,7 +82,7 @@
                          window.location.reload();
                      }, 1600);
                  } else {
-                     alert('Didit verification could not be finalized. Please retry or use the backup manual upload.');
+                     alert(data.error || 'Didit verification could not be finalized. Please retry or use the backup manual upload.');
                      this.diditStep = 'select';
                  }
              } catch (err) {
