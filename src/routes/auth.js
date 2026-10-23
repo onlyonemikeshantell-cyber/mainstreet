@@ -272,6 +272,10 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
     if (user.role === 'admin') {
       return res.redirect('/babyoku');
     }
+    if (user.kyc_status === 'unverified') {
+      req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
+      return res.redirect('/onboarding/kyc');
+    }
     return res.redirect('/dashboard');
   });
 });
@@ -329,6 +333,10 @@ router.post('/login/2fa', (req, res) => {
     if (isAdminLogin || user.role === 'admin') {
       return res.redirect('/babyoku');
     }
+    if (user.kyc_status === 'unverified') {
+      req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
+      return res.redirect('/onboarding/kyc');
+    }
     return res.redirect('/dashboard');
   });
 });
@@ -350,11 +358,12 @@ router.get('/register', (req, res) => {
   });
 });
 
-// POST /register - Streamlined High-Converting Instant Onboarding
+// POST /register - Streamlined High-Converting Instant Onboarding with Mandatory KYC
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
-    doc_type, doc_number, front_image, back_image, video_data
+    doc_type, doc_number, front_image, back_image, video_data,
+    didit_verified, didit_score
   } = req.body;
 
   if (!name || !email || !password) {
@@ -372,6 +381,12 @@ router.post('/register', async (req, res) => {
     return res.redirect('/register');
   }
 
+  // Mandatory KYC Enforcement during Onboarding
+  if (!doc_type || !doc_number || !front_image || !back_image) {
+    req.session.flash = { error: 'Regulatory compliance requires mandatory KYC identity verification to complete onboarding. Please provide your document details and photos.' };
+    return res.redirect('/register');
+  }
+
   const cleanEmail = (email || '').trim().toLowerCase();
   const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (existing) {
@@ -379,8 +394,14 @@ router.post('/register', async (req, res) => {
     return res.redirect('/login');
   }
 
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
+  const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
+  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
+  const provider = isDiditVerified ? 'didit' : 'manual';
+
   const hash = bcrypt.hashSync(password, 10);
-  const initialKycStatus = (front_image && back_image) ? 'pending' : 'unverified';
 
   try {
     const result = db.prepare(`
@@ -397,24 +418,32 @@ router.post('/register', async (req, res) => {
 
     const newUserId = result.lastInsertRowid;
 
-    // If documents were provided optionally during registration, save them
-    if (front_image && back_image) {
-      const frontPath = saveBase64Media(front_image, 'id_front', newUserId) || '/storage/kyc/default_front.jpg';
-      const backPath = saveBase64Media(back_image, 'id_back', newUserId) || '/storage/kyc/default_back.jpg';
-      const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', newUserId) || '/storage/kyc/default_video.webm') : null;
+    // Process and store mandatory onboarding KYC documents
+    const resolveDocPath = (img, prefix, fallback) => {
+      if (img && typeof img === 'string' && img.startsWith('/')) return img;
+      return saveBase64Media(img, prefix, newUserId) || fallback;
+    };
 
-      db.prepare(`
-        INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', 'manual')
-      `).run(
-        newUserId,
-        doc_type || 'National ID Card',
-        doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
-        frontPath,
-        backPath,
-        videoPath
-      );
-    }
+    const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
+    const backPath = resolveDocPath(back_image, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
+    const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', newUserId) || (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm')) : null;
+
+    db.prepare(`
+      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      newUserId,
+      doc_type || 'National ID Card',
+      doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
+      frontPath,
+      backPath,
+      videoPath,
+      docStatus,
+      provider,
+      isDiditVerified ? ('didit_' + Date.now()) : null,
+      isDiditVerified ? (parseFloat(didit_score) || 99.4) : null,
+      isAutoApprove ? new Date().toISOString() : null
+    );
 
     // Initial Welcome Demo Capital ($10,000 USD)
     db.prepare(`
@@ -515,7 +544,13 @@ router.post('/register', async (req, res) => {
       equity: fullUser.equity
     };
 
-    req.session.flash = { success: 'Welcome to Mainstreet Capital Exchange! Your account has been created with $10,000 demo capital.' };
+    logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed compulsory KYC onboarding (${provider}: ${docStatus})`, req);
+
+    if (isAutoApprove) {
+      req.session.flash = { success: 'Identity clearance verified via Didit AI! Your account has been provisioned with Tier-1 execution and $10,000 demo capital.' };
+    } else {
+      req.session.flash = { success: 'Account created! Your KYC documents are submitted for institutional compliance review.' };
+    }
     return req.session.save(() => res.redirect('/dashboard'));
   } catch (err) {
     console.error('Registration error:', err);

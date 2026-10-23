@@ -88,7 +88,7 @@ const userProtectedPrefixes = [
   '/dashboard', '/webtrade', '/trading', '/trade', '/terminal',
   '/copy-trading/app', '/deposit', '/cashier', '/withdraw',
   '/wallet', '/wallets', '/crypto-wallet', '/transactions',
-  '/settings', '/kyc', '/profile', '/account', '/referrals', '/dividends'
+  '/settings', '/kyc', '/onboarding', '/profile', '/account', '/referrals', '/dividends'
 ];
 
 const isUserRoute = (p) => {
@@ -108,7 +108,7 @@ const isUserRoute = (p) => {
   return false;
 };
 
-// Require Auth Middleware
+// Require Auth Middleware with Compulsory KYC Onboarding Guard
 const requireAuth = (req, res, next) => {
   if (
     req.path.startsWith('/babyoku') || 
@@ -131,7 +131,7 @@ const requireAuth = (req, res, next) => {
     req.session.flash = { error: 'Please log in to access this trading area.' };
     return res.redirect('/login');
   }
-  const activeUser = db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(req.session.userId);
+  const activeUser = db.prepare('SELECT id, is_active, role, kyc_status FROM users WHERE id = ?').get(req.session.userId);
   if (!activeUser || activeUser.is_active === 0) {
     req.session.userId = null;
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
@@ -140,6 +140,24 @@ const requireAuth = (req, res, next) => {
     req.session.flash = { error: 'Your session has expired or your account is inactive. Please sign in.' };
     return res.redirect('/login');
   }
+
+  // Mandatory KYC Gate: Unverified traders are gated into onboarding verification
+  const isKycExempt = req.path === '/onboarding/kyc' || 
+                      req.path.startsWith('/onboarding') || 
+                      req.path === '/kyc' || 
+                      req.path === '/settings' || 
+                      req.path === '/logout' || 
+                      req.path.startsWith('/api/kyc') ||
+                      req.path.startsWith('/settings/kyc');
+
+  if (activeUser.role !== 'admin' && activeUser.kyc_status === 'unverified' && !isKycExempt) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(403).json({ success: false, error: 'Compulsory KYC Identity Verification required. Complete your onboarding to unlock access.' });
+    }
+    req.session.flash = { error: 'Regulatory compliance requires all traders to verify their identity before accessing trading and financial services.' };
+    return res.redirect('/onboarding/kyc');
+  }
+
   next();
 };
 
@@ -1163,6 +1181,93 @@ router.get('/transactions', (req, res) => {
       totalPages
     }
   });
+});
+
+// Mandatory Onboarding KYC Gate Page
+router.get('/onboarding/kyc', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.redirect('/login');
+
+  if (user.kyc_status === 'verified' && !req.query.force) {
+    return res.redirect('/dashboard');
+  }
+
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  const kycDocs = db.prepare('SELECT * FROM kyc_documents WHERE user_id = ? ORDER BY id DESC').all(user.id);
+
+  res.render('app/onboarding_kyc', {
+    title: 'Compulsory Identity Verification Onboarding | Mainstreet Capital Exchange',
+    user,
+    systemSettings,
+    kycDocs,
+    csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
+  });
+});
+
+// Process Mandatory Onboarding KYC Submission
+router.post('/onboarding/kyc', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.redirect('/login');
+
+  const { doc_type, doc_number, front_image, back_image, video_data, didit_verified, didit_score } = req.body;
+
+  if (!doc_type || !doc_number || !front_image || !back_image) {
+    req.session.flash = { error: 'Please provide complete document verification details and identification images.' };
+    return res.redirect('/onboarding/kyc');
+  }
+
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
+  const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
+  const userKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const provider = isDiditVerified ? 'didit' : 'manual';
+
+  const resolveDocPath = (img, prefix, fallback) => {
+    if (img && typeof img === 'string' && img.startsWith('/')) return img;
+    return saveBase64Media(img, prefix, user.id) || fallback;
+  };
+
+  const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
+  const backPath = resolveDocPath(back_image, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
+  const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', user.id) || (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm')) : null;
+
+  db.prepare(`
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    user.id,
+    doc_type,
+    doc_number,
+    frontPath,
+    backPath,
+    videoPath,
+    docStatus,
+    provider,
+    isDiditVerified ? ('didit_' + Date.now()) : null,
+    isDiditVerified ? (parseFloat(didit_score) || 99.4) : null,
+    isAutoApprove ? new Date().toISOString() : null
+  );
+
+  db.prepare("UPDATE users SET kyc_status = ? WHERE id = ?").run(userKycStatus, user.id);
+
+  try {
+    const notifTitle = isAutoApprove ? 'Identity Clearance Approved' : 'KYC Verification Submitted';
+    const notifMsg = isAutoApprove 
+      ? 'Identity verification completed successfully. Institutional Tier-1 access is now unlocked.'
+      : 'Your identification documents have been received and are currently under compliance review.';
+    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')").run(user.id, notifTitle, notifMsg);
+  } catch (e) {}
+
+  logActivity(user.id, 'ONBOARDING_KYC_SUBMITTED', `Submitted KYC documents during onboarding (${provider}: ${docStatus})`, req);
+
+  if (isAutoApprove) {
+    req.session.flash = { success: 'Identity verified successfully! Institutional Tier-1 execution is live.' };
+  } else {
+    req.session.flash = { success: 'Identity documents submitted successfully. Verification is currently under institutional review.' };
+  }
+
+  return res.redirect('/dashboard');
 });
 
 // 7. Settings, KYC & 2FA

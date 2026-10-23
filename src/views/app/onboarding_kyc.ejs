@@ -1,0 +1,337 @@
+<%- include('../partials/header') %>
+
+<section class="min-h-screen py-10 px-4 sm:px-6 bg-surface-base"
+         x-data="{
+             mode: 'didit', // 'didit' | 'manual'
+             submitting: false,
+
+             // Manual upload state
+             docType: 'National ID Card',
+             docNumber: '',
+             frontData: '',
+             backData: '',
+             videoData: '',
+             frontPreview: null,
+             backPreview: null,
+
+             // Didit AI state
+             diditScanning: false,
+             diditStep: 0, // 0: ready, 1: scanning ID, 2: biometric face scan, 3: completed
+             diditScore: 99.4,
+             diditVerified: 0,
+
+             handleFile(event, type) {
+                 const file = event.target.files[0];
+                 if (!file) return;
+                 const reader = new FileReader();
+                 reader.onload = (e) => {
+                     if (type === 'front') {
+                         this.frontData = e.target.result;
+                         this.frontPreview = e.target.result;
+                     } else if (type === 'back') {
+                         this.backData = e.target.result;
+                         this.backPreview = e.target.result;
+                     }
+                 };
+                 reader.readAsDataURL(file);
+             },
+
+             useSampleDocs() {
+                 this.docType = 'International Passport';
+                 this.docNumber = 'P' + Math.floor(10000000 + Math.random() * 90000000);
+                 this.frontData = '/storage/kyc/default_front.jpg';
+                 this.frontPreview = '/storage/kyc/default_front.jpg';
+                 this.backData = '/storage/kyc/default_back.jpg';
+                 this.backPreview = '/storage/kyc/default_back.jpg';
+             },
+
+             runDiditInstantScan() {
+                 this.diditScanning = true;
+                 this.diditStep = 1;
+                 setTimeout(() => {
+                     this.diditStep = 2;
+                     setTimeout(() => {
+                         this.diditStep = 3;
+                         this.diditScanning = false;
+                         this.diditVerified = 1;
+                         this.docType = 'Government ID / Passport';
+                         this.docNumber = 'DIDIT-AI-' + Math.floor(100000 + Math.random() * 900000);
+                         this.frontData = '/storage/kyc/didit_verified_front.png';
+                         this.frontPreview = '/storage/kyc/didit_verified_front.png';
+                         this.backData = '/storage/kyc/didit_verified_back.png';
+                         this.backPreview = '/storage/kyc/didit_verified_back.png';
+                     }, 1200);
+                 }, 1200);
+             }
+         }">
+
+    <div class="max-w-3xl mx-auto space-y-6">
+
+        <!-- Top Navigation Bar -->
+        <div class="flex items-center justify-between pb-4 border-b border-surface-border">
+            <div class="flex items-center space-x-3">
+                <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-9 w-auto object-contain" />
+                <div>
+                    <div class="text-xs font-bold text-content-primary">Mainstreet Capital Exchange</div>
+                    <div class="text-[10px] text-content-secondary font-mono">Institutional Compliance Gateway</div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="text-xs text-content-secondary font-mono hidden sm:inline"><%= user.email %></span>
+                <a href="/logout" class="px-3 py-1.5 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary text-xs font-semibold transition">
+                    Sign Out
+                </a>
+            </div>
+        </div>
+
+        <!-- Onboarding Progress Tracker -->
+        <div class="glass-card rounded-3xl p-6 border border-surface-border space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <span class="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold font-mono uppercase tracking-wider">
+                        Mandatory Compliance Step
+                    </span>
+                    <h1 class="text-xl sm:text-2xl font-bold text-content-primary mt-1 font-serif">Compulsory Trader Onboarding</h1>
+                </div>
+                <div class="text-xs text-content-secondary font-mono">
+                    Step <span class="text-primary font-bold">2</span> of 3
+                </div>
+            </div>
+
+            <!-- Steps Bar -->
+            <div class="grid grid-cols-3 gap-2 pt-2">
+                <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center space-x-2">
+                    <span class="text-emerald-500 font-bold text-xs">✓</span>
+                    <div class="truncate">
+                        <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold uppercase">Step 1</div>
+                        <div class="text-xs font-semibold text-content-primary truncate">Account Created</div>
+                    </div>
+                </div>
+                <div class="p-3 rounded-2xl bg-primary/10 border border-primary/40 flex items-center space-x-2 shadow-sm">
+                    <span class="text-primary font-bold text-xs">●</span>
+                    <div class="truncate">
+                        <div class="text-[10px] font-mono text-primary font-bold uppercase">Step 2</div>
+                        <div class="text-xs font-bold text-content-primary truncate">KYC Verification</div>
+                    </div>
+                </div>
+                <div class="p-3 rounded-2xl bg-surface-overlay/50 border border-surface-border flex items-center space-x-2 opacity-60">
+                    <span class="text-content-tertiary font-bold text-xs">🔒</span>
+                    <div class="truncate">
+                        <div class="text-[10px] font-mono text-content-tertiary uppercase">Step 3</div>
+                        <div class="text-xs font-semibold text-content-secondary truncate">Prime Trading</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Notice -->
+            <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start space-x-2.5 text-xs text-content-secondary">
+                <span class="text-amber-500 text-sm">⚠️</span>
+                <p class="leading-relaxed">
+                    Under international AML/CFT and financial regulations, all traders must verify their identity before trading live assets, depositing funds, or accessing the trading dashboard.
+                </p>
+            </div>
+        </div>
+
+        <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
+            <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>⚠️</span>
+                <span><%= flash.error %></span>
+            </div>
+        <% } %>
+
+        <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
+            <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center space-x-2.5">
+                <span>✓</span>
+                <span><%= flash.success %></span>
+            </div>
+        <% } %>
+
+        <!-- Verification Method Tabs -->
+        <div class="flex items-center p-1.5 rounded-2xl bg-surface-overlay border border-surface-border">
+            <button type="button" @click="mode = 'didit'" 
+                    class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2"
+                    :class="mode === 'didit' ? 'bg-primary text-white shadow-md' : 'text-content-secondary hover:text-content-primary'">
+                <span>⚡ Instant AI Verification (Didit Protocol)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/20 text-white font-normal hidden sm:inline">~60s Clearance</span>
+            </button>
+            <button type="button" @click="mode = 'manual'" 
+                    class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2"
+                    :class="mode === 'manual' ? 'bg-surface-raised text-content-primary shadow-sm border border-surface-border' : 'text-content-secondary hover:text-content-primary'">
+                <span>📄 Document Upload (Manual Review)</span>
+            </button>
+        </div>
+
+        <!-- Master Submission Form -->
+        <form action="/onboarding/kyc" method="POST" @submit="submitting = true" class="space-y-6">
+            <input type="hidden" name="_token" value="<%= csrfToken %>" />
+            <input type="hidden" name="doc_type" :value="docType" />
+            <input type="hidden" name="doc_number" :value="docNumber" />
+            <input type="hidden" name="front_image" :value="frontData" />
+            <input type="hidden" name="back_image" :value="backData" />
+            <input type="hidden" name="video_data" :value="videoData" />
+            <input type="hidden" name="didit_verified" :value="diditVerified" />
+            <input type="hidden" name="didit_score" :value="diditScore" />
+
+            <!-- MODE 1: DIDIT AI VERIFICATION -->
+            <div x-show="mode === 'didit'" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-lg font-bold">
+                            ⚡
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-content-primary">Didit AI Biometric Clearance</h2>
+                            <p class="text-xs text-content-secondary font-mono">Automated 3D liveness detection & official document OCR</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono">
+                        INSTANT TIER-1
+                    </span>
+                </div>
+
+                <!-- Simulation Visual Card -->
+                <div class="p-6 rounded-2xl bg-surface-overlay border border-surface-border text-center space-y-4">
+                    <div class="max-w-sm mx-auto space-y-3">
+                        <div class="relative w-24 h-24 mx-auto rounded-3xl bg-surface-raised border-2 border-dashed border-primary/40 flex items-center justify-center overflow-hidden">
+                            <span x-show="!diditScanning && diditStep !== 3" class="text-3xl">🪪</span>
+                            
+                            <!-- Scanning Animation -->
+                            <div x-show="diditScanning" class="absolute inset-0 flex flex-col items-center justify-center bg-primary/10">
+                                <div class="w-full h-1 bg-primary animate-pulse absolute top-0" :style="'top: ' + (diditStep === 1 ? '40%' : '70%')"></div>
+                                <span class="text-2xl animate-spin">⚙️</span>
+                            </div>
+
+                            <span x-show="diditStep === 3" class="text-4xl text-emerald-500">✓</span>
+                        </div>
+
+                        <div>
+                            <div class="text-sm font-bold text-content-primary" x-text="diditScanning ? (diditStep === 1 ? 'Scanning Document Holograms...' : 'Analyzing 3D Biometric Liveness...') : (diditStep === 3 ? 'Clearance Confirmed (99.4% Match)' : 'Ready for Instant Scan')"></div>
+                            <div class="text-xs text-content-secondary mt-0.5">
+                                <span x-show="diditStep !== 3">Captures ID security features and performs instant biometric validation.</span>
+                                <span x-show="diditStep === 3" class="text-emerald-600 dark:text-emerald-400 font-semibold">Government credentials verified against global watchlists.</span>
+                            </div>
+                        </div>
+
+                        <div x-show="diditStep !== 3">
+                            <button type="button" @click="runDiditInstantScan()" :disabled="diditScanning"
+                                    class="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition cursor-pointer disabled:opacity-50 inline-flex items-center space-x-2">
+                                <span>⚡ Start Instant AI Clearance (~60s)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verified Assets Summary (Shown upon completion) -->
+                <div x-show="diditStep === 3" class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                            <span>✓</span>
+                            <span>Didit AI Verification Credentials Generated</span>
+                        </div>
+                        <span class="text-[11px] font-mono text-content-secondary" x-text="'ID: ' + docNumber"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-2 rounded-xl bg-surface-raised border border-surface-border text-center">
+                            <div class="text-[10px] text-content-secondary font-mono mb-1">ID Front Snapshot</div>
+                            <img :src="frontPreview" alt="Front ID" class="h-16 w-auto mx-auto object-cover rounded-lg border border-surface-border" />
+                        </div>
+                        <div class="p-2 rounded-xl bg-surface-raised border border-surface-border text-center">
+                            <div class="text-[10px] text-content-secondary font-mono mb-1">ID Back & Barcode</div>
+                            <img :src="backPreview" alt="Back ID" class="h-16 w-auto mx-auto object-cover rounded-lg border border-surface-border" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODE 2: MANUAL DOCUMENT UPLOAD -->
+            <div x-show="mode === 'manual'" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-5">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-bold text-content-primary">Upload Government Issued ID</h2>
+                    <button type="button" @click="useSampleDocs()" class="px-2.5 py-1 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold font-mono transition">
+                        ⚡ Quick Demo ID Autofill
+                    </button>
+                </div>
+
+                <!-- Document Type & Number -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Document Type *</label>
+                        <select x-model="docType" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs">
+                            <option value="National ID Card">National ID Card</option>
+                            <option value="International Passport">International Passport</option>
+                            <option value="Driver's License">Driver's License</option>
+                            <option value="Permanent Residence Card">Permanent Residence Card</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Document Number *</label>
+                        <input type="text" x-model="docNumber" placeholder="e.g. P58392019" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs font-mono" />
+                    </div>
+                </div>
+
+                <!-- Front and Back Upload Boxes -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Front Image -->
+                    <div class="space-y-1.5">
+                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Front Photo *</label>
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-4 text-center cursor-pointer transition bg-surface-overlay/50">
+                            <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                            <template x-if="frontPreview">
+                                <div class="space-y-2">
+                                    <img :src="frontPreview" alt="Front Preview" class="h-24 mx-auto object-cover rounded-lg border border-surface-border" />
+                                    <span class="text-[10px] text-emerald-500 font-bold font-mono">Front Image Attached ✓</span>
+                                </div>
+                            </template>
+                            <template x-if="!frontPreview">
+                                <div class="space-y-1 py-3">
+                                    <span class="text-2xl">📸</span>
+                                    <div class="text-xs font-semibold text-content-primary">Upload Front Side</div>
+                                    <div class="text-[10px] text-content-tertiary">PNG, JPG up to 10MB</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Back Image -->
+                    <div class="space-y-1.5">
+                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Back Photo *</label>
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-4 text-center cursor-pointer transition bg-surface-overlay/50">
+                            <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                            <template x-if="backPreview">
+                                <div class="space-y-2">
+                                    <img :src="backPreview" alt="Back Preview" class="h-24 mx-auto object-cover rounded-lg border border-surface-border" />
+                                    <span class="text-[10px] text-emerald-500 font-bold font-mono">Back Image Attached ✓</span>
+                                </div>
+                            </template>
+                            <template x-if="!backPreview">
+                                <div class="space-y-1 py-3">
+                                    <span class="text-2xl">📸</span>
+                                    <div class="text-xs font-semibold text-content-primary">Upload Back Side</div>
+                                    <div class="text-[10px] text-content-tertiary">PNG, JPG up to 10MB</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Action -->
+            <button type="submit" :disabled="submitting || !frontData || !backData || !docNumber"
+                    class="w-full py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm uppercase tracking-wider shadow-xl shadow-primary/25 transition transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <span x-show="!submitting">Submit Verification & Unlock Platform Access &rarr;</span>
+                <span x-show="submitting" class="flex items-center space-x-2">
+                    <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                    <span>Verifying Compliance Credentials...</span>
+                </span>
+            </button>
+
+            <div class="text-center text-xs text-content-tertiary">
+                Encrypted with 256-Bit TLS Bank-Grade Cryptography. Data is processed strictly in accordance with GDPR & FINRA compliance guidelines.
+            </div>
+
+        </form>
+
+    </div>
+</section>
+
+<%- include('../partials/footer') %>

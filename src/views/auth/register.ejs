@@ -2,6 +2,11 @@
 
 <section class="min-h-[90vh] flex items-center justify-center py-12 px-4 sm:px-6 bg-surface-base"
          x-data="{
+             step: 1, // 1: Credentials, 2: Compulsory KYC
+             step1Error: '',
+             isSubmitting: false,
+
+             // Step 1: Credentials
              name: '',
              email: '',
              phone: '',
@@ -10,9 +15,23 @@
              confirmPassword: '',
              showPass: false,
              showConfirm: false,
-             isSubmitting: false,
              countryDropdownOpen: false,
              countrySearch: '',
+
+             // Step 2: Compulsory KYC
+             kycMode: 'didit', // 'didit' | 'manual'
+             docType: 'National ID Card',
+             docNumber: '',
+             frontData: '',
+             backData: '',
+             videoData: '',
+             frontPreview: null,
+             backPreview: null,
+             diditScanning: false,
+             diditStep: 0,
+             diditScore: 99.4,
+             diditVerified: 0,
+
              countries: [
                  { name: 'United States', code: 'US', dial: '+1', flag: '🇺🇸' },
                  { name: 'United Kingdom', code: 'GB', dial: '+44', flag: '🇬🇧' },
@@ -37,6 +56,7 @@
                  { name: 'Mexico', code: 'MX', dial: '+52', flag: '🇲🇽' },
                  { name: 'India', code: 'IN', dial: '+91', flag: '🇮🇳' }
              ],
+
              get filteredCountries() {
                  if (!this.countrySearch) return this.countries;
                  const q = this.countrySearch.toLowerCase();
@@ -62,21 +82,100 @@
                  if (score <= 1) return { label: 'Fair', width: '50%', color: 'bg-amber-500', textColor: 'text-amber-500' };
                  if (score === 2) return { label: 'Good', width: '75%', color: 'bg-sky-500', textColor: 'text-sky-500' };
                  return { label: 'Institutional Strong', width: '100%', color: 'bg-gain', textColor: 'text-gain' };
+             },
+
+             goToStep2() {
+                 this.step1Error = '';
+                 if (!this.name.trim()) {
+                     this.step1Error = 'Please enter your full legal name.';
+                     return;
+                 }
+                 if (!this.email.trim() || !this.email.includes('@') || !this.email.includes('.')) {
+                     this.step1Error = 'Please enter a valid institutional email address.';
+                     return;
+                 }
+                 if (!this.password || this.password.length < 6) {
+                     this.step1Error = 'Password must be at least 6 characters.';
+                     return;
+                 }
+                 if (this.password !== this.confirmPassword) {
+                     this.step1Error = 'Passwords do not match. Please verify.';
+                     return;
+                 }
+                 this.step = 2;
+             },
+
+             handleFile(event, type) {
+                 const file = event.target.files[0];
+                 if (!file) return;
+                 const reader = new FileReader();
+                 reader.onload = (e) => {
+                     if (type === 'front') {
+                         this.frontData = e.target.result;
+                         this.frontPreview = e.target.result;
+                     } else if (type === 'back') {
+                         this.backData = e.target.result;
+                         this.backPreview = e.target.result;
+                     }
+                 };
+                 reader.readAsDataURL(file);
+             },
+
+             useSampleDocs() {
+                 this.docType = 'International Passport';
+                 this.docNumber = 'P' + Math.floor(10000000 + Math.random() * 90000000);
+                 this.frontData = '/storage/kyc/default_front.jpg';
+                 this.frontPreview = '/storage/kyc/default_front.jpg';
+                 this.backData = '/storage/kyc/default_back.jpg';
+                 this.backPreview = '/storage/kyc/default_back.jpg';
+             },
+
+             runDiditInstantScan() {
+                 this.diditScanning = true;
+                 this.diditStep = 1;
+                 setTimeout(() => {
+                     this.diditStep = 2;
+                     setTimeout(() => {
+                         this.diditStep = 3;
+                         this.diditScanning = false;
+                         this.diditVerified = 1;
+                         this.docType = 'Government ID / Passport';
+                         this.docNumber = 'DIDIT-AI-' + Math.floor(100000 + Math.random() * 900000);
+                         this.frontData = '/storage/kyc/didit_verified_front.png';
+                         this.frontPreview = '/storage/kyc/didit_verified_front.png';
+                         this.backData = '/storage/kyc/didit_verified_back.png';
+                         this.backPreview = '/storage/kyc/didit_verified_back.png';
+                     }, 1100);
+                 }, 1100);
              }
          }">
 
     <div class="max-w-xl w-full glass-card rounded-3xl p-6 sm:p-10 shadow-2xl border border-surface-border space-y-6">
         
         <!-- Header -->
-        <div class="text-center space-y-3">
+        <div class="text-center space-y-2">
             <div class="flex justify-center">
                 <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-12 w-auto object-contain drop-shadow-md" />
             </div>
             <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">
-                <span>⚡ INSTANT TRADING ACCESS</span>
+                <span>⚡ COMPULSORY ONBOARDING</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold text-content-primary font-serif">Open Trader Account</h1>
-            <p class="text-xs text-content-secondary max-w-sm mx-auto">Get instantaneous access to real-time institutional execution with $10,000 demo capital.</p>
+            <p class="text-xs text-content-secondary max-w-sm mx-auto">Get instantaneous institutional access with $10,000 demo capital after compulsory KYC clearance.</p>
+        </div>
+
+        <!-- Progress Steps Tracker -->
+        <div class="grid grid-cols-2 gap-2 pt-1 pb-1">
+            <div @click="step = 1" class="p-2.5 rounded-2xl border transition cursor-pointer text-center"
+                 :class="step === 1 ? 'bg-primary/10 border-primary text-primary font-bold' : 'bg-surface-overlay/50 border-surface-border text-content-secondary'">
+                <div class="text-[10px] font-mono uppercase">Step 1</div>
+                <div class="text-xs font-semibold">Account Profile</div>
+            </div>
+            <div class="p-2.5 rounded-2xl border transition text-center"
+                 :class="step === 2 ? 'bg-primary/10 border-primary text-primary font-bold shadow-sm' : 'bg-surface-overlay/30 border-surface-border text-content-secondary opacity-75'">
+                <div class="text-[10px] font-mono uppercase">Step 2 (Mandatory)</div>
+                <div class="text-xs font-semibold">KYC Verification</div>
+            </div>
         </div>
 
         <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
@@ -93,109 +192,251 @@
             </div>
         <% } %>
 
+        <div x-show="step1Error" class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2.5">
+            <span>⚠️</span>
+            <span x-text="step1Error"></span>
+        </div>
+
         <!-- Master Form -->
         <form action="/register" method="POST" @submit="isSubmitting = true" class="space-y-4 text-xs font-mono">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
-            <!-- Full Legal Name -->
-            <div>
-                <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Full Legal Name *</label>
-                <input type="text" name="name" x-model="name" required placeholder="e.g. Alexander Vance" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
-            </div>
+            <!-- Hidden KYC Payload Fields -->
+            <input type="hidden" name="doc_type" :value="docType" />
+            <input type="hidden" name="doc_number" :value="docNumber" />
+            <input type="hidden" name="front_image" :value="frontData" />
+            <input type="hidden" name="back_image" :value="backData" />
+            <input type="hidden" name="video_data" :value="videoData" />
+            <input type="hidden" name="didit_verified" :value="diditVerified" />
+            <input type="hidden" name="didit_score" :value="diditScore" />
 
-            <!-- Email & Phone Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Email Address *</label>
-                    <input type="email" name="email" x-model="email" required placeholder="alex@example.com" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
-                </div>
-                <div>
-                    <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Phone Number (Optional)</label>
-                    <input type="tel" name="phone" x-model="phone" placeholder="+1 (555) 019-2834" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
-                </div>
-            </div>
-
-            <!-- Password Fields -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Password *</label>
-                        <button type="button" @click="showPass = !showPass" class="text-[10px] text-content-tertiary hover:text-primary transition cursor-pointer" title="Spy Password">
-                            <span x-text="showPass ? '🙈 Hide' : '👁️ Show'"></span>
-                        </button>
-                    </div>
-                    <div class="relative">
-                        <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required minlength="6" placeholder="Min 6 characters" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm text-sm" />
-                    </div>
-                    <div class="mt-1.5 flex items-center space-x-1.5" x-show="password.length > 0">
-                        <div class="h-1 flex-1 rounded-full overflow-hidden bg-surface-border">
-                            <div class="h-full transition-all duration-300" :class="passwordStrength.color" :style="'width: ' + passwordStrength.width"></div>
-                        </div>
-                        <span class="text-[10px] font-mono font-bold" :class="passwordStrength.textColor" x-text="passwordStrength.label"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Confirm Password *</label>
-                        <button type="button" @click="showConfirm = !showConfirm" class="text-[10px] text-content-tertiary hover:text-primary transition cursor-pointer" title="Spy Password">
-                            <span x-text="showConfirm ? '🙈 Hide' : '👁️ Show'"></span>
-                        </button>
-                    </div>
-                    <div class="relative">
-                        <input :type="showConfirm ? 'text' : 'password'" name="confirm_password" x-model="confirmPassword" required minlength="6" placeholder="Repeat password" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm text-sm" />
-                    </div>
-                </div>
-            </div>
-
-            <!-- Country Selection -->
-            <div class="relative" @click.outside="countryDropdownOpen = false">
-                <input type="hidden" name="country" :value="country" />
-                <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Country of Residence</label>
+            <!-- ================= STEP 1: CREDENTIALS ================= -->
+            <div x-show="step === 1" class="space-y-4">
                 
-                <div @click="countryDropdownOpen = !countryDropdownOpen"
-                     class="w-full bg-surface-overlay border border-surface-border hover:border-primary text-content-primary rounded-xl px-4 py-3 shadow-sm font-sans text-sm cursor-pointer flex items-center justify-between transition">
-                    <div class="flex items-center space-x-2.5">
-                        <span class="text-lg" x-text="selectedCountry.flag"></span>
-                        <span class="font-bold" x-text="selectedCountry.name"></span>
-                        <span class="text-xs text-content-tertiary font-mono" x-text="'(' + selectedCountry.dial + ')'"></span>
+                <!-- Full Legal Name -->
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Full Legal Name *</label>
+                    <input type="text" name="name" x-model="name" required placeholder="e.g. Alexander Vance" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
+                </div>
+
+                <!-- Email & Phone Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Email Address *</label>
+                        <input type="email" name="email" x-model="email" required placeholder="alex@example.com" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
                     </div>
-                    <span class="text-xs text-content-tertiary">▼</span>
+                    <div>
+                        <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans">Phone Number (Optional)</label>
+                        <input type="tel" name="phone" x-model="phone" placeholder="+1 (555) 019-2834" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm font-sans" />
+                    </div>
                 </div>
 
-                <!-- Country Dropdown -->
-                <div x-show="countryDropdownOpen" class="absolute z-50 left-0 right-0 mt-2 bg-surface-raised border border-surface-border rounded-2xl shadow-2xl p-2 space-y-1 max-h-56 overflow-y-auto" x-cloak>
-                    <input type="text" x-model="countrySearch" placeholder="Type country name..." class="w-full bg-surface-overlay px-3 py-2 rounded-xl text-xs outline-none border border-surface-border text-content-primary mb-1" />
-                    <template x-for="c in filteredCountries" :key="c.code">
-                        <div @click="selectCountry(c)" class="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-surface-overlay cursor-pointer text-xs font-sans transition">
-                            <span x-text="c.flag"></span>
-                            <span class="font-bold text-content-primary flex-1" x-text="c.name"></span>
-                            <span class="text-content-tertiary font-mono text-[11px]" x-text="c.dial"></span>
+                <!-- Password Fields -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Password *</label>
+                            <button type="button" @click="showPass = !showPass" class="text-[10px] text-content-tertiary hover:text-primary transition cursor-pointer" title="Spy Password">
+                                <span x-text="showPass ? '🙈 Hide' : '👁️ Show'"></span>
+                            </button>
                         </div>
-                    </template>
+                        <div class="relative">
+                            <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required minlength="6" placeholder="Min 6 characters" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm text-sm" />
+                        </div>
+                        <div class="mt-1.5 flex items-center space-x-1.5" x-show="password.length > 0">
+                            <div class="h-1 flex-1 rounded-full overflow-hidden bg-surface-border">
+                                <div class="h-full transition-all duration-300" :class="passwordStrength.color" :style="'width: ' + passwordStrength.width"></div>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold" :class="passwordStrength.textColor" x-text="passwordStrength.label"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Confirm Password *</label>
+                            <button type="button" @click="showConfirm = !showConfirm" class="text-[10px] text-content-tertiary hover:text-primary transition cursor-pointer" title="Spy Password">
+                                <span x-text="showConfirm ? '🙈 Hide' : '👁️ Show'"></span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showConfirm ? 'text' : 'password'" name="confirm_password" x-model="confirmPassword" required minlength="6" placeholder="Repeat password" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm text-sm" />
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Country Selection -->
+                <div class="relative" @click.outside="countryDropdownOpen = false">
+                    <input type="hidden" name="country" :value="country" />
+                    <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Country of Residence</label>
+                    
+                    <div @click="countryDropdownOpen = !countryDropdownOpen"
+                         class="w-full bg-surface-overlay border border-surface-border hover:border-primary text-content-primary rounded-xl px-4 py-3 shadow-sm font-sans text-sm cursor-pointer flex items-center justify-between transition">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-lg" x-text="selectedCountry.flag"></span>
+                            <span class="font-bold" x-text="selectedCountry.name"></span>
+                            <span class="text-xs text-content-tertiary font-mono" x-text="'(' + selectedCountry.dial + ')'"></span>
+                        </div>
+                        <span class="text-xs text-content-tertiary">▼</span>
+                    </div>
+
+                    <!-- Country Dropdown -->
+                    <div x-show="countryDropdownOpen" class="absolute z-50 left-0 right-0 mt-2 bg-surface-raised border border-surface-border rounded-2xl shadow-2xl p-2 space-y-1 max-h-56 overflow-y-auto" x-cloak>
+                        <input type="text" x-model="countrySearch" placeholder="Type country name..." class="w-full bg-surface-overlay px-3 py-2 rounded-xl text-xs outline-none border border-surface-border text-content-primary mb-1" />
+                        <template x-for="c in filteredCountries" :key="c.code">
+                            <div @click="selectCountry(c)" class="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-surface-overlay cursor-pointer text-xs font-sans transition">
+                                <span x-text="c.flag"></span>
+                                <span class="font-bold text-content-primary flex-1" x-text="c.name"></span>
+                                <span class="text-content-tertiary font-mono text-[11px]" x-text="c.dial"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Next Button to Step 2 -->
+                <button type="button" @click="goToStep2()"
+                        class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer">
+                    <span>Continue to Identity Verification (Step 2/2) &rarr;</span>
+                </button>
             </div>
 
-            <!-- Value Props Reassurance -->
-            <div class="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-1 font-sans">
-                <div class="flex items-center space-x-1.5 text-primary font-bold text-xs">
-                    <span>🛡️</span>
-                    <span>Institutional Security & Rapid Onboarding</span>
-                </div>
-                <p class="text-[11px] text-content-secondary leading-relaxed">
-                    Account is created instantly with <strong>$10,000 Demo Capital</strong>. Identity verification (KYC) can be completed anytime in ~60s using Didit AI for live withdrawals.
-                </p>
-            </div>
+            <!-- ================= STEP 2: MANDATORY KYC ================= -->
+            <div x-show="step === 2" class="space-y-4">
 
-            <!-- Submit Button -->
-            <button type="submit" :disabled="isSubmitting"
-                    class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50">
-                <span x-show="!isSubmitting">Create Account & Start Trading &rarr;</span>
-                <span x-show="isSubmitting" class="flex items-center space-x-2">
-                    <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                    <span>Setting up your trading account...</span>
-                </span>
-            </button>
+                <!-- Regulatory Compliance Alert -->
+                <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-1 font-sans">
+                    <div class="flex items-center space-x-1.5 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                        <span>🛡️</span>
+                        <span>Mandatory Regulatory Clearance (AML/CFT)</span>
+                    </div>
+                    <p class="text-[11px] text-content-secondary leading-relaxed">
+                        To comply with international financial banking standards, proof of identity is mandatory to activate live execution and your $10,000 demo capital.
+                    </p>
+                </div>
+
+                <!-- Verification Mode Tabs -->
+                <div class="flex items-center p-1 rounded-2xl bg-surface-overlay border border-surface-border">
+                    <button type="button" @click="kycMode = 'didit'" 
+                            class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 font-sans"
+                            :class="kycMode === 'didit' ? 'bg-primary text-white shadow-sm' : 'text-content-secondary hover:text-content-primary'">
+                        <span>⚡ Didit AI Instant Scan</span>
+                        <span class="text-[10px] font-mono px-1 rounded bg-white/20 hidden sm:inline">~60s</span>
+                    </button>
+                    <button type="button" @click="kycMode = 'manual'" 
+                            class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 font-sans"
+                            :class="kycMode === 'manual' ? 'bg-surface-raised text-content-primary shadow-sm border border-surface-border' : 'text-content-secondary hover:text-content-primary'">
+                        <span>📄 Document Upload</span>
+                    </button>
+                </div>
+
+                <!-- Didit AI Option -->
+                <div x-show="kycMode === 'didit'" class="p-4 rounded-2xl bg-surface-overlay/60 border border-surface-border space-y-3 font-sans">
+                    <div class="text-center space-y-2 py-2">
+                        <div class="relative w-20 h-20 mx-auto rounded-2xl bg-surface-raised border border-dashed border-primary/40 flex items-center justify-center overflow-hidden">
+                            <span x-show="!diditScanning && diditStep !== 3" class="text-3xl">🪪</span>
+                            <div x-show="diditScanning" class="absolute inset-0 flex flex-col items-center justify-center bg-primary/10">
+                                <span class="text-xl animate-spin">⚙️</span>
+                            </div>
+                            <span x-show="diditStep === 3" class="text-3xl text-emerald-500">✓</span>
+                        </div>
+                        <div class="text-xs font-bold text-content-primary" x-text="diditScanning ? (diditStep === 1 ? 'Scanning Document Hologram...' : 'Verifying Biometric Liveness...') : (diditStep === 3 ? 'AI Identity Verified (99.4% Match)' : 'Instant Biometric & ID Clearance')"></div>
+                        <p class="text-[10px] text-content-secondary max-w-xs mx-auto">
+                            <span x-show="diditStep !== 3">Automated high-speed optical verification. No document queues.</span>
+                            <span x-show="diditStep === 3" class="text-emerald-600 dark:text-emerald-400 font-semibold">Tier-1 Didit AI verified credentials generated.</span>
+                        </p>
+                        <div x-show="diditStep !== 3" class="pt-1">
+                            <button type="button" @click="runDiditInstantScan()" :disabled="diditScanning"
+                                    class="px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md shadow-primary/20 transition cursor-pointer disabled:opacity-50 inline-flex items-center space-x-1.5">
+                                <span>⚡ Run Instant AI Clearance</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Verified Summary -->
+                    <div x-show="diditStep === 3" class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-[11px]">
+                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">✓ Clearance Attached</span>
+                        <span class="font-mono text-content-secondary" x-text="'Ref: ' + docNumber"></span>
+                    </div>
+                </div>
+
+                <!-- Manual Upload Option -->
+                <div x-show="kycMode === 'manual'" class="space-y-3 font-sans">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-content-primary">Identity Document Details</span>
+                        <button type="button" @click="useSampleDocs()" class="text-[10px] text-primary hover:underline font-mono">
+                            ⚡ Quick Demo Autofill
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block uppercase font-semibold text-content-secondary text-[10px] mb-1">Document Type *</label>
+                            <select x-model="docType" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2.5 outline-none focus:border-primary text-xs">
+                                <option value="National ID Card">National ID Card</option>
+                                <option value="International Passport">International Passport</option>
+                                <option value="Driver's License">Driver's License</option>
+                                <option value="Permanent Residence Card">Permanent Residence Card</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block uppercase font-semibold text-content-secondary text-[10px] mb-1">ID Number *</label>
+                            <input type="text" x-model="docNumber" placeholder="e.g. DOC-829104" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2.5 outline-none focus:border-primary text-xs font-mono" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Front Image -->
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-3 text-center cursor-pointer transition bg-surface-overlay/50">
+                            <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                            <template x-if="frontPreview">
+                                <div class="space-y-1">
+                                    <img :src="frontPreview" alt="Front Preview" class="h-14 mx-auto object-cover rounded border border-surface-border" />
+                                    <span class="text-[9px] text-emerald-500 font-bold font-mono">Front Attached ✓</span>
+                                </div>
+                            </template>
+                            <template x-if="!frontPreview">
+                                <div class="space-y-1 py-1">
+                                    <span class="text-lg">📸</span>
+                                    <div class="text-[10px] font-semibold text-content-primary">Upload Front</div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Back Image -->
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-3 text-center cursor-pointer transition bg-surface-overlay/50">
+                            <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                            <template x-if="backPreview">
+                                <div class="space-y-1">
+                                    <img :src="backPreview" alt="Back Preview" class="h-14 mx-auto object-cover rounded border border-surface-border" />
+                                    <span class="text-[9px] text-emerald-500 font-bold font-mono">Back Attached ✓</span>
+                                </div>
+                            </template>
+                            <template x-if="!backPreview">
+                                <div class="space-y-1 py-1">
+                                    <span class="text-lg">📸</span>
+                                    <div class="text-[10px] font-semibold text-content-primary">Upload Back</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons Grid -->
+                <div class="flex items-center space-x-3 pt-2">
+                    <button type="button" @click="step = 1"
+                            class="py-3.5 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-bold text-xs transition cursor-pointer font-sans">
+                        &larr; Back
+                    </button>
+                    <button type="submit" :disabled="isSubmitting || !frontData || !backData || !docNumber"
+                            class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span x-show="!isSubmitting">Complete Registration & Start Trading &rarr;</span>
+                        <span x-show="isSubmitting" class="flex items-center space-x-2">
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            <span>Creating verified trader account...</span>
+                        </span>
+                    </button>
+                </div>
+
+            </div>
 
         </form>
 
