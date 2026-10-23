@@ -17,7 +17,7 @@ function dashboardPortfolioApp() {
         basketInvestAmount: 100,
         activeTab: 'holdings',
         assetFilter: 'owned', // 'owned' | 'all' | 'equity' | 'crypto'
-        showOnboardingRoadmap: <%= (user.kyc_status === 'verified' || Number(user.balance) > 0) ? 'false' : 'true' %>,
+        showOnboardingRoadmap: <%= (user.kyc_status === 'verified') ? 'false' : 'true' %>,
         onboardingExpanded: false,
         selectedAccountMode: 'standard', // 'standard' | 'retirement'
         retirementContributeModal: false,
@@ -745,6 +745,65 @@ function dashboardPortfolioApp() {
 <section class="py-8 bg-surface-base min-h-screen" x-data="dashboardPortfolioApp()">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-7">
         
+        <!-- ============================================================================== -->
+        <!-- ============================================================================== -->
+        <!-- ONBOARDING ROADMAP (SHOWN UNTIL TIER-1 VERIFICATION IS ACTIVE)                -->
+        <!-- ============================================================================== -->
+        <% if (user.kyc_status !== 'verified') { %>
+        <div class="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-primary/10 via-surface-overlay to-sky-500/10 border border-primary/25 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center space-x-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary to-sky-400 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-primary/25 shrink-0">
+                        🚀
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h2 class="text-sm sm:text-base font-bold font-serif text-content-primary">Trader Onboarding Roadmap</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                Step 2 of 3 Active
+                            </span>
+                        </div>
+                        <p class="text-xs text-content-secondary mt-0.5">Complete your onboarding verification checklist to unlock live multi-chain withdrawals and prime institutional execution.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 shrink-0 self-start sm:self-auto">
+                    <a href="/settings" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs transition shadow-sm flex items-center space-x-1.5">
+                        <span>Complete KYC Verification</span>
+                        <span>&rarr;</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 3-Step Interactive Progress -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                <!-- Step 1: Account Created -->
+                <div class="p-3.5 rounded-2xl bg-surface-base/80 border border-gain/30 flex items-center space-x-3">
+                    <span class="w-7 h-7 rounded-full bg-gain/20 text-gain flex items-center justify-center font-bold text-sm shrink-0">✓</span>
+                    <div>
+                        <div class="font-bold text-content-primary text-xs font-sans">Account Provisioned</div>
+                        <div class="text-[10px] text-gain font-semibold">$10,000 Demo Capital Credited</div>
+                    </div>
+                </div>
+                <!-- Step 2: KYC -->
+                <div class="p-3.5 rounded-2xl bg-surface-base/80 border border-primary/40 flex items-center space-x-3">
+                    <span class="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">2</span>
+                    <div>
+                        <div class="font-bold text-content-primary text-xs font-sans">Identity Verification</div>
+                        <a href="/settings" class="text-[10px] text-primary hover:underline font-semibold block">~60s Didit AI Clearance &rarr;</a>
+                    </div>
+                </div>
+                <!-- Step 3: Fund / First Trade -->
+                <div class="p-3.5 rounded-2xl bg-surface-base/80 border border-surface-border flex items-center space-x-3">
+                    <span class="w-7 h-7 rounded-full bg-surface-overlay text-content-tertiary flex items-center justify-center font-bold text-sm shrink-0">3</span>
+                    <div>
+                        <div class="font-bold text-content-primary text-xs font-sans">Execute First Trade</div>
+                        <a href="/webtrade/app" class="text-[10px] text-content-secondary hover:text-content-primary font-semibold block">Launch WebTrader &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
         <!-- ============================================================================== -->
         <!-- 1. SIMPLIFIED PORTFOLIO OVERVIEW HERO                                          -->
         <!-- ============================================================================== -->

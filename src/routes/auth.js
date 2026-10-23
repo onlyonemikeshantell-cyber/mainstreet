@@ -351,7 +351,7 @@ router.get('/register', (req, res) => {
 });
 
 // POST /register - Streamlined High-Converting Instant Onboarding
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
     doc_type, doc_number, front_image, back_image, video_data
@@ -362,8 +362,8 @@ router.post('/register', (req, res) => {
     return res.redirect('/register');
   }
 
-  if (confirm_password && password !== confirm_password) {
-    req.session.flash = { error: 'Passwords do not match.' };
+  if (!confirm_password || password !== confirm_password) {
+    req.session.flash = { error: 'Passwords do not match. Please verify and re-enter.' };
     return res.redirect('/register');
   }
 
@@ -372,7 +372,8 @@ router.post('/register', (req, res) => {
     return res.redirect('/register');
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (existing) {
     req.session.flash = { error: 'An account with that email already exists. Please log in.' };
     return res.redirect('/login');
@@ -387,7 +388,7 @@ router.post('/register', (req, res) => {
       VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 1)
     `).run(
       name.trim(),
-      email.trim(),
+      cleanEmail,
       phone ? phone.trim() : null,
       country ? country.trim() : 'United States',
       hash,
@@ -446,8 +447,62 @@ router.post('/register', (req, res) => {
       console.warn('Could not auto-seed crypto balances for user:', e.message);
     }
 
+    // Insert Welcome Notification in user notifications center
+    try {
+      db.prepare(`
+        INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+        VALUES (?, ?, ?, 'system', 0, CURRENT_TIMESTAMP)
+      `).run(
+        newUserId,
+        'Welcome to Mainstreet Capital Exchange',
+        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Didit AI KYC verification anytime to enable live withdrawals.'
+      );
+    } catch(e) {}
+
+    // Dispatch Institutional Welcome Email to Registered Inbox
+    try {
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const forwardedHost = req.headers['x-forwarded-host'];
+      const host = forwardedHost || req.get('host') || 'localhost:3333';
+      const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+      const protocol = isHttps ? 'https' : (req.protocol || 'http');
+
+      const welcomeHtml = `
+        <div style="font-family: Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: 48px; object-fit: contain; display: inline-block;" />
+          </div>
+          <h2 style="color: #38BDF8; margin-top: 0; text-align: center;">Welcome to Mainstreet Capital Exchange</h2>
+          <p>Hello <strong>${name.trim()}</strong>,</p>
+          <p>Your institutional trading account has been provisioned successfully.</p>
+          <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Trader UID:</strong> #TXE-${newUserId.toString().padStart(6, '0')}</p>
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Registered Email:</strong> ${cleanEmail}</p>
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Initial Demo Capital:</strong> $10,000.00 USD</p>
+          </div>
+          <p style="margin: 25px 0; text-align: center;">
+            <a href="${protocol}://${host}/dashboard" style="background-color: #0284C7; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Access Trading Dashboard &rarr;</a>
+          </p>
+          <hr style="border: 0; border-top: 1px solid #1E293B; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #64748B;">For live cryptocurrency withdrawals and Tier-1 margin, complete rapid biometric clearance in ~60 seconds via Didit AI inside your Account Settings.</p>
+        </div>
+      `;
+
+      await sendEmail({
+        to: cleanEmail,
+        subject: 'Welcome to Mainstreet Capital Exchange - Account Activated',
+        html: welcomeHtml,
+        recipientType: 'user'
+      });
+    } catch (e) {
+      console.warn('Welcome onboarding email dispatch notice:', e.message);
+    }
+
     // Set session user & auto-login
     req.session.userId = newUserId;
+    // Rotate CSRF token on privilege escalation
+    req.session.csrfToken = crypto.randomBytes(24).toString('hex');
+
     const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
     req.session.user = {
       id: fullUser.id,
@@ -456,8 +511,8 @@ router.post('/register', (req, res) => {
       role: fullUser.role,
       country: fullUser.country,
       kyc_status: fullUser.kyc_status,
-      demo_balance: fullUser.demo_balance,
-      real_balance: fullUser.real_balance
+      balance: fullUser.balance,
+      equity: fullUser.equity
     };
 
     req.session.flash = { success: 'Welcome to Mainstreet Capital Exchange! Your account has been created with $10,000 demo capital.' };
