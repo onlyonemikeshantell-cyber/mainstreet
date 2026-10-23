@@ -1,8 +1,8 @@
 <%- include('../partials/header') %>
 
 <script>
-    window.__MAINSTREET_LIVE_PRICES__ = <%- JSON.stringify(typeof livePrices !== 'undefined' ? livePrices : {}) %>;
-    window.__MAINSTREET_STOCK_BASKETS__ = <%- JSON.stringify(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>;
+    window.__MAINSTREET_LIVE_PRICES__ = <%- safeJson(typeof livePrices !== 'undefined' ? livePrices : {}) %>;
+    window.__MAINSTREET_STOCK_BASKETS__ = <%- safeJson(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>;
 </script>
 
 <!-- ============================================================================== -->
@@ -1325,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ============================================================================== -->
 <script>
     function copyTradingApp() {
-        var rawTraders = <%- JSON.stringify((typeof masters !== 'undefined' && masters && masters.length > 0) ? masters : []) %>;
+        var rawTraders = <%- safeJson((typeof masters !== 'undefined' && masters && masters.length > 0) ? masters : []) %>;
         if (!rawTraders || rawTraders.length === 0) {
             rawTraders = [
                 { id: 14, name: 'Marcus Aurelius Quant', strategy_name: 'Stoic Systematic Parity Alpha', category: 'Multi-Asset Parity', avatar: '/uploads/avatars/avatar_1787788240298_6780.png', total_roi: 510, win_rate: 97.2, copiers_count: 1450, aum_amount: 6200000, min_allocation: 750, risk_score: 1, description: 'Pure systematic algorithmic risk-parity fund balancing equity momentum and crypto alpha.' },

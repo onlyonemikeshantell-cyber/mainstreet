@@ -8,11 +8,7 @@ const EXEMPT_PREFIXES = [
   '/logout',
   '/babyoku/logout',
   '/admin/logout',
-  '/signout',
-  '/login',
-  '/babyoku/login',
-  '/admin/login',
-  '/register'
+  '/signout'
 ];
 
 const csrfMiddleware = (req, res, next) => {
@@ -27,7 +23,7 @@ const csrfMiddleware = (req, res, next) => {
     return next();
   }
 
-  // Exempt external webhooks with their own secret authentication
+  // Exempt external webhooks with their own signature authentication
   for (const prefix of EXEMPT_PREFIXES) {
     if (req.path.startsWith(prefix)) {
       return next();
@@ -36,7 +32,7 @@ const csrfMiddleware = (req, res, next) => {
 
   // Extract client token from request body or request headers
   const clientToken = (
-    (req.body && req.body._token) ||
+    (req.body && (req.body._token || req.body._csrf)) ||
     req.headers['x-csrf-token'] ||
     req.headers['csrf-token'] ||
     ''
@@ -52,7 +48,7 @@ const csrfMiddleware = (req, res, next) => {
     }
 
     req.session.flash = { error: 'Your session security token has expired. Please resubmit the form.' };
-    return res.redirect(req.headers.referer || '/');
+    return res.redirect(req.headers.referer || req.path || '/');
   }
 
   next();

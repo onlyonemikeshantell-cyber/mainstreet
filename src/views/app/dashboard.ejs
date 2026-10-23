@@ -4,7 +4,7 @@
 function dashboardPortfolioApp() {
     return {
         rates: {},
-        userBalances: <%- JSON.stringify(allBalances || []) %>,
+        userBalances: <%- safeJson(allBalances || []) %>,
         cashBalance: <%= Number(user.balance) %>,
         livePortfolioValuation: <%= Number(user.balance) %>,
         buyStockModal: false,
@@ -42,14 +42,14 @@ function dashboardPortfolioApp() {
         fromSymbol: 'USD',
         toSymbol: 'BTC',
         swapAmount: 100,
-        baskets: <%- JSON.stringify(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>,
-        dividendRates: <%- JSON.stringify(typeof dividendRates !== 'undefined' ? dividendRates : {}) %>,
+        baskets: <%- safeJson(typeof stockBaskets !== 'undefined' ? stockBaskets : {}) %>,
+        dividendRates: <%- safeJson(typeof dividendRates !== 'undefined' ? dividendRates : {}) %>,
         discoverModal: false,
         discoverSearch: '',
         discoverFilter: 'all',
-        liveOpenTrades: <%- JSON.stringify(openTrades || []) %>,
+        liveOpenTrades: <%- safeJson(openTrades || []) %>,
         flashStates: {},
-        allTradableCatalog: <%- JSON.stringify(typeof tradableMarkets !== 'undefined' ? tradableMarkets : []) %>,
+        allTradableCatalog: <%- safeJson(typeof tradableMarkets !== 'undefined' ? tradableMarkets : []) %>,
         liquidateAllModal: false,
         hazardCountdown: 6,
         hazardTimerInterval: null,
@@ -1472,7 +1472,7 @@ function dashboardPortfolioApp() {
             <!-- TAB 4: RECENT ACTIVITY & LEDGER (Paginated Page-by-Page) -->
             <div id="history" x-show="activeTab === 'history'" class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4 bg-white scroll-mt-28" x-cloak
                  x-data="{
-                     txList: <%- JSON.stringify(typeof recentTransactions !== 'undefined' && recentTransactions ? recentTransactions : []).replace(/\"/g, '&quot;') %>,
+                     txList: <%- safeJson(typeof recentTransactions !== 'undefined' && recentTransactions ? recentTransactions : []).replace(/"/g, '&quot;') %>,
                      txPage: 1,
                      txPerPage: 5,
                      get txTotalPages() { return Math.max(1, Math.ceil(this.txList.length / this.txPerPage)); },

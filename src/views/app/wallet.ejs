@@ -433,7 +433,7 @@ function generateSvgPath(sparkline) {
              ========================================== -->
         <div x-show="currentTab === 'activity'" class="space-y-4"
              x-data="{
-                 cryptoTxList: <%- JSON.stringify(typeof cryptoTransactions !== 'undefined' && cryptoTransactions ? cryptoTransactions : []).replace(/\"/g, '&quot;') %>,
+                 cryptoTxList: <%- safeJson(typeof cryptoTransactions !== 'undefined' && cryptoTransactions ? cryptoTransactions : []).replace(/"/g, '&quot;') %>,
                  cPage: 1,
                  cPerPage: 6,
                  get cTotalPages() { return Math.max(1, Math.ceil(this.cryptoTxList.length / this.cPerPage)); },
@@ -1303,7 +1303,7 @@ function cryptoVaultHub() {
         newWalletAddress: '',
 
         // Connected Wallets (WalletConnect & Web3)
-        connectedList: <%- JSON.stringify(typeof connectedWallets !== 'undefined' ? connectedWallets : []) %>,
+        connectedList: <%- safeJson(typeof connectedWallets !== 'undefined' ? connectedWallets : []) %>,
         selectedChainId: '0x1',
         chainConfigs: {
             '0x1': { name: 'Ethereum Mainnet', symbol: 'ETH' },

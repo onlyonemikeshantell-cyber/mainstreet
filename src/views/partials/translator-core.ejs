@@ -32,7 +32,7 @@
 <div id="google_translate_element" aria-hidden="true" style="display:none;"></div>
 
 <script>
-    window.__MAINSTREET_GEO__ = <%- JSON.stringify(typeof visitorGeo !== 'undefined' ? visitorGeo : {}) %>;
+    window.__MAINSTREET_GEO__ = <%- safeJson(typeof visitorGeo !== 'undefined' ? visitorGeo : {}) %>;
 </script>
 
 <script>

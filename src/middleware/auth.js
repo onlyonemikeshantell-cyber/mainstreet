@@ -53,6 +53,13 @@ const injectUser = (req, res, next) => {
   res.locals.csrfToken = req.session.csrfToken || 'txe_default_token';
   res.locals.currentPath = req.path;
   res.locals.visitorGeo = detectGeoFromRequest(req);
+  res.locals.safeJson = (obj) => {
+    return JSON.stringify(obj === undefined ? null : obj)
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029');
+  };
   next();
 };
 

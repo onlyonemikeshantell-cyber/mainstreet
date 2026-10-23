@@ -281,21 +281,31 @@ router.post('/api/copy-trading/follow', (req, res) => {
     return res.redirect('/deposit');
   }
 
-  const newBalance = user.balance - allocAmount;
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+  try {
+    db.transaction(() => {
+      // Atomic deduction with conditional balance guard to prevent race conditions
+      const updateResult = db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ? AND balance >= ?')
+        .run(allocAmount, allocAmount, user.id, allocAmount);
+      if (updateResult.changes === 0) {
+        throw new Error('Insufficient account balance. Please deposit additional funds.');
+      }
 
-  db.prepare(`
-    INSERT INTO copy_subscriptions (user_id, master_id, allocated_amount, current_profit, status)
-    VALUES (?, ?, ?, 0.00, 'active')
-  `).run(user.id, master.id, allocAmount);
+      db.prepare(`
+        INSERT INTO copy_subscriptions (user_id, master_id, allocated_amount, current_profit, status)
+        VALUES (?, ?, ?, 0.00, 'active')
+      `).run(user.id, master.id, allocAmount);
 
-  db.prepare(`
-    INSERT INTO transactions (user_id, type, amount, currency, method, status, reference, description)
-    VALUES (?, 'copy_allocate', ?, 'USD', 'Internal', 'completed', ?, ?)
-  `).run(user.id, -allocAmount, 'CPY-' + Date.now(), `Strategy allocation to ${master.name} (${master.strategy_name})`);
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, method, status, reference, description)
+        VALUES (?, 'copy_allocate', ?, 'USD', 'Internal', 'completed', ?, ?)
+      `).run(user.id, -allocAmount, 'CPY-' + Date.now(), `Strategy allocation to ${master.name} (${master.strategy_name})`);
+    })();
 
-  logActivity(user.id, 'COPY_FOLLOW', `Allocated $${allocAmount} to ${master.name}`, req);
-  req.session.flash = { success: `Successfully allocated $${allocAmount.toLocaleString()} to mirror ${master.name}!` };
+    logActivity(user.id, 'COPY_FOLLOW', `Allocated $${allocAmount} to ${master.name}`, req);
+    req.session.flash = { success: `Successfully allocated $${allocAmount.toLocaleString()} to mirror ${master.name}!` };
+  } catch (err) {
+    req.session.flash = { error: err.message || 'Error processing copy allocation.' };
+  }
   res.redirect('/copy-trading/app');
 });
 
@@ -310,19 +320,33 @@ router.post('/api/copy-trading/stop', (req, res) => {
     return res.redirect('/copy-trading/app');
   }
 
-  const returnAmount = sub.allocated_amount + sub.current_profit;
-  const newBalance = user.balance + returnAmount;
+  try {
+    const settle = db.transaction(() => {
+      // Atomically mark subscription stopped only if currently active (prevents double-settle race)
+      const subResult = db.prepare("UPDATE copy_subscriptions SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'active'")
+        .run(sub.id, user.id);
+      if (subResult.changes === 0) {
+        throw new Error('Active subscription record not found or already closed.');
+      }
 
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
-  db.prepare("UPDATE copy_subscriptions SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP WHERE id = ?").run(sub.id);
+      const returnAmount = sub.allocated_amount + (sub.current_profit || 0);
+      db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
+        .run(returnAmount, returnAmount, user.id);
 
-  db.prepare(`
-    INSERT INTO transactions (user_id, type, amount, currency, method, status, reference, description)
-    VALUES (?, 'copy_settle', ?, 'USD', 'Internal', 'completed', ?, ?)
-  `).run(user.id, returnAmount, 'CPY-SET-' + Date.now(), `Copy Strategy settlement: Capital ($${sub.allocated_amount}) + Profit ($${sub.current_profit})`);
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, method, status, reference, description)
+        VALUES (?, 'copy_settle', ?, 'USD', 'Internal', 'completed', ?, ?)
+      `).run(user.id, returnAmount, 'CPY-SET-' + Date.now(), `Copy Strategy settlement: Capital ($${sub.allocated_amount}) + Profit ($${sub.current_profit || 0})`);
 
-  logActivity(user.id, 'COPY_STOP', `Settled copy subscription #${sub.id} with return of $${returnAmount}`, req);
-  req.session.flash = { success: `Strategy stopped. $${returnAmount.toFixed(2)} returned to your main cash balance.` };
+      return returnAmount;
+    });
+
+    const returnAmount = settle();
+    logActivity(user.id, 'COPY_STOP', `Settled copy subscription #${sub.id} with return of $${returnAmount}`, req);
+    req.session.flash = { success: `Strategy stopped. $${returnAmount.toFixed(2)} returned to your main cash balance.` };
+  } catch (err) {
+    req.session.flash = { error: err.message || 'Error stopping copy strategy.' };
+  }
   res.redirect('/copy-trading/app');
 });
 
@@ -789,8 +813,11 @@ router.post('/withdraw', (req, res) => {
         throw new Error(`Withdrawal rejected: Amount ($${numAmount.toLocaleString()}) exceeds your available Free Margin ($${freeMargin.toLocaleString(undefined, {minimumFractionDigits: 2})}). Please close active positions or withdraw a lower amount.`);
       }
 
-      const newBalance = user.balance - numAmount;
-      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+      const updateResult = db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ? AND balance >= ?')
+        .run(numAmount, numAmount, user.id, numAmount);
+      if (updateResult.changes === 0) {
+        throw new Error('Insufficient available balance to process withdrawal.');
+      }
 
       const ref = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
       db.prepare(`
@@ -1380,27 +1407,44 @@ router.post('/api/trade/open', (req, res) => {
 router.post('/api/trade/close', (req, res) => {
   const { trade_id, close_price } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-  const trade = db.prepare("SELECT * FROM trades WHERE id = ? AND user_id = ? AND status = 'OPEN'").get(trade_id, user.id);
+  if (!user) return res.status(401).json({ error: 'Unauthorized trader session' });
 
+  const trade = db.prepare("SELECT * FROM trades WHERE id = ? AND user_id = ? AND status = 'OPEN'").get(trade_id, user.id);
   if (!trade) {
     return res.status(404).json({ error: 'Trade not found or already settled' });
   }
 
-  const pnl = trade.profit_loss;
-  const newBalance = user.balance + pnl;
+  const pnl = Number(trade.profit_loss || 0);
+  const effectiveClosePrice = close_price || trade.current_price;
 
-  db.prepare(`
-    UPDATE trades
-    SET status = 'CLOSED', close_price = ?, closed_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(close_price || trade.current_price, trade.id);
+  let newBalance;
+  try {
+    newBalance = db.transaction(() => {
+      // Atomic status guard: ensure trade is still open
+      const updateTrade = db.prepare(`
+        UPDATE trades
+        SET status = 'CLOSED', close_price = ?, closed_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ? AND status = 'OPEN'
+      `).run(effectiveClosePrice, trade.id, user.id);
 
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+      if (updateTrade.changes === 0) {
+        throw new Error('Position already closed or invalid');
+      }
+
+      db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
+        .run(pnl, pnl, user.id);
+
+      const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(user.id);
+      return updatedUser.balance;
+    })();
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 
   try {
     const sign = pnl >= 0 ? '+$' : '-$';
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
-      .run(user.id, 'Position Closed', `Closed #${trade.id} (${trade.symbol} ${trade.type}) @ $${close_price || trade.current_price}. Realized P&L: ${sign}${Math.abs(pnl).toFixed(2)} USD.`, 'trade');
+      .run(user.id, 'Position Closed', `Closed #${trade.id} (${trade.symbol} ${trade.type}) @ $${effectiveClosePrice}. Realized P&L: ${sign}${Math.abs(pnl).toFixed(2)} USD.`, 'trade');
   } catch(ne) {}
 
   logActivity(user.id, 'TRADE_CLOSE', `Closed #${trade.id} with realized P&L of $${pnl}`, req);
@@ -1412,7 +1456,7 @@ router.post('/api/trade/close-all', (req, res) => {
   const { filter } = req.body; // 'all' | 'profitable' | 'losing'
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
 
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!user) return res.status(401).json({ error: 'Unauthorized trader session' });
 
   let query = "SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN'";
   if (filter === 'profitable') query += " AND profit_loss > 0";
@@ -1424,24 +1468,45 @@ router.post('/api/trade/close-all', (req, res) => {
   }
 
   let totalRealized = 0;
-  const closeStmt = db.prepare("UPDATE trades SET status = 'CLOSED', close_price = current_price, closed_at = CURRENT_TIMESTAMP WHERE id = ?");
+  let closedCount = 0;
+  let newBalance = user.balance;
 
-  targetTrades.forEach(t => {
-    totalRealized += Number(t.profit_loss || 0);
-    closeStmt.run(t.id);
-  });
+  try {
+    const resSummary = db.transaction(() => {
+      const closeStmt = db.prepare("UPDATE trades SET status = 'CLOSED', close_price = current_price, closed_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'OPEN'");
+      let sumPnl = 0;
+      let count = 0;
+      targetTrades.forEach(t => {
+        const r = closeStmt.run(t.id, user.id);
+        if (r.changes > 0) {
+          sumPnl += Number(t.profit_loss || 0);
+          count++;
+        }
+      });
 
-  const newBalance = user.balance + totalRealized;
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+      if (count > 0) {
+        db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
+          .run(sumPnl, sumPnl, user.id);
+      }
+      const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(user.id);
+      return { count, totalRealized: sumPnl, balance: updatedUser.balance };
+    })();
+
+    closedCount = resSummary.count;
+    totalRealized = resSummary.totalRealized;
+    newBalance = resSummary.balance;
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to liquidate positions atomically.' });
+  }
 
   try {
     const sign = totalRealized >= 0 ? '+$' : '-$';
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
-      .run(user.id, 'Positions Closed in Bulk', `Liquidated ${targetTrades.length} open position(s). Net Realized P&L: ${sign}${Math.abs(totalRealized).toFixed(2)} USD.`, 'trade');
+      .run(user.id, 'Positions Closed in Bulk', `Liquidated ${closedCount} open position(s). Net Realized P&L: ${sign}${Math.abs(totalRealized).toFixed(2)} USD.`, 'trade');
   } catch(ne) {}
 
-  logActivity(user.id, 'BULK_CLOSE', `Bulk closed ${targetTrades.length} positions (${filter || 'all'}) with net P&L $${totalRealized.toFixed(2)}`, req);
-  res.json({ success: true, count: targetTrades.length, totalRealizedPnL: totalRealized, newBalance });
+  logActivity(user.id, 'BULK_CLOSE', `Bulk closed ${closedCount} positions (${filter || 'all'}) with net P&L $${totalRealized.toFixed(2)}`, req);
+  res.json({ success: true, count: closedCount, totalRealizedPnL: totalRealized, newBalance });
 });
 
 // Cancel Pending Limit Order
@@ -2026,20 +2091,31 @@ router.post('/api/investments/subscribe', requireAuth, (req, res) => {
     });
   }
 
-  // Deduct balance and create subscription
-  const newBalance = user.balance - investAmount;
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newBalance, user.id);
+  // Atomically deduct balance and create subscription with balance guard
+  let result;
+  try {
+    result = db.transaction(() => {
+      const updateResult = db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ? AND balance >= ?')
+        .run(investAmount, investAmount, user.id, investAmount);
+      if (updateResult.changes === 0) {
+        throw new Error('Insufficient account cash balance. Please make a deposit to proceed.');
+      }
 
-  const result = db.prepare(`
-    INSERT INTO user_investments (user_id, plan_id, invested_amount, accrued_profit, status, end_date)
-    VALUES (?, ?, ?, 0.00, 'active', datetime('now', '+' || ? || ' days'))
-  `).run(user.id, plan.id, investAmount, plan.duration_days);
+      const res = db.prepare(`
+        INSERT INTO user_investments (user_id, plan_id, invested_amount, accrued_profit, status, end_date)
+        VALUES (?, ?, ?, 0.00, 'active', datetime('now', '+' || ? || ' days'))
+      `).run(user.id, plan.id, investAmount, plan.duration_days);
 
-  // Record Transaction
-  db.prepare(`
-    INSERT INTO transactions (user_id, type, amount, currency, method, status, description)
-    VALUES (?, 'investment_allocate', ?, 'USD', 'Portfolio Allocation', 'completed', ?)
-  `).run(user.id, investAmount, `Allocated $${investAmount.toLocaleString()} to ${plan.name}`);
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, currency, method, status, description)
+        VALUES (?, 'investment_allocate', ?, 'USD', 'Portfolio Allocation', 'completed', ?)
+      `).run(user.id, investAmount, `Allocated $${investAmount.toLocaleString()} to ${plan.name}`);
+
+      return res;
+    })();
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 
   req.session.flash = { success: `Successfully invested $${investAmount.toLocaleString()} into the ${plan.name}!` };
   res.json({ success: true, investmentId: result.lastInsertRowid });

@@ -2,7 +2,7 @@ services:
   - type: web
     name: mainstreet-exchange
     runtime: node
-    plan: free
+    plan: free # Upgrade to 'starter' to enable persistent disk below
     region: oregon
     buildCommand: npm install
     startCommand: node server.js
@@ -15,3 +15,12 @@ services:
         generateValue: true
       - key: PORT
         value: 10000
+    # To attach persistent storage on Render (retains database & KYC across deploys):
+    # Change plan to 'starter' and uncomment:
+    # disk:
+    #   name: mainstreet-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # envVars:
+    #   - key: DATA_DIR
+    #     value: /var/data

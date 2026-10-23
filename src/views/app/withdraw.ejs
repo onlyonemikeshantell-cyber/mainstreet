@@ -1,8 +1,8 @@
 <%- include('../partials/header') %>
 
 <script>
-  window.__CONNECTED_WALLETS__ = <%- JSON.stringify(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
-  window.__SAVED_WALLETS__ = <%- JSON.stringify(typeof savedWallets !== 'undefined' && savedWallets ? savedWallets : []) %>;
+  window.__CONNECTED_WALLETS__ = <%- safeJson(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
+  window.__SAVED_WALLETS__ = <%- safeJson(typeof savedWallets !== 'undefined' && savedWallets ? savedWallets : []) %>;
   window.__FREE_MARGIN__ = <%= Number(typeof freeMargin !== 'undefined' ? freeMargin : user.balance) %>;
 
   function withdrawalDesk() {

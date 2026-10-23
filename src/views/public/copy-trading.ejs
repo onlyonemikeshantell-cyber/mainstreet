@@ -6,7 +6,7 @@ function publicCopyTradingApp() {
         selectedCategory: 'all',
         sortBy: 'roi',
         searchQuery: '',
-        masters: <%- JSON.stringify(typeof masters !== 'undefined' && masters && masters.length > 0 ? masters : [
+        masters: <%- safeJson(typeof masters !== 'undefined' && masters && masters.length > 0 ? masters : [
             { id: 1, name: 'Sophia Vanguard', strategy_name: 'Quantum High-Frequency Alpha', category: 'Crypto & Indices', total_roi: 450.0, win_rate: 96.5, copiers_count: 620, min_allocation: 500, risk_score: 2, description: 'Proprietary institutional HFT model targeting high volatility in BTC, Gold, and US30.', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
             { id: 2, name: 'Alpha Quantum Elite', strategy_name: 'Macro Trend Momentum', category: 'Multi-Asset', total_roi: 420.5, win_rate: 94.2, copiers_count: 512, min_allocation: 500, risk_score: 2, description: 'Quantitative multi-asset momentum capturing global macroeconomic liquidity cycles.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
             { id: 3, name: 'Alexander Vance', strategy_name: 'Forex & Gold Precision', category: 'Forex & Gold', total_roi: 340.5, win_rate: 91.8, copiers_count: 480, min_allocation: 500, risk_score: 3, description: 'Algorithmic scalper focused on EUR/USD, GBP/USD, and XAU/USD breakouts.', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },

@@ -11,7 +11,7 @@ function marketsMatrixApp() {
         category: 'all',
         sortBy: 'symbol',
         sortAsc: true,
-        markets: <%- JSON.stringify(insts.map(i => {
+        markets: <%- safeJson(insts.map(i => {
             let basePrice = 68650.00;
             if (i.symbol.includes('ETH')) basePrice = 3645.00;
             else if (i.symbol.includes('SOL')) basePrice = 156.20;

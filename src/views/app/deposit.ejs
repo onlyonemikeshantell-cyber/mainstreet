@@ -1,9 +1,9 @@
 <%- include('../partials/header') %>
 
 <script>
-  window.__DEPOSIT_GATEWAYS__ = <%- JSON.stringify(typeof gateways !== 'undefined' && gateways ? gateways : []) %>;
-  window.__DEPOSIT_RATES__ = <%- JSON.stringify(typeof livePrices !== 'undefined' && livePrices ? livePrices : {}) %>;
-  window.__CONNECTED_WALLETS__ = <%- JSON.stringify(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
+  window.__DEPOSIT_GATEWAYS__ = <%- safeJson(typeof gateways !== 'undefined' && gateways ? gateways : []) %>;
+  window.__DEPOSIT_RATES__ = <%- safeJson(typeof livePrices !== 'undefined' && livePrices ? livePrices : {}) %>;
+  window.__CONNECTED_WALLETS__ = <%- safeJson(typeof connectedWallets !== 'undefined' && connectedWallets ? connectedWallets : []) %>;
 
   window.depositDeskController = function () {
     const gwList = window.__DEPOSIT_GATEWAYS__ || [];

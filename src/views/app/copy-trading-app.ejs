@@ -6,7 +6,7 @@ function copyTradingStationApp() {
         copyModal: false,
         detailsModal: false,
         selectedMaster: {},
-        masters: <%- JSON.stringify(masters || []) %>,
+        masters: <%- safeJson(masters || []) %>,
         searchQuery: '',
         selectedCategory: 'all',
         sortBy: 'roi',

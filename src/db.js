@@ -2,12 +2,13 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dataDir = path.join(__dirname, '..', 'data');
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(path.join(dataDir, 'tradexedge.db'));
+const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'tradexedge.db');
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 // Migration to ensure users table has kyc_status, phone, country
@@ -767,6 +768,18 @@ const ensureUserSavedWallets = (userId) => {
 };
 
 allExistingUsers.forEach(u => ensureUserSavedWallets(u.id));
+
+// High-Performance Query Optimization Indexes
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_trades_user_status ON trades(user_id, status);
+  CREATE INDEX IF NOT EXISTS idx_copy_subs_status ON copy_subscriptions(status);
+  CREATE INDEX IF NOT EXISTS idx_copy_subs_user ON copy_subscriptions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_crypto_balances_user ON user_crypto_balances(user_id);
+  CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id);
+  CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
+  CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+`);
 
 module.exports = db;
 

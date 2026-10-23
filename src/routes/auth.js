@@ -1,14 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-// Login brute-force limiter state (in-memory; resets on server restart)
+// Login & Reset brute-force limiter state (in-memory; resets on server restart)
 const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_IP_LOGIN_ATTEMPTS = 20;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const loginAttempts = new Map();
+const ipAttempts = new Map();
+const passwordResetAttempts = new Map();
+
 setInterval(() => {
   const now = Date.now();
   for (const [k, r] of loginAttempts) {
     if (r.lockedUntil < now && now - r.first > LOGIN_WINDOW_MS) loginAttempts.delete(k);
+  }
+  for (const [k, r] of ipAttempts) {
+    if (r.lockedUntil < now && now - r.first > LOGIN_WINDOW_MS) ipAttempts.delete(k);
+  }
+  for (const [k, r] of passwordResetAttempts) {
+    if (now - r.first > LOGIN_WINDOW_MS) passwordResetAttempts.delete(k);
   }
 }, 10 * 60 * 1000).unref();
 
@@ -49,12 +59,8 @@ const express = require('express');
 const router = express.Router();
 
 // ==============================================================================
-// IN-MEMORY BRUTE FORCE RATE LIMITER & RFC 6238 TOTP ENGINE
+// RFC 6238 TOTP ENGINE & CRYPTOGRAPHIC UTILITIES
 // ==============================================================================
-// IP rate-limiting features removed completely
-const checkRateLimit = () => ({ allowed: true });
-const recordFailedAttempt = () => {};
-const clearFailedAttempts = () => {};
 
 // Base32 Decoding & Standard RFC 6238 TOTP Verification
 const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -182,22 +188,40 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
-
-  // Brute-force protection: max 5 failed attempts per IP+email per 15 minutes
-  const attemptKey = `${req.ip}|${cleanEmail}`;
   const now = Date.now();
+  const ipKey = req.ip;
+  const attemptKey = `${req.ip}|${cleanEmail}`;
+
+  // 1. IP-level brute-force guard
+  const ipRecord = ipAttempts.get(ipKey);
+  if (ipRecord && ipRecord.lockedUntil > now) {
+    const mins = Math.ceil((ipRecord.lockedUntil - now) / 60000);
+    req.session.flash = { error: `Too many failed attempts from your IP. Access temporarily throttled for ${mins} minute${mins === 1 ? '' : 's'}.` };
+    return req.session.save(() => res.redirect(redirectTarget));
+  }
+
+  // 2. Account-level brute-force guard
   const record = loginAttempts.get(attemptKey);
   if (record && record.lockedUntil > now) {
     const mins = Math.ceil((record.lockedUntil - now) / 60000);
     req.session.flash = { error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.` };
     return req.session.save(() => res.redirect(redirectTarget));
   }
+
   const registerFailure = () => {
+    // Increment account attempts
     const r = loginAttempts.get(attemptKey) || { count: 0, first: now, lockedUntil: 0 };
     if (now - r.first > LOGIN_WINDOW_MS) { r.count = 0; r.first = now; }
     r.count += 1;
     if (r.count >= MAX_LOGIN_ATTEMPTS) r.lockedUntil = now + LOGIN_WINDOW_MS;
     loginAttempts.set(attemptKey, r);
+
+    // Increment IP attempts
+    const ir = ipAttempts.get(ipKey) || { count: 0, first: now, lockedUntil: 0 };
+    if (now - ir.first > LOGIN_WINDOW_MS) { ir.count = 0; ir.first = now; }
+    ir.count += 1;
+    if (ir.count >= MAX_IP_LOGIN_ATTEMPTS) ir.lockedUntil = now + LOGIN_WINDOW_MS;
+    ipAttempts.set(ipKey, ir);
   };
 
   const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail);
@@ -216,6 +240,7 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   }
 
   if (isAdminPath && user.role !== 'admin') {
+    registerFailure();
     req.session.flash = { error: 'Access denied: Administrator credentials are required for the Executive Console.' };
     return req.session.save(() => res.redirect(redirectTarget));
   }
@@ -232,11 +257,14 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
   if (user.two_factor_enabled === 1 && user.two_factor_secret) {
     req.session.pending2faUserId = user.id;
     req.session.pending2faIsAdmin = (user.role === 'admin' && isAdminPath);
+    req.session.twoFaAttempts = 0;
     return req.session.save(() => res.redirect('/login/2fa'));
   }
 
   req.session.userId = user.id;
   req.session.adminId = null;
+  // Rotate CSRF token on privilege transition
+  req.session.csrfToken = crypto.randomBytes(24).toString('hex');
   logActivity(user.id, 'LOGIN', `User logged in successfully via ${req.path}`, req);
   req.session.flash = { success: `Welcome back, ${user.name}!` };
 
@@ -269,9 +297,20 @@ router.post('/login/2fa', (req, res) => {
     return req.session.save(() => res.redirect('/login'));
   }
 
+  // Rate-limit 2FA attempts: maximum 5 attempts per session
+  req.session.twoFaAttempts = (req.session.twoFaAttempts || 0) + 1;
+  if (req.session.twoFaAttempts > 5) {
+    req.session.pending2faUserId = null;
+    req.session.pending2faIsAdmin = null;
+    req.session.twoFaAttempts = 0;
+    req.session.flash = { error: 'Too many invalid 2FA attempts. For your security, please sign in again.' };
+    return req.session.save(() => res.redirect('/login'));
+  }
+
   const isValid = verifyTotp(user.two_factor_secret, totp_code);
   if (!isValid) {
-    req.session.flash = { error: 'Invalid 2FA code. Please enter the current 6-digit code from your Authenticator app.' };
+    const remaining = 6 - req.session.twoFaAttempts;
+    req.session.flash = { error: `Invalid 2FA code (${remaining} attempt${remaining === 1 ? '' : 's'} remaining). Please enter the current 6-digit code from your Authenticator app.` };
     return req.session.save(() => res.redirect('/login/2fa'));
   }
 
@@ -280,8 +319,11 @@ router.post('/login/2fa', (req, res) => {
   req.session.userId = user.id;
   req.session.pending2faUserId = null;
   req.session.pending2faIsAdmin = null;
+  req.session.twoFaAttempts = 0;
+  // Rotate CSRF token on privilege transition
+  req.session.csrfToken = crypto.randomBytes(24).toString('hex');
 
-  logActivity(user.id, 'LOGIN_2FA_SUCCESS', `2FA Authenticated successfully `, req);
+  logActivity(user.id, 'LOGIN_2FA_SUCCESS', `2FA Authenticated successfully`, req);
 
   return req.session.save(() => {
     if (isAdminLogin || user.role === 'admin') {
@@ -439,6 +481,21 @@ router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) {
     req.session.flash = { error: 'Please enter your registered account email.' };
+    return res.redirect('/forgot-password');
+  }
+
+  // Rate-limit password reset requests: max 5 requests per 15 mins per IP
+  const resetKey = `reset|${req.ip}`;
+  const now = Date.now();
+  const resetRecord = passwordResetAttempts.get(resetKey) || { count: 0, first: now };
+  if (now - resetRecord.first > LOGIN_WINDOW_MS) {
+    resetRecord.count = 0;
+    resetRecord.first = now;
+  }
+  resetRecord.count += 1;
+  passwordResetAttempts.set(resetKey, resetRecord);
+  if (resetRecord.count > 5) {
+    req.session.flash = { error: 'Too many password reset requests from this IP. Please wait a few minutes before trying again.' };
     return res.redirect('/forgot-password');
   }
 

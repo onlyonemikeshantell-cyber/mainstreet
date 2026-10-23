@@ -1,8 +1,8 @@
 <%- include('../partials/header') %>
 
 <script>
-  window.__ALL_TRANSACTIONS__ = <%- JSON.stringify(typeof transactions !== 'undefined' && transactions ? transactions : []) %>;
-  window.__INITIAL_PAGINATION__ = <%- JSON.stringify(typeof pagination !== 'undefined' && pagination ? pagination : { currentPage: 1, perPage: 8 }) %>;
+  window.__ALL_TRANSACTIONS__ = <%- safeJson(typeof transactions !== 'undefined' && transactions ? transactions : []) %>;
+  window.__INITIAL_PAGINATION__ = <%- safeJson(typeof pagination !== 'undefined' && pagination ? pagination : { currentPage: 1, perPage: 8 }) %>;
 
   window.transactionHistoryController = function () {
     const rawList = window.__ALL_TRANSACTIONS__ || [];

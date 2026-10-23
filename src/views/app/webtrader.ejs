@@ -14,7 +14,7 @@ function webTraderApp() {
         cryptoSubFilter: 'all', // 'all' | 'top' | 'ai' | 'defi' | 'meme'
         tradSubFilter: 'all', // 'all' | 'forex' | 'commodities' | 'indices'
         searchMkt: '',
-        allMarkets: <%- JSON.stringify(markets || []) %>,
+        allMarkets: <%- safeJson(markets || []) %>,
 
         setSessionMode(mode) {
             this.sessionMode = mode;
@@ -93,7 +93,7 @@ function webTraderApp() {
         liveBalance: <%= Number(user.balance) %>,
         liveEquity: <%= Number(user.equity || user.balance) %>,
         livePnL: 0,
-        positions: <%- JSON.stringify(openTrades || []) %>,
+        positions: <%- safeJson(openTrades || []) %>,
         pendingOrders: [],
         executionSuccessMsg: '',
         executionErrorMsg: '',
