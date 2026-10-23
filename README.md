@@ -33,7 +33,7 @@ The server is actively running in the background at:
 | Role | Email / Username | Password | Initial Balance |
 | :--- | :--- | :--- | :--- |
 | **Demo Trader** | `trader@mainstreetcapitalx.com` / `trader` | `Trader123!` | $25,000.00 USD |
-| **Administrator** | `admin@mainstreetcapitalx.com` / `admin` | `Admin123!` | $50,000.00 USD |
+| **Administrator** | `admin@mainstreetcapitalx.com` / `admin` | `Renaissance2026!` | $50,000.00 USD |
 
 ---
 
