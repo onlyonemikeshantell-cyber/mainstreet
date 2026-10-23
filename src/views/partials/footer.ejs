@@ -107,10 +107,19 @@
     </footer>
 
 
-    <!-- Smartsupp Live Chat script -->
+    <!-- Smartsupp Live Chat script (Widget Hidden from Interface / Background Tracking Mode) -->
+<style>
+  #chat-application, iframe[title*="Smartsupp"], .smartsupp-widget, div[id*="smartsupp"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+</style>
 <script type="text/javascript">
 var _smartsupp = _smartsupp || {};
 _smartsupp.key = '08266e2f3952b6c3ae6fa2b86c4e61abf533ab22';
+_smartsupp.hideWidget = true;
 <% if (typeof user !== 'undefined' && user) { %>
 _smartsupp.email = '<%= user.email %>';
 _smartsupp.name = '<%= user.name %>';
@@ -126,7 +135,6 @@ window.smartsupp||(function(d) {
   c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
 })(document);
 </script>
-<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
 
     </div> <!-- /#main-content-wrapper -->
 
