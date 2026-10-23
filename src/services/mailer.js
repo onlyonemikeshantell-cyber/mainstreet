@@ -108,6 +108,24 @@ const sendEmail = async (options) => {
 
   const htmlContent = html || generateEmailHtml(subject, message, to.split('@')[0]);
 
+  const recordEmailLog = (status) => {
+    try {
+      db.prepare(`
+        INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(to, recipientType, subject, message || htmlContent, fromEmail, status);
+    } catch (e) {
+      try {
+        db.prepare(`
+          INSERT INTO email_logs (recipient, recipient_type, subject, message, status)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(to, recipientType, subject, message || htmlContent, status);
+      } catch (err2) {
+        console.warn('[MAILER LOG WARNING]', err2.message);
+      }
+    }
+  };
+
   // 1. Prioritize Resend when API key is provided
   if (resendApiKey) {
     try {
@@ -122,20 +140,14 @@ const sendEmail = async (options) => {
       });
 
       console.log(`[RESEND SUCCESS] Dispatched email to ${to}. Message ID: ${resendData.id}`);
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
-        VALUES (?, ?, ?, ?, ?, 'Delivered via Resend')
-      `).run(to, recipientType, subject, message || htmlContent, fromEmail);
+      recordEmailLog('Delivered via Resend');
 
       return { success: true, provider: 'resend', id: resendData.id, info: resendData };
     } catch (err) {
       console.error('[RESEND ERROR] Dispatch failed:', err.message);
       // If SMTP is not configured, record failure and return
       if (!isActive || !user || !pass) {
-        db.prepare(`
-          INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(to, recipientType, subject, message || htmlContent, fromEmail, 'Failed Resend: ' + err.message.substring(0, 80));
+        recordEmailLog('Failed Resend: ' + err.message.substring(0, 80));
         return { success: false, error: 'Resend Error: ' + err.message };
       }
       console.log('[MAILER] Falling back to standard SMTP transport...');
@@ -162,28 +174,19 @@ const sendEmail = async (options) => {
       });
 
       console.log(`[SMTP SUCCESS] Delivered email to ${to} via SMTP.`);
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
-        VALUES (?, ?, ?, ?, ?, 'Delivered via SMTP')
-      `).run(to, recipientType, subject, message || htmlContent, fromEmail);
+      recordEmailLog('Delivered via SMTP');
 
       return { success: true, provider: 'smtp', id: info.messageId, info };
     } catch (err) {
       console.error('[SMTP ERROR] Dispatch error:', err.message);
-      db.prepare(`
-        INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(to, recipientType, subject, message || htmlContent, fromEmail, 'Failed SMTP: ' + err.message.substring(0, 80));
+      recordEmailLog('Failed SMTP: ' + err.message.substring(0, 80));
       return { success: false, error: 'SMTP Error: ' + err.message };
     }
   }
 
   // 3. Fallback: Local Sandbox Mode (simulated)
   console.log(`[SANDBOX MODE] Email prepared for ${to}. To send to real inbox, set RESEND_API_KEY in .env or Admin.`);
-  db.prepare(`
-    INSERT INTO email_logs (recipient, recipient_type, subject, message, sender_email, status)
-    VALUES (?, ?, ?, ?, ?, 'pending_smtp_config')
-  `).run(to, recipientType, subject, message || htmlContent, fromEmail);
+  recordEmailLog('pending_smtp_config');
 
   return { success: true, localOnly: true };
 };
