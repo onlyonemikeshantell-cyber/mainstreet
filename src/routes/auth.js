@@ -272,6 +272,10 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
     if (user.role === 'admin') {
       return res.redirect('/babyoku');
     }
+    if (user.email_verified === 0) {
+      req.session.flash = { error: 'Please verify your email address to access your trading account.' };
+      return res.redirect('/verify-email');
+    }
     if (user.kyc_status === 'unverified') {
       req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
       return res.redirect('/onboarding/kyc');
@@ -332,6 +336,10 @@ router.post('/login/2fa', (req, res) => {
   return req.session.save(() => {
     if (isAdminLogin || user.role === 'admin') {
       return res.redirect('/babyoku');
+    }
+    if (user.email_verified === 0) {
+      req.session.flash = { error: 'Please verify your email address to access your trading account.' };
+      return res.redirect('/verify-email');
     }
     if (user.kyc_status === 'unverified') {
       req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
@@ -402,18 +410,22 @@ router.post('/register', async (req, res) => {
   const provider = isDiditVerified ? 'didit' : 'manual';
 
   const hash = bcrypt.hashSync(password, 10);
+  const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
     const result = db.prepare(`
-      INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 1)
+      INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
+      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 0, ?, ?, 1)
     `).run(
       name.trim(),
       cleanEmail,
       phone ? phone.trim() : null,
       country ? country.trim() : 'United States',
       hash,
-      initialKycStatus
+      initialKycStatus,
+      emailCode,
+      codeExpires
     );
 
     const newUserId = result.lastInsertRowid;
@@ -488,43 +500,51 @@ router.post('/register', async (req, res) => {
       );
     } catch(e) {}
 
-    // Dispatch Institutional Welcome Email to Registered Inbox
+    // Dispatch Institutional Email Verification Code to Registered Inbox
     try {
       const forwardedProto = req.headers['x-forwarded-proto'];
       const forwardedHost = req.headers['x-forwarded-host'];
       const host = forwardedHost || req.get('host') || 'localhost:3333';
       const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
       const protocol = isHttps ? 'https' : (req.protocol || 'http');
+      const verifyUrl = `${protocol}://${host}/verify-email?code=${emailCode}`;
 
-      const welcomeHtml = `
-        <div style="font-family: Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: 48px; object-fit: contain; display: inline-block;" />
+      const verifyEmailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
+          <div style="text-align: center; margin-bottom: 25px;">
+            <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
+            <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
           </div>
-          <h2 style="color: #38BDF8; margin-top: 0; text-align: center;">Welcome to Mainstreet Capital Exchange</h2>
-          <p>Hello <strong>${name.trim()}</strong>,</p>
-          <p>Your institutional trading account has been provisioned successfully.</p>
-          <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <p style="margin: 5px 0; font-size: 13px;"><strong>Trader UID:</strong> #TXE-${newUserId.toString().padStart(6, '0')}</p>
-            <p style="margin: 5px 0; font-size: 13px;"><strong>Registered Email:</strong> ${cleanEmail}</p>
-            <p style="margin: 5px 0; font-size: 13px;"><strong>Initial Demo Capital:</strong> $10,000.00 USD</p>
-          </div>
-          <p style="margin: 25px 0; text-align: center;">
-            <a href="${protocol}://${host}/dashboard" style="background-color: #0284C7; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Access Trading Dashboard &rarr;</a>
+          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address</h2>
+          <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
+            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below to complete your institutional account onboarding:
           </p>
-          <hr style="border: 0; border-top: 1px solid #1E293B; margin: 20px 0;" />
-          <p style="font-size: 11px; color: #64748B;">For live cryptocurrency withdrawals and Tier-1 margin, complete rapid biometric clearance in ~60 seconds via Didit AI inside your Account Settings.</p>
+          <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>
+            <div style="font-size: 34px; font-weight: 800; letter-spacing: 10px; color: #FFFFFF; font-family: 'SF Mono', Consolas, Monaco, monospace; text-indent: 10px;">${emailCode}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 8px;">Code expires in 15 minutes</div>
+          </div>
+          <div style="text-align: center; margin: 25px 0 15px;">
+            <a href="${verifyUrl}" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Verify Email Immediately &rarr;</a>
+          </div>
+          <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 12px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #94A3B8;"><strong>Trader UID:</strong> #TXE-${newUserId.toString().padStart(6, '0')} | <strong>Initial Capital:</strong> $10,000.00 USD</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #1E293B; margin: 25px 0 20px;" />
+          <p style="font-size: 11px; color: #64748B; line-height: 1.5; margin: 0; text-align: center;">
+            If you did not request this verification code, please ignore this email or notify compliance@mainstreetcapitalx.com.
+          </p>
         </div>
       `;
 
       await sendEmail({
         to: cleanEmail,
-        subject: 'Welcome to Mainstreet Capital Exchange - Account Activated',
-        html: welcomeHtml,
+        subject: 'Verify Your Email Address - Mainstreet Capital Exchange',
+        html: verifyEmailHtml,
         recipientType: 'user'
       });
     } catch (e) {
-      console.warn('Welcome onboarding email dispatch notice:', e.message);
+      console.warn('Email verification dispatch notice:', e.message);
     }
 
     // Set session user & auto-login
@@ -540,23 +560,171 @@ router.post('/register', async (req, res) => {
       role: fullUser.role,
       country: fullUser.country,
       kyc_status: fullUser.kyc_status,
+      email_verified: 0,
       balance: fullUser.balance,
       equity: fullUser.equity
     };
 
-    logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed compulsory KYC onboarding (${provider}: ${docStatus})`, req);
+    logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed onboarding registration with mandatory KYC (${provider}: ${docStatus})`, req);
 
-    if (isAutoApprove) {
-      req.session.flash = { success: 'Identity clearance verified via Didit AI! Your account has been provisioned with Tier-1 execution and $10,000 demo capital.' };
-    } else {
-      req.session.flash = { success: 'Account created! Your KYC documents are submitted for institutional compliance review.' };
-    }
-    return req.session.save(() => res.redirect('/dashboard'));
+    req.session.flash = { 
+      success: `Account created! Please enter the 6-digit confirmation code dispatched to ${cleanEmail} to verify your email.` 
+    };
+    return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {
     console.error('Registration error:', err);
     req.session.flash = { error: 'Registration failed: ' + err.message };
     return req.session.save(() => res.redirect('/register'));
   }
+});
+
+// GET /verify-email -> Render Email Verification Prompt & Auto-Verify via Link
+router.get('/verify-email', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  if (!req.session.userId) {
+    req.session.flash = { error: 'Please sign in to complete email verification.' };
+    return res.redirect('/login');
+  }
+
+  const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) {
+    req.session.userId = null;
+    return res.redirect('/login');
+  }
+
+  // If already verified, route forward
+  if (user.email_verified === 1) {
+    if (user.kyc_status === 'unverified') {
+      return res.redirect('/onboarding/kyc');
+    }
+    return res.redirect('/dashboard');
+  }
+
+  // Handle direct verification link (GET /verify-email?code=123456)
+  const queryCode = (req.query.code || '').trim();
+  if (queryCode && user.email_verification_code && queryCode === user.email_verification_code) {
+    const isExpired = user.email_verification_expires && (Date.now() > new Date(user.email_verification_expires).getTime());
+    if (!isExpired) {
+      db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(user.id);
+      try {
+        db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
+      } catch (e) {}
+      logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct verification link', req);
+      req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
+      
+      if (user.kyc_status === 'unverified') {
+        return res.redirect('/onboarding/kyc');
+      }
+      return res.redirect('/dashboard');
+    } else {
+      req.session.flash = { error: 'Verification link has expired. Please request a new verification code.' };
+    }
+  }
+
+  res.render('auth/verify_email', {
+    title: 'Verify Email Address | Mainstreet Capital Exchange',
+    user,
+    csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
+  });
+});
+
+// POST /verify-email -> Verify 6-Digit Code
+router.post('/verify-email', (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
+  const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.redirect('/login');
+
+  const { code, d1, d2, d3, d4, d5, d6 } = req.body;
+  const combinedCode = (code || `${d1 || ''}${d2 || ''}${d3 || ''}${d4 || ''}${d5 || ''}${d6 || ''}`).trim();
+
+  if (!combinedCode) {
+    req.session.flash = { error: 'Please enter the 6-digit confirmation code.' };
+    return res.redirect('/verify-email');
+  }
+
+  if (!user.email_verification_code || user.email_verification_code !== combinedCode) {
+    req.session.flash = { error: 'Invalid verification code. Please check your email or click Resend Code.' };
+    return res.redirect('/verify-email');
+  }
+
+  if (user.email_verification_expires && (Date.now() > new Date(user.email_verification_expires).getTime())) {
+    req.session.flash = { error: 'Verification code has expired. Please click Resend Code below.' };
+    return res.redirect('/verify-email');
+  }
+
+  db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(user.id);
+  try {
+    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
+  } catch (e) {}
+
+  logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via OTP', req);
+  req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
+
+  if (user.kyc_status === 'unverified') {
+    return res.redirect('/onboarding/kyc');
+  }
+  return res.redirect('/dashboard');
+});
+
+// POST /verify-email/resend -> Dispatch New 6-Digit Code
+router.post('/verify-email/resend', async (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
+  const user = db.prepare('SELECT id, name, email, email_verified FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.redirect('/login');
+
+  const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const newExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  db.prepare("UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?").run(newCode, newExpires, user.id);
+
+  try {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const host = forwardedHost || req.get('host') || 'localhost:3333';
+    const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+    const protocol = isHttps ? 'https' : (req.protocol || 'http');
+    const verifyUrl = `${protocol}://${host}/verify-email?code=${newCode}`;
+
+    const resendHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
+          <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security Verification</div>
+        </div>
+        <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">New Verification Code</h2>
+        <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
+          Here is your new 6-digit confirmation code for <strong>${user.email}</strong>:
+        </p>
+        <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Security Code</div>
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: 10px; color: #FFFFFF; font-family: 'SF Mono', Consolas, Monaco, monospace; text-indent: 10px;">${newCode}</div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 8px;">Code expires in 15 minutes</div>
+        </div>
+        <div style="text-align: center; margin: 25px 0 15px;">
+          <a href="${verifyUrl}" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block;">Verify Email Immediately &rarr;</a>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'New Email Verification Code - Mainstreet Capital Exchange',
+      html: resendHtml,
+      recipientType: 'user'
+    });
+  } catch (e) {
+    console.warn('Resend verification code email dispatch notice:', e.message);
+  }
+
+  logActivity(user.id, 'EMAIL_VERIFICATION_RESENT', `Requested new email verification code`, req);
+  req.session.flash = { success: `A fresh 6-digit confirmation code has been sent to ${user.email}.` };
+  return res.redirect('/verify-email');
+});
+
+// GET /api/dev/verification-code (Quick test helper for dev/compliance preview)
+router.get('/api/dev/verification-code', (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+  const user = db.prepare('SELECT email_verification_code FROM users WHERE id = ?').get(req.session.userId);
+  return res.json({ code: user ? user.email_verification_code : null });
 });
 
 // GET /forgot-password

@@ -17,6 +17,9 @@ try {
   if (!userCols.includes('kyc_status')) db.exec("ALTER TABLE users ADD COLUMN kyc_status TEXT DEFAULT 'pending'");
   if (!userCols.includes('phone')) db.exec("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT NULL");
   if (!userCols.includes('country')) db.exec("ALTER TABLE users ADD COLUMN country TEXT DEFAULT NULL");
+  if (!userCols.includes('email_verified')) db.exec("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 1");
+  if (!userCols.includes('email_verification_code')) db.exec("ALTER TABLE users ADD COLUMN email_verification_code TEXT DEFAULT NULL");
+  if (!userCols.includes('email_verification_expires')) db.exec("ALTER TABLE users ADD COLUMN email_verification_expires DATETIME DEFAULT NULL");
 
   const retCols = db.prepare('PRAGMA table_info(retirement_accounts)').all().map(c => c.name);
   if (!retCols.includes('updated_at')) db.exec("ALTER TABLE retirement_accounts ADD COLUMN updated_at DATETIME DEFAULT NULL");

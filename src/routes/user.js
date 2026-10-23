@@ -131,7 +131,7 @@ const requireAuth = (req, res, next) => {
     req.session.flash = { error: 'Please log in to access this trading area.' };
     return res.redirect('/login');
   }
-  const activeUser = db.prepare('SELECT id, is_active, role, kyc_status FROM users WHERE id = ?').get(req.session.userId);
+  const activeUser = db.prepare('SELECT id, is_active, role, kyc_status, email_verified FROM users WHERE id = ?').get(req.session.userId);
   if (!activeUser || activeUser.is_active === 0) {
     req.session.userId = null;
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
@@ -139,6 +139,19 @@ const requireAuth = (req, res, next) => {
     }
     req.session.flash = { error: 'Your session has expired or your account is inactive. Please sign in.' };
     return res.redirect('/login');
+  }
+
+  // Mandatory Email Verification Gate
+  const isEmailExempt = req.path === '/verify-email' || 
+                        req.path.startsWith('/verify-email') || 
+                        req.path === '/logout';
+
+  if (activeUser.role !== 'admin' && activeUser.email_verified === 0 && !isEmailExempt) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to access this section.' });
+    }
+    req.session.flash = { error: 'Please verify your email address to access your trading account.' };
+    return res.redirect('/verify-email');
   }
 
   // Mandatory KYC Gate: Unverified traders are gated into onboarding verification
