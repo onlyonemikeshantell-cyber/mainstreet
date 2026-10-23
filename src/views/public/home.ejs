@@ -8,7 +8,7 @@
 <!-- ============================================================================== -->
 <!-- 1. STREAMING HIGH-FREQUENCY LIVE MARKET TICKER RIBBON (INFINITE MARQUEE)       -->
 <!-- ============================================================================== -->
-<div class="w-full bg-[#161617] backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] overflow-hidden py-2.5 relative z-20 select-none group" x-data="{
+<div class="w-full bg-transparent border-b border-black/[0.06] dark:border-white/[0.08] overflow-hidden py-2.5 relative z-20 select-none group" x-data="{
     rates: window.__MAINSTREET_LIVE_PRICES__ || {},
     init() {
         setInterval(() => {
@@ -18,10 +18,6 @@
         }, 8000);
     }
 }">
-    <!-- Subtle Left & Right Edge Feathering -->
-    <div class="pointer-events-none absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#161617] to-transparent z-10"></div>
-    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#161617] to-transparent z-10"></div>
-
     <!-- Smooth Infinite Marquee Track (Pauses on Hover) -->
     <div class="ticker-marquee-track flex items-center whitespace-nowrap font-numeral text-[12px] text-[#a1a1a6]">
         <!-- Primary Stream -->
