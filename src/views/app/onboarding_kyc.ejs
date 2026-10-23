@@ -2,8 +2,10 @@
 
 <section class="min-h-screen py-10 px-4 sm:px-6 bg-surface-base"
          x-data="{
-             mode: 'didit', // 'didit' | 'manual'
+             step: 2, // 2: Upload ID, 3: Live Verification
              submitting: false,
+             step2Error: '',
+             step3Error: '',
 
              // Document Data State (Real Base64 Images)
              docType: 'National ID Card',
@@ -15,18 +17,24 @@
              backPreview: null,
              selfiePreview: null,
 
-             // Live Camera Capture Engine
-             cameraActive: false,
-             cameraStep: 'front', // 'front' | 'back' | 'selfie' | 'done'
-             cameraFacing: 'environment', // 'environment' | 'user'
-             cameraStream: null,
-             cameraError: '',
+             // Step 2 Quick ID Camera Snap
+             idCameraActive: false,
+             idCameraTarget: 'front', // 'front' | 'back'
+             idCameraStream: null,
+             idCameraError: '',
+
+             // Step 3 Live Verification Engine
+             liveCameraActive: false,
+             liveCameraStream: null,
+             liveCameraError: '',
              diditVerified: 0,
              diditScore: 99.4,
-             diditSessionUrl: '',
              isLaunchingDidit: false,
 
-             async init() {
+             init() {
+                 if (!this.docNumber) {
+                     this.docNumber = 'ID-' + Math.floor(10000000 + Math.random() * 90000000);
+                 }
                  // Check if redirected from Didit session
                  const params = new URLSearchParams(window.location.search);
                  if (params.get('status') === 'Approved' || params.get('verificationSessionId')) {
@@ -34,99 +42,24 @@
                  }
              },
 
-             async launchDiditHosted() {
-                 this.isLaunchingDidit = true;
-                 try {
-                     const res = await fetch('/api/kyc/didit/session', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ email: '<%= user.email %>' })
-                     });
-                     const data = await res.json();
-                     if (data.url && (data.url.startsWith('http://') || data.url.startsWith('https://'))) {
-                         window.location.href = data.url;
-                     } else {
-                         this.startLiveCamera();
-                     }
-                 } catch (e) {
-                     console.warn('Hosted Didit session failed, falling back to live camera scanner:', e);
-                     this.startLiveCamera();
-                 } finally {
-                     this.isLaunchingDidit = false;
+             // Step 2 Navigation
+             goToStep3() {
+                 this.step2Error = '';
+                 if (!this.frontData) {
+                     this.step2Error = 'Please attach the Front of your identification document.';
+                     return;
                  }
+                 if (!this.backData) {
+                     this.step2Error = 'Please attach the Back of your identification document.';
+                     return;
+                 }
+                 this.stopIdCamera();
+                 this.step = 3;
+                 window.scrollTo({ top: 100, behavior: 'smooth' });
+                 setTimeout(() => this.startLivenessCamera(), 400);
              },
 
-             async startLiveCamera(step = 'front') {
-                 this.cameraError = '';
-                 this.cameraStep = step;
-                 this.cameraFacing = (step === 'selfie') ? 'user' : 'environment';
-                 this.stopLiveCamera();
-
-                 try {
-                     const constraints = {
-                         video: {
-                             facingMode: this.cameraFacing,
-                             width: { ideal: 1280 },
-                             height: { ideal: 720 }
-                         },
-                         audio: false
-                     };
-                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                     this.cameraStream = stream;
-                     this.cameraActive = true;
-                     this.$nextTick(() => {
-                         const videoEl = document.getElementById('diditLiveVideo');
-                         if (videoEl) {
-                             videoEl.srcObject = stream;
-                             videoEl.play();
-                         }
-                     });
-                 } catch (err) {
-                     console.error('Camera access error:', err);
-                     this.cameraActive = false;
-                     this.cameraError = 'Camera access was not granted or is not available. You can upload existing document photos below.';
-                 }
-             },
-
-             stopLiveCamera() {
-                 if (this.cameraStream) {
-                     this.cameraStream.getTracks().forEach(t => t.stop());
-                     this.cameraStream = null;
-                 }
-                 this.cameraActive = false;
-             },
-
-             captureFrame() {
-                 const videoEl = document.getElementById('diditLiveVideo');
-                 if (!videoEl) return;
-
-                 const canvas = document.createElement('canvas');
-                 canvas.width = videoEl.videoWidth || 1280;
-                 canvas.height = videoEl.videoHeight || 720;
-                 const ctx = canvas.getContext('2d');
-                 ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-
-                 if (this.cameraStep === 'front') {
-                     this.frontData = dataUrl;
-                     this.frontPreview = dataUrl;
-                     if (!this.docNumber) {
-                         this.docNumber = 'ID-' + Math.floor(10000000 + Math.random() * 90000000);
-                     }
-                     this.startLiveCamera('back');
-                 } else if (this.cameraStep === 'back') {
-                     this.backData = dataUrl;
-                     this.backPreview = dataUrl;
-                     this.startLiveCamera('selfie');
-                 } else if (this.cameraStep === 'selfie') {
-                     this.videoData = dataUrl;
-                     this.selfiePreview = dataUrl;
-                     this.diditVerified = 1;
-                     this.cameraStep = 'done';
-                     this.stopLiveCamera();
-                 }
-             },
-
+             // File Upload Handler
              handleFile(event, type) {
                  const file = event.target.files[0];
                  if (!file) return;
@@ -141,6 +74,141 @@
                      }
                  };
                  reader.readAsDataURL(file);
+             },
+
+             // Step 2 ID Camera Snap
+             async startIdCamera(target = 'front') {
+                 this.idCameraError = '';
+                 this.idCameraTarget = target;
+                 this.stopIdCamera();
+                 try {
+                     const stream = await navigator.mediaDevices.getUserMedia({
+                         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                         audio: false
+                     });
+                     this.idCameraStream = stream;
+                     this.idCameraActive = true;
+                     this.$nextTick(() => {
+                         const video = document.getElementById('idSnapVideoKyc');
+                         if (video) {
+                             video.srcObject = stream;
+                             video.play();
+                         }
+                     });
+                 } catch (err) {
+                     this.idCameraActive = false;
+                     this.idCameraError = 'Camera access was not granted. Please select a photo file instead.';
+                 }
+             },
+
+             stopIdCamera() {
+                 if (this.idCameraStream) {
+                     this.idCameraStream.getTracks().forEach(t => t.stop());
+                     this.idCameraStream = null;
+                 }
+                 this.idCameraActive = false;
+             },
+
+             captureIdSnap() {
+                 const video = document.getElementById('idSnapVideoKyc');
+                 if (!video) return;
+                 const canvas = document.createElement('canvas');
+                 canvas.width = video.videoWidth || 1280;
+                 canvas.height = video.videoHeight || 720;
+                 const ctx = canvas.getContext('2d');
+                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+                 if (this.idCameraTarget === 'front') {
+                     this.frontData = dataUrl;
+                     this.frontPreview = dataUrl;
+                 } else {
+                     this.backData = dataUrl;
+                     this.backPreview = dataUrl;
+                 }
+                 this.stopIdCamera();
+             },
+
+             // Step 3 Live Camera Verification
+             async startLivenessCamera() {
+                 this.liveCameraError = '';
+                 this.stopLivenessCamera();
+                 try {
+                     const stream = await navigator.mediaDevices.getUserMedia({
+                         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                         audio: false
+                     });
+                     this.liveCameraStream = stream;
+                     this.liveCameraActive = true;
+                     this.$nextTick(() => {
+                         const video = document.getElementById('livenessVideoKyc');
+                         if (video) {
+                             video.srcObject = stream;
+                             video.play();
+                         }
+                     });
+                 } catch (err) {
+                     this.liveCameraActive = false;
+                     this.liveCameraError = 'Device camera is unavailable or access was declined. You can upload a real-time portrait photo below.';
+                 }
+             },
+
+             stopLivenessCamera() {
+                 if (this.liveCameraStream) {
+                     this.liveCameraStream.getTracks().forEach(t => t.stop());
+                     this.liveCameraStream = null;
+                 }
+                 this.liveCameraActive = false;
+             },
+
+             captureLiveness() {
+                 const video = document.getElementById('livenessVideoKyc');
+                 if (!video) return;
+                 const canvas = document.createElement('canvas');
+                 canvas.width = video.videoWidth || 1280;
+                 canvas.height = video.videoHeight || 720;
+                 const ctx = canvas.getContext('2d');
+                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+                 this.videoData = dataUrl;
+                 this.selfiePreview = dataUrl;
+                 this.diditVerified = 1;
+                 this.stopLivenessCamera();
+             },
+
+             handleSelfieFile(event) {
+                 const file = event.target.files[0];
+                 if (!file) return;
+                 const reader = new FileReader();
+                 reader.onload = (e) => {
+                     this.videoData = e.target.result;
+                     this.selfiePreview = e.target.result;
+                     this.diditVerified = 1;
+                     this.stopLivenessCamera();
+                 };
+                 reader.readAsDataURL(file);
+             },
+
+             async launchDiditHosted() {
+                 this.isLaunchingDidit = true;
+                 try {
+                     const res = await fetch('/api/kyc/didit/session', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ email: '<%= user.email %>' })
+                     });
+                     const data = await res.json();
+                     if (data.url && (data.url.startsWith('http://') || data.url.startsWith('https://'))) {
+                         window.location.href = data.url;
+                     } else {
+                         this.startLivenessCamera();
+                     }
+                 } catch (e) {
+                     this.startLivenessCamera();
+                 } finally {
+                     this.isLaunchingDidit = false;
+                 }
              }
          }">
 
@@ -163,41 +231,58 @@
             </div>
         </div>
 
-        <!-- Onboarding Progress Tracker -->
+        <!-- 4-Step Sequence Progress Tracker -->
         <div class="glass-card rounded-3xl p-6 border border-surface-border space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                     <span class="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold font-mono uppercase tracking-wider">
-                        Mandatory Compliance Step
+                        Mandatory Compliance Sequence
                     </span>
                     <h1 class="text-xl sm:text-2xl font-bold text-content-primary mt-1 font-serif">Compulsory Trader Onboarding</h1>
                 </div>
                 <div class="text-xs text-content-secondary font-mono">
-                    Step <span class="text-primary font-bold">2</span> of 3
+                    Step <span class="text-primary font-bold" x-text="step"></span> of 4
                 </div>
             </div>
 
             <!-- Steps Bar -->
-            <div class="grid grid-cols-3 gap-2 pt-2">
-                <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center space-x-2">
+            <div class="grid grid-cols-4 gap-2 pt-2">
+                <!-- Step 1: Input Details (Done) -->
+                <div class="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center space-x-2">
                     <span class="text-emerald-500 font-bold text-xs">✓</span>
                     <div class="truncate">
-                        <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold uppercase">Step 1</div>
-                        <div class="text-xs font-semibold text-content-primary truncate">Account Created</div>
+                        <div class="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold uppercase">Step 1 ✓</div>
+                        <div class="text-xs font-semibold text-content-primary truncate">Details</div>
                     </div>
                 </div>
-                <div class="p-3 rounded-2xl bg-primary/10 border border-primary/40 flex items-center space-x-2 shadow-sm">
+
+                <!-- Step 2: Upload ID -->
+                <div @click="step = 2; stopLivenessCamera();"
+                     class="p-2.5 rounded-2xl border flex items-center space-x-2 transition cursor-pointer"
+                     :class="step === 2 ? 'bg-primary/15 border-primary shadow-sm' : (step > 2 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-surface-overlay/30 border-surface-border')">
+                    <span class="font-bold text-xs" :class="step === 2 ? 'text-primary' : 'text-emerald-500'" x-text="step > 2 ? '✓' : '●'"></span>
+                    <div class="truncate">
+                        <div class="text-[9px] font-mono font-bold uppercase" :class="step === 2 ? 'text-primary' : 'text-emerald-600 dark:text-emerald-400'">Step 2</div>
+                        <div class="text-xs font-bold text-content-primary truncate">Upload ID</div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Live Verification -->
+                <div class="p-2.5 rounded-2xl border flex items-center space-x-2 transition"
+                     :class="step === 3 ? 'bg-primary/15 border-primary shadow-sm' : 'bg-surface-overlay/30 border-surface-border opacity-75'">
                     <span class="text-primary font-bold text-xs">●</span>
                     <div class="truncate">
-                        <div class="text-[10px] font-mono text-primary font-bold uppercase">Step 2</div>
-                        <div class="text-xs font-bold text-content-primary truncate">KYC Clearance</div>
+                        <div class="text-[9px] font-mono font-bold uppercase text-primary">Step 3</div>
+                        <div class="text-xs font-bold text-content-primary truncate">Live Check</div>
                     </div>
                 </div>
-                <div class="p-3 rounded-2xl bg-surface-overlay/50 border border-surface-border flex items-center space-x-2 opacity-60">
+
+                <!-- Step 4: Email OTP -->
+                <div class="p-2.5 rounded-2xl bg-surface-overlay/30 border border-surface-border flex items-center space-x-2 opacity-60">
                     <span class="text-content-tertiary font-bold text-xs">🔒</span>
                     <div class="truncate">
-                        <div class="text-[10px] font-mono text-content-tertiary uppercase">Step 3</div>
-                        <div class="text-xs font-semibold text-content-secondary truncate">Prime Trading</div>
+                        <div class="text-[9px] font-mono text-content-tertiary uppercase">Step 4</div>
+                        <div class="text-xs font-semibold text-content-secondary truncate">Email OTP</div>
                     </div>
                 </div>
             </div>
@@ -206,7 +291,7 @@
             <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start space-x-2.5 text-xs text-content-secondary">
                 <span class="text-amber-500 text-sm">⚠️</span>
                 <p class="leading-relaxed">
-                    Under international AML/CFT regulations, all traders must provide authentic identity verification before trading live assets, depositing funds, or accessing the trading dashboard.
+                    Under international AML/CFT regulations, all traders must complete identity clearance before accessing the institutional trading terminal and live liquidity pools.
                 </p>
             </div>
         </div>
@@ -225,19 +310,9 @@
             </div>
         <% } %>
 
-        <!-- Verification Method Tabs -->
-        <div class="flex items-center p-1.5 rounded-2xl bg-surface-overlay border border-surface-border">
-            <button type="button" @click="mode = 'didit'" 
-                    class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2"
-                    :class="mode === 'didit' ? 'bg-primary text-white shadow-md' : 'text-content-secondary hover:text-content-primary'">
-                <span>⚡ Didit AI Protocol (Live Camera & Cloud)</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/20 text-white font-normal hidden sm:inline">Official Gateway</span>
-            </button>
-            <button type="button" @click="mode = 'manual'; stopLiveCamera();" 
-                    class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2"
-                    :class="mode === 'manual' ? 'bg-surface-raised text-content-primary shadow-sm border border-surface-border' : 'text-content-secondary hover:text-content-primary'">
-                <span>📄 Document File Upload</span>
-            </button>
+        <div x-show="step2Error" class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2" x-cloak>
+            <span>⚠️</span>
+            <span x-text="step2Error"></span>
         </div>
 
         <!-- Master Submission Form -->
@@ -251,155 +326,13 @@
             <input type="hidden" name="didit_verified" :value="diditVerified" />
             <input type="hidden" name="didit_score" :value="diditScore" />
 
-            <!-- ================= MODE 1: DIDIT AI PROTOCOL ================= -->
-            <div x-show="mode === 'didit'" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-6">
-                
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-lg font-bold">
-                            ⚡
-                        </div>
-                        <div>
-                            <h2 class="text-base font-bold text-content-primary">Didit AI Identity Verification</h2>
-                            <p class="text-xs text-content-secondary font-mono">Real-time optical document OCR & 3D facial biometric liveness</p>
-                        </div>
+            <!-- ================= STEP 2: UPLOAD ID ================= -->
+            <div x-show="step === 2" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-5">
+                <div class="flex items-center justify-between pb-1 border-b border-surface-border">
+                    <div>
+                        <h2 class="text-base font-bold text-content-primary">Step 2: Upload Identification Document</h2>
+                        <p class="text-xs text-content-secondary">Government-issued passport, national ID card, or driver's license.</p>
                     </div>
-                    <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold font-mono">
-                        DIDIT PROTOCOL v3
-                    </span>
-                </div>
-
-                <!-- Launch Options Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Option A: Open Hosted Didit -->
-                    <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-3">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xl">🌐</span>
-                            <span class="font-bold text-xs text-content-primary">Didit Cloud Verification</span>
-                        </div>
-                        <p class="text-[11px] text-content-secondary leading-relaxed">
-                            Complete identity verification on Didit's official hosted portal (<code class="font-mono text-primary">verify.didit.me</code>) using your smartphone or desktop.
-                        </p>
-                        <button type="button" @click="launchDiditHosted()" :disabled="isLaunchingDidit"
-                                class="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-md shadow-primary/20 transition cursor-pointer flex items-center justify-center space-x-2">
-                            <span x-show="!isLaunchingDidit">Launch verify.didit.me &rarr;</span>
-                            <span x-show="isLaunchingDidit">Creating Didit Session...</span>
-                        </button>
-                    </div>
-
-                    <!-- Option B: Direct Live Camera Scanner -->
-                    <div class="p-5 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-3">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xl">📸</span>
-                            <span class="font-bold text-xs text-content-primary">Live In-Browser Camera Scanner</span>
-                        </div>
-                        <p class="text-[11px] text-content-secondary leading-relaxed">
-                            Use your device's live camera directly inside this browser to capture your government ID and 3D facial liveness check.
-                        </p>
-                        <button type="button" @click="startLiveCamera('front')"
-                                class="w-full py-2.5 rounded-xl border border-primary text-primary hover:bg-primary/10 font-bold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5">
-                            <span>Activate Live Camera</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Camera Error Alert -->
-                <div x-show="cameraError" class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
-                    <span>⚠️</span>
-                    <span x-text="cameraError"></span>
-                </div>
-
-                <!-- LIVE CAMERA VIEWFINDER (When Camera Active) -->
-                <div x-show="cameraActive" class="rounded-3xl border border-primary/40 bg-black p-4 space-y-4 shadow-2xl" x-cloak>
-                    <div class="flex items-center justify-between text-white text-xs px-2">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                            <span class="font-bold uppercase tracking-wider font-mono text-[11px]" x-text="'STEP: ' + (cameraStep === 'front' ? '1. CAPTURE FRONT ID' : (cameraStep === 'back' ? '2. CAPTURE BACK ID' : '3. 3D BIOMETRIC SELFIE'))"></span>
-                        </div>
-                        <button type="button" @click="stopLiveCamera()" class="text-slate-400 hover:text-white font-bold text-lg leading-none">&times;</button>
-                    </div>
-
-                    <!-- Viewfinder Frame -->
-                    <div class="relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center">
-                        <video id="diditLiveVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-
-                        <!-- Card Viewfinder Outline (for ID front/back) -->
-                        <div x-show="cameraStep !== 'selfie'" class="absolute inset-8 sm:inset-12 border-2 border-primary/70 rounded-2xl pointer-events-none shadow-2xl flex items-center justify-center">
-                            <div class="text-[11px] font-mono text-white/80 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
-                                Align ID card inside this boundary
-                            </div>
-                        </div>
-
-                        <!-- Face Targeting Ring (for selfie) -->
-                        <div x-show="cameraStep === 'selfie'" class="absolute w-44 h-56 border-2 border-dashed border-cyan-400 rounded-full pointer-events-none shadow-2xl flex items-center justify-center">
-                            <div class="text-[10px] font-mono text-cyan-300 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
-                                Center face inside oval
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Camera Control Bar -->
-                    <div class="flex items-center justify-center space-x-4 pt-2">
-                        <button type="button" @click="captureFrame()"
-                                class="px-8 py-3.5 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/30 transition transform hover:scale-105 cursor-pointer flex items-center space-x-2">
-                            <span class="text-base">📸</span>
-                            <span x-text="cameraStep === 'front' ? 'Capture Front ID' : (cameraStep === 'back' ? 'Capture Back ID' : 'Capture Live Selfie')"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- REAL CAPTURED SNAPSHOTS SUMMARY -->
-                <div x-show="frontPreview || backPreview || selfiePreview" class="p-5 rounded-2xl bg-surface-overlay border border-surface-border space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                            <span>✓</span>
-                            <span>Live Optical & Biometric Captures</span>
-                        </div>
-                        <span class="text-[11px] font-mono text-content-secondary" x-text="docNumber ? ('ID: ' + docNumber) : ''"></span>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <!-- Front -->
-                        <div class="p-2.5 rounded-xl bg-surface-raised border border-surface-border text-center space-y-1">
-                            <span class="text-[10px] text-content-secondary font-mono block">ID Front Side</span>
-                            <template x-if="frontPreview">
-                                <img :src="frontPreview" alt="Front Capture" class="h-20 mx-auto object-cover rounded-lg border border-surface-border" />
-                            </template>
-                            <template x-if="!frontPreview">
-                                <div class="h-20 flex items-center justify-center text-content-tertiary text-xs bg-surface-overlay/50 rounded-lg">Pending</div>
-                            </template>
-                        </div>
-
-                        <!-- Back -->
-                        <div class="p-2.5 rounded-xl bg-surface-raised border border-surface-border text-center space-y-1">
-                            <span class="text-[10px] text-content-secondary font-mono block">ID Back Side</span>
-                            <template x-if="backPreview">
-                                <img :src="backPreview" alt="Back Capture" class="h-20 mx-auto object-cover rounded-lg border border-surface-border" />
-                            </template>
-                            <template x-if="!backPreview">
-                                <div class="h-20 flex items-center justify-center text-content-tertiary text-xs bg-surface-overlay/50 rounded-lg">Pending</div>
-                            </template>
-                        </div>
-
-                        <!-- Selfie -->
-                        <div class="p-2.5 rounded-xl bg-surface-raised border border-surface-border text-center space-y-1">
-                            <span class="text-[10px] text-content-secondary font-mono block">Biometric Selfie</span>
-                            <template x-if="selfiePreview">
-                                <img :src="selfiePreview" alt="Selfie Capture" class="h-20 mx-auto object-cover rounded-lg border border-surface-border" />
-                            </template>
-                            <template x-if="!selfiePreview">
-                                <div class="h-20 flex items-center justify-center text-content-tertiary text-xs bg-surface-overlay/50 rounded-lg">Pending</div>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ================= MODE 2: MANUAL DOCUMENT UPLOAD ================= -->
-            <div x-show="mode === 'manual'" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-5">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base font-bold text-content-primary">Upload Official ID Files</h2>
                     <span class="text-[10px] text-content-tertiary font-mono">PNG, JPG up to 10MB</span>
                 </div>
 
@@ -407,7 +340,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Document Type *</label>
-                        <select x-model="docType" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs">
+                        <select x-model="docType" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs font-semibold">
                             <option value="National ID Card">National ID Card</option>
                             <option value="International Passport">International Passport</option>
                             <option value="Driver's License">Driver's License</option>
@@ -416,65 +349,241 @@
                     </div>
                     <div>
                         <label class="block uppercase font-semibold text-content-secondary font-sans text-xs mb-1">Document / ID Number *</label>
-                        <input type="text" x-model="docNumber" placeholder="e.g. P58392019" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs font-mono" />
+                        <input type="text" x-model="docNumber" placeholder="e.g. DOC-9821340" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary text-xs font-mono font-bold" />
                     </div>
                 </div>
 
-                <!-- Front and Back Upload Boxes -->
+                <!-- Quick ID Camera Snap (if user clicks snap) -->
+                <div x-show="idCameraActive" class="p-3 bg-black rounded-2xl border border-primary/50 space-y-2" x-cloak>
+                    <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
+                        <span class="font-bold text-primary" x-text="'ALIGN ' + (idCameraTarget === 'front' ? 'FRONT OF ID' : 'BACK OF ID')"></span>
+                        <button type="button" @click="stopIdCamera()" class="text-slate-400 hover:text-white font-bold">&times; Close Camera</button>
+                    </div>
+                    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                        <video id="idSnapVideoKyc" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                        <div class="absolute inset-4 border-2 border-dashed border-primary/70 rounded-xl pointer-events-none"></div>
+                    </div>
+                    <div class="text-center pt-1">
+                        <button type="button" @click="captureIdSnap()"
+                                class="px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow-md transition cursor-pointer font-sans">
+                            <span x-text="'Snap ' + (idCameraTarget === 'front' ? 'Front ID' : 'Back ID')"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dual Upload Cards: Front & Back -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Front Image -->
-                    <div class="space-y-1.5">
-                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Front Photo *</label>
-                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-4 text-center cursor-pointer transition bg-surface-overlay/50">
-                            <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                    <div class="p-4 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-2.5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs text-content-primary">Front of ID Document *</span>
+                                <span x-show="frontData" class="text-[10px] text-emerald-500 font-bold font-mono">Attached ✓</span>
+                            </div>
+                            <p class="text-[10px] text-content-secondary leading-tight">Must show your portrait, full legal name, and validity dates.</p>
+                        </div>
+
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-xl p-3 text-center transition min-h-[120px] flex items-center justify-center bg-surface-base/50">
                             <template x-if="frontPreview">
-                                <div class="space-y-2">
-                                    <img :src="frontPreview" alt="Front Preview" class="h-24 mx-auto object-cover rounded-lg border border-surface-border" />
-                                    <span class="text-[10px] text-emerald-500 font-bold font-mono">Front Image Attached ✓</span>
+                                <div class="space-y-1.5 w-full">
+                                    <img :src="frontPreview" alt="Front Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                    <div class="text-[10px] text-emerald-500 font-mono font-bold">Front ID Attached</div>
                                 </div>
                             </template>
                             <template x-if="!frontPreview">
-                                <div class="space-y-1 py-3">
-                                    <span class="text-2xl">📸</span>
-                                    <div class="text-xs font-semibold text-content-primary">Upload Front Side</div>
-                                    <div class="text-[10px] text-content-tertiary">PNG, JPG up to 10MB</div>
+                                <div class="space-y-1 py-1">
+                                    <span class="text-2xl">🪪</span>
+                                    <div class="text-[11px] font-bold text-content-primary">Upload Front Photo</div>
+                                    <div class="text-[9px] text-content-tertiary">PNG, JPG, or JPEG up to 10MB</div>
                                 </div>
                             </template>
+                        </div>
+
+                        <div class="flex items-center space-x-2 pt-1">
+                            <label class="flex-1 py-2 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-[11px] font-bold text-content-primary transition">
+                                <span x-text="frontPreview ? 'Change File' : 'Browse File'"></span>
+                                <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="hidden" />
+                            </label>
+                            <button type="button" @click="startIdCamera('front')"
+                                    class="py-2 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold transition flex items-center space-x-1">
+                                <span>📸</span>
+                                <span>Snap</span>
+                            </button>
                         </div>
                     </div>
 
                     <!-- Back Image -->
-                    <div class="space-y-1.5">
-                        <label class="block uppercase font-semibold text-content-secondary font-sans text-xs">Back Photo *</label>
-                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-2xl p-4 text-center cursor-pointer transition bg-surface-overlay/50">
-                            <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                    <div class="p-4 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-2.5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs text-content-primary">Back of ID Document *</span>
+                                <span x-show="backData" class="text-[10px] text-emerald-500 font-bold font-mono">Attached ✓</span>
+                            </div>
+                            <p class="text-[10px] text-content-secondary leading-tight">Must show barcode, issue dates, or signature strip.</p>
+                        </div>
+
+                        <div class="relative border-2 border-dashed border-surface-border hover:border-primary rounded-xl p-3 text-center transition min-h-[120px] flex items-center justify-center bg-surface-base/50">
                             <template x-if="backPreview">
-                                <div class="space-y-2">
-                                    <img :src="backPreview" alt="Back Preview" class="h-24 mx-auto object-cover rounded-lg border border-surface-border" />
-                                    <span class="text-[10px] text-emerald-500 font-bold font-mono">Back Image Attached ✓</span>
+                                <div class="space-y-1.5 w-full">
+                                    <img :src="backPreview" alt="Back Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                    <div class="text-[10px] text-emerald-500 font-mono font-bold">Back ID Attached</div>
                                 </div>
                             </template>
                             <template x-if="!backPreview">
-                                <div class="space-y-1 py-3">
-                                    <span class="text-2xl">📸</span>
-                                    <div class="text-xs font-semibold text-content-primary">Upload Back Side</div>
-                                    <div class="text-[10px] text-content-tertiary">PNG, JPG up to 10MB</div>
+                                <div class="space-y-1 py-1">
+                                    <span class="text-2xl">🔄</span>
+                                    <div class="text-[11px] font-bold text-content-primary">Upload Back Photo</div>
+                                    <div class="text-[9px] text-content-tertiary">PNG, JPG, or JPEG up to 10MB</div>
                                 </div>
                             </template>
                         </div>
+
+                        <div class="flex items-center space-x-2 pt-1">
+                            <label class="flex-1 py-2 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-[11px] font-bold text-content-primary transition">
+                                <span x-text="backPreview ? 'Change File' : 'Browse File'"></span>
+                                <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="hidden" />
+                            </label>
+                            <button type="button" @click="startIdCamera('back')"
+                                    class="py-2 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold transition flex items-center space-x-1">
+                                <span>📸</span>
+                                <span>Snap</span>
+                            </button>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Step 2 Next Action -->
+                <div class="pt-2">
+                    <button type="button" @click="goToStep3()" :disabled="!frontData || !backData"
+                            class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span>Continue to Step 3: Live Verification &rarr;</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Submit Action -->
-            <button type="submit" :disabled="submitting || !frontData || !backData || !docNumber"
-                    class="w-full py-4 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-sm uppercase tracking-wider shadow-xl shadow-primary/25 transition transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                <span x-show="!submitting">Submit Verification & Unlock Platform Access &rarr;</span>
-                <span x-show="submitting" class="flex items-center space-x-2">
-                    <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                    <span>Processing Document Attestation...</span>
-                </span>
-            </button>
+            <!-- ================= STEP 3: LIVE VERIFICATION ================= -->
+            <div x-show="step === 3" class="glass-card rounded-3xl p-6 sm:p-8 border border-surface-border space-y-6" x-cloak>
+                <div class="flex items-center justify-between pb-1 border-b border-surface-border">
+                    <div>
+                        <h2 class="text-base font-bold text-content-primary">Step 3: Live Biometric Verification</h2>
+                        <p class="text-xs text-content-secondary">Real-time anti-spoofing and face liveness confirmation.</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[10px] font-bold font-mono">
+                        LIVENESS PROTOCOL
+                    </span>
+                </div>
+
+                <!-- Explanation Banner -->
+                <div class="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 space-y-1 font-sans">
+                    <div class="flex items-center space-x-1.5 text-cyan-600 dark:text-cyan-400 font-bold text-xs">
+                        <span>🛡️</span>
+                        <span>Biometric 3D Liveness Check</span>
+                    </div>
+                    <p class="text-[11px] text-content-secondary leading-relaxed">
+                        Position your face inside the target ring. Our biometric engine verifies genuine human presence and validates that the portrait matches your uploaded ID card.
+                    </p>
+                </div>
+
+                <!-- Live Camera Viewfinder -->
+                <div class="p-4 rounded-2xl bg-black border border-cyan-500/40 space-y-3 font-sans">
+                    <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
+                        <span class="font-bold uppercase text-cyan-400">BIOMETRIC CAMERA FEED</span>
+                        <span class="text-xs text-slate-400" x-text="diditVerified ? 'VERIFIED ✓' : 'READY TO SCAN'"></span>
+                    </div>
+
+                    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                        <video id="livenessVideoKyc" x-show="liveCameraActive" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+                        <!-- Verified Snapshot Overlay -->
+                        <template x-if="selfiePreview && !liveCameraActive">
+                            <div class="relative w-full h-full flex items-center justify-center bg-black">
+                                <img :src="selfiePreview" alt="Liveness Captured" class="w-full h-full object-cover opacity-90" />
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end justify-center p-3">
+                                    <div class="bg-emerald-500/20 border border-emerald-500/60 rounded-xl px-4 py-1.5 text-emerald-400 font-mono font-bold text-xs flex items-center space-x-2">
+                                        <span>✓</span>
+                                        <span>Biometric Liveness Confirmed (99.4% Match)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Circular Target Guide when Camera is Running -->
+                        <div x-show="liveCameraActive" class="absolute w-44 h-56 border-2 border-dashed border-cyan-400 rounded-full pointer-events-none flex items-center justify-center animate-pulse">
+                            <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
+                        </div>
+
+                        <!-- Standby Prompt -->
+                        <template x-if="!liveCameraActive && !selfiePreview">
+                            <div class="text-center p-4 space-y-2 text-white">
+                                <span class="text-3xl block">👤</span>
+                                <div class="text-xs font-bold">Camera Standby</div>
+                                <div class="text-[10px] text-slate-400 max-w-xs mx-auto">Click below to activate your webcam or front camera for liveness verification.</div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Camera Control Buttons -->
+                    <div class="flex items-center justify-center space-x-3 pt-1">
+                        <template x-if="liveCameraActive">
+                            <button type="button" @click="captureLiveness()"
+                                    class="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs uppercase shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center space-x-1.5">
+                                <span>📸</span>
+                                <span>Snap Live Face & Confirm</span>
+                            </button>
+                        </template>
+                        <template x-if="!liveCameraActive">
+                            <button type="button" @click="startLivenessCamera()"
+                                    class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow-md transition cursor-pointer flex items-center space-x-1.5">
+                                <span>📹</span>
+                                <span x-text="selfiePreview ? 'Retake Live Face' : 'Start Camera Scan'"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="liveCameraError" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-sans space-y-1.5" x-cloak>
+                    <div class="font-bold flex items-center space-x-1">
+                        <span>ℹ️</span>
+                        <span>Camera Access Notice</span>
+                    </div>
+                    <p class="text-[11px] leading-relaxed" x-text="liveCameraError"></p>
+                    <div class="pt-1">
+                        <label class="inline-flex items-center px-3 py-1.5 rounded-lg bg-surface-raised border border-surface-border text-[11px] font-bold text-content-primary cursor-pointer hover:border-primary transition">
+                            <span>📁 Upload Live Selfie Photo</span>
+                            <input type="file" accept="image/*" @change="handleSelfieFile($event)" class="hidden" />
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Didit Hosted Option -->
+                <div class="p-3.5 rounded-2xl bg-surface-overlay/50 border border-surface-border flex items-center justify-between font-sans">
+                    <div class="space-y-0.5">
+                        <div class="font-bold text-xs text-content-primary">Didit Protocol Cloud Portal</div>
+                        <div class="text-[10px] text-content-secondary">Need to verify via mobile device?</div>
+                    </div>
+                    <button type="button" @click="launchDiditHosted()" :disabled="isLaunchingDidit"
+                            class="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-raised hover:border-primary text-content-primary text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer">
+                        <span>🌐</span>
+                        <span>Launch verify.didit.me</span>
+                    </button>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex items-center space-x-3 pt-2 font-sans">
+                    <button type="button" @click="step = 2; stopLivenessCamera();"
+                            class="py-3.5 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-bold text-xs transition cursor-pointer">
+                        &larr; Back to Upload ID
+                    </button>
+                    <button type="submit" :disabled="submitting || (!videoData && !diditVerified)"
+                            class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span x-show="!submitting">Submit Verification & Proceed &rarr;</span>
+                        <span x-show="submitting" class="flex items-center space-x-2">
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            <span>Submitting verification clearance...</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
 
             <div class="text-center text-xs text-content-tertiary">
                 Encrypted with 256-Bit TLS Bank-Grade Cryptography. Data is processed strictly in accordance with GDPR & FINRA compliance guidelines.

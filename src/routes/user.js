@@ -142,20 +142,7 @@ const requireAuth = (req, res, next) => {
     return res.redirect('/login');
   }
 
-  // Mandatory Email Verification Gate
-  const isEmailExempt = req.path === '/verify-email' || 
-                        req.path.startsWith('/verify-email') || 
-                        req.path === '/logout';
-
-  if (activeUser.role !== 'admin' && activeUser.email_verified === 0 && !isEmailExempt) {
-    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
-      return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to access this section.' });
-    }
-    req.session.flash = { error: 'Please verify your email address to access your trading account.' };
-    return res.redirect('/verify-email');
-  }
-
-  // Mandatory KYC Gate: Unverified traders are gated into onboarding verification
+  // 1. Mandatory KYC Gate: Unverified traders are gated into onboarding verification (Upload ID > Live Verification)
   const isKycExempt = req.path === '/onboarding/kyc' || 
                       req.path.startsWith('/onboarding') || 
                       req.path === '/kyc' || 
@@ -170,6 +157,22 @@ const requireAuth = (req, res, next) => {
     }
     req.session.flash = { error: 'Regulatory compliance requires all traders to verify their identity before accessing trading and financial services.' };
     return res.redirect('/onboarding/kyc');
+  }
+
+  // 2. Mandatory Email Verification Gate (Step 4 of 4 in Onboarding Sequence)
+  const isEmailExempt = req.path === '/verify-email' || 
+                        req.path.startsWith('/verify-email') || 
+                        req.path === '/onboarding/kyc' ||
+                        req.path.startsWith('/onboarding') ||
+                        req.path.startsWith('/api/kyc') ||
+                        req.path === '/logout';
+
+  if (activeUser.role !== 'admin' && activeUser.email_verified === 0 && !isEmailExempt) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to access this section.' });
+    }
+    req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
+    return res.redirect('/verify-email');
   }
 
   next();
@@ -1279,6 +1282,15 @@ router.post('/onboarding/kyc', (req, res) => {
     req.session.flash = { success: 'Identity verified successfully! Institutional Tier-1 execution is live.' };
   } else {
     req.session.flash = { success: 'Identity documents submitted successfully. Verification is currently under institutional review.' };
+  }
+
+  // Follow Onboarding Sequence: If email OTP is not yet verified, route to Step 4
+  const refreshedUser = db.prepare('SELECT email_verified FROM users WHERE id = ?').get(user.id);
+  if (refreshedUser && refreshedUser.email_verified === 0) {
+    req.session.flash = { 
+      success: (isAutoApprove ? 'Identity verified! ' : 'Documents submitted! ') + 'Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' 
+    };
+    return res.redirect('/verify-email');
   }
 
   return res.redirect('/dashboard');

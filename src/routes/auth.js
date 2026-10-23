@@ -272,13 +272,13 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
     if (user.role === 'admin') {
       return res.redirect('/babyoku');
     }
-    if (user.email_verified === 0) {
-      req.session.flash = { error: 'Please verify your email address to access your trading account.' };
-      return res.redirect('/verify-email');
-    }
     if (user.kyc_status === 'unverified') {
       req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
       return res.redirect('/onboarding/kyc');
+    }
+    if (user.email_verified === 0) {
+      req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
+      return res.redirect('/verify-email');
     }
     return res.redirect('/dashboard');
   });
@@ -337,13 +337,13 @@ router.post('/login/2fa', (req, res) => {
     if (isAdminLogin || user.role === 'admin') {
       return res.redirect('/babyoku');
     }
-    if (user.email_verified === 0) {
-      req.session.flash = { error: 'Please verify your email address to access your trading account.' };
-      return res.redirect('/verify-email');
-    }
     if (user.kyc_status === 'unverified') {
       req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
       return res.redirect('/onboarding/kyc');
+    }
+    if (user.email_verified === 0) {
+      req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
+      return res.redirect('/verify-email');
     }
     return res.redirect('/dashboard');
   });
@@ -389,9 +389,17 @@ router.post('/register', async (req, res) => {
     return res.redirect('/register');
   }
 
-  // Mandatory KYC Enforcement during Onboarding
+  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
+  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
+
+  // Mandatory KYC Enforcement during Onboarding (Sequence: Details -> Upload ID -> Live Verification -> Email OTP)
   if (!doc_type || !doc_number || !front_image || !back_image) {
-    req.session.flash = { error: 'Regulatory compliance requires mandatory KYC identity verification to complete onboarding. Please provide your document details and photos.' };
+    req.session.flash = { error: 'Please upload both front and back photos of your identification document to proceed.' };
+    return res.redirect('/register');
+  }
+
+  if (!video_data && !isDiditVerified) {
+    req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
     return res.redirect('/register');
   }
 
@@ -401,9 +409,6 @@ router.post('/register', async (req, res) => {
     req.session.flash = { error: 'An account with that email already exists. Please log in.' };
     return res.redirect('/login');
   }
-
-  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
-  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
   const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
   const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
   const docStatus = isAutoApprove ? 'approved' : 'pending';
@@ -568,7 +573,7 @@ router.post('/register', async (req, res) => {
     logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed onboarding registration with mandatory KYC (${provider}: ${docStatus})`, req);
 
     req.session.flash = { 
-      success: `Account created! Please enter the 6-digit confirmation code dispatched to ${cleanEmail} to verify your email.` 
+      success: `Identity verified! Step 4 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail} to activate your account.` 
     };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {
