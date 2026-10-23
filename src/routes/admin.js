@@ -603,12 +603,23 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
   }
 
   const effectiveAdminId = req.session.adminId || req.session.userId;
-  if (user.role === 'admin' || user.id === effectiveAdminId || user.id === 1) {
-    req.session.flash = { error: 'Cannot delete primary administrator account.' };
+  if (user.id === effectiveAdminId) {
+    req.session.flash = { error: 'Cannot delete your own active administrator account.' };
     return res.redirect('/babyoku');
   }
 
   const deleteTransaction = db.transaction(() => {
+    try {
+      const accts = db.prepare('SELECT id FROM retirement_accounts WHERE user_id = ?').all(user_id);
+      for (const a of accts) {
+        db.prepare('DELETE FROM retirement_holdings WHERE account_id = ?').run(a.id);
+        db.prepare('DELETE FROM retirement_contributions WHERE account_id = ?').run(a.id);
+      }
+      db.prepare('DELETE FROM retirement_accounts WHERE user_id = ?').run(user_id);
+      db.prepare('DELETE FROM retirement_contributions WHERE user_id = ?').run(user_id);
+    } catch (e) {}
+    try { db.prepare('DELETE FROM user_saved_wallets WHERE user_id = ?').run(user_id); } catch (e) {}
+    try { db.prepare('DELETE FROM user_connected_wallets WHERE user_id = ?').run(user_id); } catch (e) {}
     db.prepare('DELETE FROM trades WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM transactions WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(user_id);
@@ -618,6 +629,7 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
     db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM user_investments WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM notifications WHERE user_id = ?').run(user_id);
+    try { db.prepare('DELETE FROM referrals WHERE referee_id = ? OR referrer_id = ?').run(user_id, user_id); } catch (e) {}
     db.prepare('DELETE FROM users WHERE id = ?').run(user_id);
   });
 
