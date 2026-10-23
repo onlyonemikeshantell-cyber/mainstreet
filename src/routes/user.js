@@ -1222,15 +1222,16 @@ router.get('/onboarding/kyc', (req, res) => {
 });
 
 // Process Mandatory Onboarding KYC Submission
-router.post('/onboarding/kyc', (req, res) => {
+router.post('/onboarding/kyc', async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-  if (!user) return res.redirect('/login');
+  if (!user) return req.session.save(() => res.redirect('/login'));
 
   const { doc_type, doc_number, front_image, back_image, video_data, didit_verified, didit_score } = req.body;
+  const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
 
-  if (!doc_type || !doc_number || !front_image || !back_image) {
+  if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
     req.session.flash = { error: 'Please provide complete document verification details and identification images.' };
-    return res.redirect('/onboarding/kyc');
+    return req.session.save(() => res.redirect('/onboarding/kyc'));
   }
 
   const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
@@ -1246,8 +1247,8 @@ router.post('/onboarding/kyc', (req, res) => {
   };
 
   const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
-  const backPath = resolveDocPath(back_image, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
-  const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', user.id) || (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm')) : null;
+  const backPath = resolveDocPath(effectiveBackImage, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
+  const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm') : (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : null);
 
   db.prepare(`
     INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
@@ -1267,6 +1268,7 @@ router.post('/onboarding/kyc', (req, res) => {
   );
 
   db.prepare("UPDATE users SET kyc_status = ? WHERE id = ?").run(userKycStatus, user.id);
+  if (req.session.user) req.session.user.kyc_status = userKycStatus;
 
   try {
     const notifTitle = isAutoApprove ? 'Identity Clearance Approved' : 'KYC Verification Submitted';
@@ -1278,22 +1280,46 @@ router.post('/onboarding/kyc', (req, res) => {
 
   logActivity(user.id, 'ONBOARDING_KYC_SUBMITTED', `Submitted KYC documents during onboarding (${provider}: ${docStatus})`, req);
 
+  // Follow Onboarding Sequence: If email OTP is not yet verified, route to Step 4
+  const refreshedUser = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires FROM users WHERE id = ?').get(user.id);
+  if (refreshedUser && refreshedUser.email_verified === 0) {
+    let emailCode = refreshedUser.email_verification_code;
+    const isCodeExpired = !refreshedUser.email_verification_expires || (Date.now() > new Date(refreshedUser.email_verification_expires).getTime());
+    if (!emailCode || isCodeExpired) {
+      emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      db.prepare("UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?").run(emailCode, codeExpires, user.id);
+
+      try {
+        const forwardedProto = req.headers['x-forwarded-proto'];
+        const forwardedHost = req.headers['x-forwarded-host'];
+        const host = forwardedHost || req.get('host') || 'localhost:3333';
+        const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+        const protocol = isHttps ? 'https' : (req.protocol || 'http');
+        const verifyUrl = `${protocol}://${host}/verify-email?email=${encodeURIComponent(user.email)}&code=${emailCode}`;
+
+        await sendEmail({
+          to: user.email,
+          subject: 'Verify Your Email Address - Mainstreet Capital Exchange',
+          html: `<p>Hello ${user.name}, your verification code is <strong>${emailCode}</strong>. <a href="${verifyUrl}">Verify Email Immediately</a>.</p>`,
+          recipientType: 'user'
+        });
+      } catch (err) {}
+    }
+
+    req.session.flash = { 
+      success: (isAutoApprove ? 'Identity verified! ' : 'Documents submitted! ') + 'Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' 
+    };
+    return req.session.save(() => res.redirect('/verify-email'));
+  }
+
   if (isAutoApprove) {
     req.session.flash = { success: 'Identity verified successfully! Institutional Tier-1 execution is live.' };
   } else {
     req.session.flash = { success: 'Identity documents submitted successfully. Verification is currently under institutional review.' };
   }
 
-  // Follow Onboarding Sequence: If email OTP is not yet verified, route to Step 4
-  const refreshedUser = db.prepare('SELECT email_verified FROM users WHERE id = ?').get(user.id);
-  if (refreshedUser && refreshedUser.email_verified === 0) {
-    req.session.flash = { 
-      success: (isAutoApprove ? 'Identity verified! ' : 'Documents submitted! ') + 'Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' 
-    };
-    return res.redirect('/verify-email');
-  }
-
-  return res.redirect('/dashboard');
+  return req.session.save(() => res.redirect('/dashboard'));
 });
 
 // 7. Settings, KYC & 2FA
@@ -1348,25 +1374,34 @@ router.get('/api/kyc/didit/callback', async (req, res) => {
 
     if (decisionStatus === 'Approved' || decisionStatus === 'verified') {
       db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(user.id);
+      if (req.session.user) req.session.user.kyc_status = 'verified';
       db.prepare(`
         INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, status, provider, didit_session_id, didit_score, reviewed_at)
         VALUES (?, 'Government ID / Passport', ?, '/storage/kyc/didit_verified_front.png', '/storage/kyc/didit_verified_back.png', 'approved', 'didit', ?, 99.4, CURRENT_TIMESTAMP)
       `).run(user.id, 'DIDIT-' + (effectiveSessionId || Date.now()), effectiveSessionId || ('didit_' + Date.now()));
 
+      if (user.email_verified === 0) {
+        req.session.flash = { success: 'Identity verified! Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' };
+        return req.session.save(() => res.redirect('/verify-email'));
+      }
       req.session.flash = { success: 'Didit AI Protocol identity clearance confirmed! Tier-1 execution is live.' };
-      return res.redirect('/dashboard');
+      return req.session.save(() => res.redirect('/dashboard'));
     } else if (decisionStatus === 'In Review') {
       db.prepare("UPDATE users SET kyc_status = 'pending' WHERE id = ?").run(user.id);
+      if (req.session.user) req.session.user.kyc_status = 'pending';
       req.session.flash = { success: 'Didit identity verification received and is currently under compliance review.' };
-      return res.redirect('/dashboard');
+      if (user.email_verified === 0) {
+        return req.session.save(() => res.redirect('/verify-email'));
+      }
+      return req.session.save(() => res.redirect('/dashboard'));
     } else {
       req.session.flash = { error: 'Didit identity verification was declined or timed out. Please try again or upload manual documents.' };
-      return res.redirect('/onboarding/kyc');
+      return req.session.save(() => res.redirect('/onboarding/kyc'));
     }
   }
 
   req.session.flash = { success: 'Didit verification complete. Please sign in.' };
-  return res.redirect('/login');
+  return req.session.save(() => res.redirect('/login'));
 });
 
 // Didit KYC - Complete Verification

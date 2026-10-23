@@ -32,6 +32,16 @@
                  return this.digits.join('');
              },
 
+             submitForm() {
+                 this.submitting = true;
+                 const form = this.$refs.verifyForm;
+                 if (form) {
+                     const codeInput = form.querySelector('input[name="code"]');
+                     if (codeInput) codeInput.value = this.code;
+                     form.submit();
+                 }
+             },
+
              onInput(index, event) {
                  const val = event.target.value.replace(/[^0-9]/g, '');
                  this.digits[index] = val ? val.slice(-1) : '';
@@ -40,8 +50,7 @@
                      if (nextInput) nextInput.focus();
                  }
                  if (this.code.length === 6) {
-                     this.submitting = true;
-                     this.$refs.verifyForm.submit();
+                     this.submitForm();
                  }
              },
 
@@ -59,13 +68,16 @@
                  event.preventDefault();
                  const pasteData = (event.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
                  if (!pasteData) return;
+                 const newDigits = ['', '', '', '', '', ''];
                  for (let i = 0; i < 6; i++) {
-                     this.digits[i] = pasteData[i] || '';
+                     newDigits[i] = pasteData[i] || '';
                  }
-                 if (this.code.length === 6) {
-                     this.submitting = true;
-                     this.$refs.verifyForm.submit();
-                 }
+                 this.digits = newDigits;
+                 this.$nextTick(() => {
+                     if (this.code.length === 6) {
+                         this.submitForm();
+                     }
+                 });
              },
 
              async demoQuickVerify() {
@@ -73,11 +85,14 @@
                      const res = await fetch('/api/dev/verification-code');
                      const data = await res.json();
                      if (data.code && data.code.length === 6) {
+                         const newDigits = [];
                          for (let i = 0; i < 6; i++) {
-                             this.digits[i] = data.code[i];
+                             newDigits.push(data.code[i]);
                          }
-                         this.submitting = true;
-                         this.$refs.verifyForm.submit();
+                         this.digits = newDigits;
+                         this.$nextTick(() => {
+                             this.submitForm();
+                         });
                      } else {
                          alert('No pending verification code found.');
                      }
@@ -162,7 +177,7 @@
                 </label>
                 <div class="flex items-center justify-center space-x-2 sm:space-x-2.5" @paste="onPaste($event)">
                     <template x-for="(digit, index) in digits" :key="index">
-                        <input :id="'otp-' + index"
+                        <input :id="'otp-' + index" :name="'d' + (index + 1)"
                                 type="text"
                                 inputmode="numeric"
                                 maxlength="1"
@@ -175,7 +190,7 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" :disabled="submitting || code.length !== 6"
+            <button type="submit" @click.prevent="submitForm()" :disabled="submitting || code.length !== 6"
                     class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
                 <span x-show="!submitting">Complete Onboarding & Start Trading &rarr;</span>
                 <span x-show="submitting" class="flex items-center space-x-2">

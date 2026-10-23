@@ -353,16 +353,20 @@ router.post('/login/2fa', (req, res) => {
 router.get('/register', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   if (req.session.userId) {
-    const user = db.prepare('SELECT id, role, is_active FROM users WHERE id = ?').get(req.session.userId);
+    const user = db.prepare('SELECT id, role, is_active, kyc_status, email_verified FROM users WHERE id = ?').get(req.session.userId);
     if (user && user.is_active !== 0) {
-      return res.redirect(user.role === 'admin' ? '/babyoku' : '/dashboard');
+      if (user.role === 'admin') return res.redirect('/babyoku');
+      if (user.kyc_status === 'unverified') return res.redirect('/onboarding/kyc');
+      if (user.email_verified === 0) return res.redirect('/verify-email');
+      return res.redirect('/dashboard');
     }
     req.session.userId = null;
   }
   const captchaQuestion = generateCaptcha(req);
   res.render('auth/register', { 
     title: 'Open Live Account | Mainstreet Capital Exchange',
-    captchaQuestion 
+    captchaQuestion,
+    csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });
 
@@ -376,38 +380,41 @@ router.post('/register', async (req, res) => {
 
   if (!name || !email || !password) {
     req.session.flash = { error: 'Please enter your name, email address, and password.' };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 
   if (!confirm_password || password !== confirm_password) {
     req.session.flash = { error: 'Passwords do not match. Please verify and re-enter.' };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 
   if (password.length < 6) {
     req.session.flash = { error: 'Password must be at least 6 characters long.' };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 
   const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
   const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
 
+  // Passport fallback if back_image omitted
+  const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
+
   // Mandatory KYC Enforcement during Onboarding (Sequence: Details -> Upload ID -> Live Verification -> Email OTP)
-  if (!doc_type || !doc_number || !front_image || !back_image) {
+  if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
     req.session.flash = { error: 'Please upload both front and back photos of your identification document to proceed.' };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 
   if (!video_data && !isDiditVerified) {
     req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
-    return res.redirect('/register');
+    return req.session.save(() => res.redirect('/register'));
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
   const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (existing) {
     req.session.flash = { error: 'An account with that email already exists. Please log in.' };
-    return res.redirect('/login');
+    return req.session.save(() => res.redirect('/login'));
   }
   const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
   const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
@@ -442,8 +449,8 @@ router.post('/register', async (req, res) => {
     };
 
     const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
-    const backPath = resolveDocPath(back_image, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
-    const videoPath = video_data ? (saveBase64Media(video_data, 'kyc_video', newUserId) || (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm')) : null;
+    const backPath = resolveDocPath(effectiveBackImage, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
+    const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm') : (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : null);
 
     db.prepare(`
       INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
@@ -512,7 +519,7 @@ router.post('/register', async (req, res) => {
       const host = forwardedHost || req.get('host') || 'localhost:3333';
       const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
       const protocol = isHttps ? 'https' : (req.protocol || 'http');
-      const verifyUrl = `${protocol}://${host}/verify-email?code=${emailCode}`;
+      const verifyUrl = `${protocol}://${host}/verify-email?email=${encodeURIComponent(cleanEmail)}&code=${emailCode}`;
 
       const verifyEmailHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
@@ -586,41 +593,92 @@ router.post('/register', async (req, res) => {
 // GET /verify-email -> Render Email Verification Prompt & Auto-Verify via Link
 router.get('/verify-email', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+  const queryCode = (req.query.code || '').trim();
+  const queryEmail = (req.query.email || '').trim().toLowerCase();
+
+  // If not currently logged in, allow seamless 1-click verification via email link
+  if (!req.session.userId && queryCode) {
+    let matchedUser = null;
+    if (queryEmail) {
+      matchedUser = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? AND email_verification_code = ?').get(queryEmail, queryCode);
+    } else {
+      matchedUser = db.prepare('SELECT * FROM users WHERE email_verification_code = ?').get(queryCode);
+    }
+
+    if (matchedUser) {
+      const isExpired = matchedUser.email_verification_expires && (Date.now() > new Date(matchedUser.email_verification_expires).getTime());
+      if (!isExpired) {
+        db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(matchedUser.id);
+        req.session.userId = matchedUser.id;
+        req.session.user = {
+          id: matchedUser.id,
+          name: matchedUser.name,
+          email: matchedUser.email,
+          role: matchedUser.role,
+          country: matchedUser.country,
+          kyc_status: matchedUser.kyc_status,
+          email_verified: 1,
+          balance: matchedUser.balance,
+          equity: matchedUser.equity
+        };
+        try {
+          db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(matchedUser.id);
+        } catch (e) {}
+        logActivity(matchedUser.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct link', req);
+        req.session.flash = { success: 'Email verified successfully! Welcome to your trading account.' };
+        return req.session.save(() => {
+          if (matchedUser.kyc_status === 'unverified') {
+            return res.redirect('/onboarding/kyc');
+          }
+          return res.redirect('/dashboard');
+        });
+      } else {
+        req.session.flash = { error: 'This verification link has expired. Please sign in to request a fresh code.' };
+        return req.session.save(() => res.redirect('/login'));
+      }
+    }
+  }
+
   if (!req.session.userId) {
     req.session.flash = { error: 'Please sign in to complete email verification.' };
-    return res.redirect('/login');
+    return req.session.save(() => res.redirect('/login'));
   }
 
   const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
   if (!user) {
     req.session.userId = null;
-    return res.redirect('/login');
+    return req.session.save(() => res.redirect('/login'));
   }
 
   // If already verified, route forward
   if (user.email_verified === 1) {
-    if (user.kyc_status === 'unverified') {
-      return res.redirect('/onboarding/kyc');
-    }
-    return res.redirect('/dashboard');
+    return req.session.save(() => {
+      if (user.kyc_status === 'unverified') {
+        return res.redirect('/onboarding/kyc');
+      }
+      return res.redirect('/dashboard');
+    });
   }
 
-  // Handle direct verification link (GET /verify-email?code=123456)
-  const queryCode = (req.query.code || '').trim();
+  // Handle direct verification link for logged in session
   if (queryCode && user.email_verification_code && queryCode === user.email_verification_code) {
     const isExpired = user.email_verification_expires && (Date.now() > new Date(user.email_verification_expires).getTime());
     if (!isExpired) {
       db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(user.id);
+      if (req.session.user) req.session.user.email_verified = 1;
       try {
         db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
       } catch (e) {}
       logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct verification link', req);
       req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
       
-      if (user.kyc_status === 'unverified') {
-        return res.redirect('/onboarding/kyc');
-      }
-      return res.redirect('/dashboard');
+      return req.session.save(() => {
+        if (user.kyc_status === 'unverified') {
+          return res.redirect('/onboarding/kyc');
+        }
+        return res.redirect('/dashboard');
+      });
     } else {
       req.session.flash = { error: 'Verification link has expired. Please request a new verification code.' };
     }
@@ -635,29 +693,32 @@ router.get('/verify-email', (req, res) => {
 
 // POST /verify-email -> Verify 6-Digit Code
 router.post('/verify-email', (req, res) => {
-  if (!req.session.userId) return res.redirect('/login');
+  if (!req.session.userId) return req.session.save(() => res.redirect('/login'));
   const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
-  if (!user) return res.redirect('/login');
+  if (!user) return req.session.save(() => res.redirect('/login'));
 
   const { code, d1, d2, d3, d4, d5, d6 } = req.body;
   const combinedCode = (code || `${d1 || ''}${d2 || ''}${d3 || ''}${d4 || ''}${d5 || ''}${d6 || ''}`).trim();
 
   if (!combinedCode) {
     req.session.flash = { error: 'Please enter the 6-digit confirmation code.' };
-    return res.redirect('/verify-email');
+    return req.session.save(() => res.redirect('/verify-email'));
   }
 
   if (!user.email_verification_code || user.email_verification_code !== combinedCode) {
     req.session.flash = { error: 'Invalid verification code. Please check your email or click Resend Code.' };
-    return res.redirect('/verify-email');
+    return req.session.save(() => res.redirect('/verify-email'));
   }
 
   if (user.email_verification_expires && (Date.now() > new Date(user.email_verification_expires).getTime())) {
     req.session.flash = { error: 'Verification code has expired. Please click Resend Code below.' };
-    return res.redirect('/verify-email');
+    return req.session.save(() => res.redirect('/verify-email'));
   }
 
   db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(user.id);
+  if (req.session.user) {
+    req.session.user.email_verified = 1;
+  }
   try {
     db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
   } catch (e) {}
@@ -665,17 +726,19 @@ router.post('/verify-email', (req, res) => {
   logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via OTP', req);
   req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
 
-  if (user.kyc_status === 'unverified') {
-    return res.redirect('/onboarding/kyc');
-  }
-  return res.redirect('/dashboard');
+  return req.session.save(() => {
+    if (user.kyc_status === 'unverified') {
+      return res.redirect('/onboarding/kyc');
+    }
+    return res.redirect('/dashboard');
+  });
 });
 
 // POST /verify-email/resend -> Dispatch New 6-Digit Code
 router.post('/verify-email/resend', async (req, res) => {
-  if (!req.session.userId) return res.redirect('/login');
+  if (!req.session.userId) return req.session.save(() => res.redirect('/login'));
   const user = db.prepare('SELECT id, name, email, email_verified FROM users WHERE id = ?').get(req.session.userId);
-  if (!user) return res.redirect('/login');
+  if (!user) return req.session.save(() => res.redirect('/login'));
 
   const newCode = Math.floor(100000 + Math.random() * 900000).toString();
   const newExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -687,7 +750,7 @@ router.post('/verify-email/resend', async (req, res) => {
     const host = forwardedHost || req.get('host') || 'localhost:3333';
     const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
     const protocol = isHttps ? 'https' : (req.protocol || 'http');
-    const verifyUrl = `${protocol}://${host}/verify-email?code=${newCode}`;
+    const verifyUrl = `${protocol}://${host}/verify-email?email=${encodeURIComponent(user.email)}&code=${newCode}`;
 
     const resendHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
@@ -722,7 +785,7 @@ router.post('/verify-email/resend', async (req, res) => {
 
   logActivity(user.id, 'EMAIL_VERIFICATION_RESENT', `Requested new email verification code`, req);
   req.session.flash = { success: `A fresh 6-digit confirmation code has been sent to ${user.email}.` };
-  return res.redirect('/verify-email');
+  return req.session.save(() => res.redirect('/verify-email'));
 });
 
 // GET /api/dev/verification-code (Quick test helper for dev/compliance preview)
