@@ -2797,8 +2797,8 @@
         <!-- ============================================================================== -->
 
                 <div x-show="activeTab === 'mailer'" class="space-y-8" x-cloak>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+            <div class="space-y-8">
+                <div class="w-full bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
                     <h2 class="text-xl font-bold font-serif text-content-primary">Custom Email Broadcaster & Direct Mailer</h2>
                     
                     <form action="/babyoku/mailer/send" method="POST" class="space-y-6">
@@ -2847,50 +2847,9 @@
                     </form>
                 </div>
 
-                <div class="luxury-glass-panel rounded-2xl p-6 shadow-xl space-y-4">
-                    <h3 class="text-sm font-bold uppercase text-content-primary">SMTP Relay Gateway</h3>
-                    <form action="/babyoku/mailer/smtp" method="POST" class="space-y-3 text-xs">
-                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
-                        <div>
-                            <label class="block text-content-secondary uppercase mb-1">Sender Name</label>
-                            <input type="text" name="from_name" value="<%= smtp.from_name || 'Mainstreet Capital Exchange Support' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                        </div>
-                        <div>
-                            <label class="block text-content-secondary uppercase mb-1">Sender Email</label>
-                            <input type="email" name="from_email" value="<%= smtp.from_email || 'support@mainstreetcapitalx.com' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="col-span-2">
-                                <label class="block text-content-secondary uppercase mb-1">SMTP Host</label>
-                                <input type="text" name="host" value="<%= smtp.host || 'smtp.gmail.com' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-content-secondary uppercase mb-1">Port</label>
-                                <input type="number" name="port" value="<%= smtp.port || 587 %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-content-secondary uppercase mb-1">SMTP Username</label>
-                            <input type="text" name="user" value="<%= smtp.user || '' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                        </div>
-                        <div>
-                            <label class="block text-content-secondary uppercase mb-1">SMTP Password</label>
-                            <input type="password" name="pass" value="<%= smtp.pass || '' %>" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded px-3 py-2 outline-none" />
-                        </div>
-                        <div class="pt-2">
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" name="is_active" value="1" <%= smtp.is_active ? 'checked' : '' %> class="text-primary rounded" />
-                                <span>Enable Live Network SMTP Relay</span>
-                            </label>
-                        </div>
-                        <button type="submit" class="w-full bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-primary font-bold py-2.5 rounded transition">
-                            Save SMTP Configuration
-                        </button>
-                    </form>
-                </div>
             </div>
 
-                        <!-- ============================================================================== -->
+            <!-- ============================================================================== -->
             <!-- LIVE POP-UP & IN-APP NOTIFICATION BROADCASTER                                 -->
             <!-- ============================================================================== -->
             <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
