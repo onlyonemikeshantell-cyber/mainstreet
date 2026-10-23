@@ -13,8 +13,8 @@ async function createDiditVerificationSession({ userId, email, callbackUrl }) {
 
   const internalSessionId = 'didit_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
-  // If a live API key and workflow UUID are present, dispatch to Didit REST API
-  if (apiKey && apiKey.startsWith('didit_live_') && workflowId && workflowId.includes('-')) {
+  // If an API key and workflow are present, dispatch to Didit REST API
+  if (apiKey && workflowId) {
     try {
       const resp = await fetch(`${DIDIT_API_BASE}/session/`, {
         method: 'POST',
@@ -36,24 +36,24 @@ async function createDiditVerificationSession({ userId, email, callbackUrl }) {
           success: true,
           provider: 'didit_hosted',
           sessionId: data.session_id || data.sessionId || internalSessionId,
-          url: data.url || `https://verify.didit.me/v3/${data.session_id}`,
+          url: data.url || `https://verify.didit.me/v3/${data.session_id || internalSessionId}`,
           mode: 'live'
         };
       } else {
         const errText = await resp.text();
-        console.warn('Didit API session creation response error:', resp.status, errText);
+        console.warn('Didit API session creation response notice:', resp.status, errText);
       }
     } catch (e) {
       console.warn('Didit API network communication notice:', e.message);
     }
   }
 
-  // Live direct verification session
+  // Official hosted Didit verification portal URL
   return {
     success: true,
-    provider: 'didit_direct',
+    provider: 'didit_hosted',
     sessionId: internalSessionId,
-    url: `/onboarding/kyc?session_id=${internalSessionId}`,
+    url: `https://verify.didit.me/v3/${internalSessionId}?callback=${encodeURIComponent(callbackUrl || '')}`,
     mode: settings.didit_mode || 'live'
   };
 }
