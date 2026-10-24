@@ -8,6 +8,7 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const loginAttempts = new Map();
 const ipAttempts = new Map();
 const passwordResetAttempts = new Map();
+const pendingRegOtps = new Map();
 
 setInterval(() => {
   const now = Date.now();
@@ -19,6 +20,9 @@ setInterval(() => {
   }
   for (const [k, r] of passwordResetAttempts) {
     if (now - r.first > LOGIN_WINDOW_MS) passwordResetAttempts.delete(k);
+  }
+  for (const [k, r] of pendingRegOtps) {
+    if (r.expires < now) pendingRegOtps.delete(k);
   }
 }, 10 * 60 * 1000).unref();
 
@@ -273,11 +277,11 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
       return res.redirect('/babyoku');
     }
     if (user.email_verified === 0) {
-      req.session.flash = { error: 'Step 4 of 4: Please enter your 6-digit email confirmation code to complete onboarding.' };
+      req.session.flash = { error: 'Step 2 of 4: Please enter your 6-digit email confirmation code to complete onboarding.' };
       return res.redirect('/verify-email');
     }
     if (user.kyc_status === 'unverified') {
-      req.session.flash = { error: 'Step 4 of 4: Please upload your identification document to complete onboarding.' };
+      req.session.flash = { error: 'Step 3 of 4: Please upload your identification document to complete onboarding.' };
       return res.redirect('/onboarding/kyc');
     }
     return res.redirect('/dashboard');
@@ -337,13 +341,13 @@ router.post('/login/2fa', (req, res) => {
     if (isAdminLogin || user.role === 'admin') {
       return res.redirect('/babyoku');
     }
+    if (user.email_verified === 0) {
+      req.session.flash = { error: 'Step 2 of 4: Please verify your email address to access your trading account.' };
+      return res.redirect('/verify-email');
+    }
     if (user.kyc_status === 'unverified') {
       req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
       return res.redirect('/onboarding/kyc');
-    }
-    if (user.email_verified === 0) {
-      req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
-      return res.redirect('/verify-email');
     }
     return res.redirect('/dashboard');
   });
@@ -370,11 +374,134 @@ router.get('/register', (req, res) => {
   });
 });
 
+// POST /register/send-otp -> Step 2 of 4: Dispatch 6-Digit Email Verification Code
+router.post('/register/send-otp', async (req, res) => {
+  const { name, email } = req.body || {};
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanName = (name || 'Valued Trader').trim();
+
+  if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+  }
+
+  const existing = db.prepare('SELECT id, email_verified FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+  if (existing && existing.email_verified === 1) {
+    return res.status(400).json({
+      success: false,
+      error: 'An account with that email already exists. Please sign in.'
+    });
+  }
+
+  const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresMs = Date.now() + 15 * 60 * 1000;
+  const otpRecord = {
+    email: cleanEmail,
+    code: emailCode,
+    expires: expiresMs,
+    verified: false
+  };
+
+  pendingRegOtps.set(cleanEmail, otpRecord);
+  req.session.regOtp = otpRecord;
+
+  let emailDelivery = { success: false, error: 'Email dispatch was not attempted' };
+  try {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const host = forwardedHost || req.get('host') || 'localhost:3333';
+    const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+    const protocol = isHttps ? 'https' : (req.protocol || 'http');
+
+    const verifyEmailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
+          <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
+        </div>
+        <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 2 of 4)</h2>
+        <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
+          Hello <strong>${cleanName}</strong>, welcome to Mainstreet Capital Exchange. Enter the 6-digit confirmation code below on the registration screen to complete Step 2 of 4:
+        </p>
+        <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: 10px; color: #FFFFFF; font-family: 'SF Mono', Consolas, Monaco, monospace; text-indent: 10px;">${emailCode}</div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 8px;">Code expires in 15 minutes</div>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #1E293B; margin: 25px 0 20px;" />
+        <p style="font-size: 11px; color: #64748B; line-height: 1.5; margin: 0; text-align: center;">
+          If you did not request this verification code, please ignore this email or notify support@mainstreetcapitalx.com.
+        </p>
+      </div>
+    `;
+
+    console.log(`[STEP 2 OTP DISPATCH] Generated 6-digit code ${emailCode} for ${cleanEmail}`);
+    const dispatchResult = await sendEmail({
+      to: cleanEmail,
+      subject: 'Step 2 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
+      html: verifyEmailHtml,
+      recipientType: 'user'
+    });
+    if (dispatchResult && dispatchResult.success) {
+      emailDelivery = { success: true, error: null };
+    } else {
+      emailDelivery = { success: false, error: dispatchResult?.error || 'Unknown email error' };
+    }
+  } catch (e) {
+    emailDelivery = { success: false, error: e.message };
+  }
+
+  return req.session.save(() => {
+    res.json({
+      success: true,
+      deliverySuccess: emailDelivery.success,
+      error: emailDelivery.error
+    });
+  });
+});
+
+// POST /register/verify-otp -> Step 2 of 4: Verify 6-Digit Email Code Before Step 3 (Upload ID)
+router.post('/register/verify-otp', (req, res) => {
+  const { email, code } = req.body || {};
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanCode = String(code || '').replace(/\D/g, '').trim();
+
+  if (!cleanEmail || cleanCode.length !== 6) {
+    return res.status(400).json({ success: false, error: 'Please enter all 6 digits of your confirmation code.' });
+  }
+
+  const sessRecord = (req.session.regOtp && req.session.regOtp.email === cleanEmail) ? req.session.regOtp : null;
+  const memRecord = pendingRegOtps.get(cleanEmail) || null;
+  const record = sessRecord || memRecord;
+
+  if (!record) {
+    return res.status(400).json({ success: false, error: 'No active verification code found. Please click Resend Code.' });
+  }
+
+  if (Date.now() > record.expires) {
+    return res.status(400).json({ success: false, error: 'Verification code has expired. Please click Resend Code.' });
+  }
+
+  if (record.code !== cleanCode && (!memRecord || memRecord.code !== cleanCode)) {
+    return res.status(400).json({ success: false, error: 'Invalid verification code. Please check your email and try again.' });
+  }
+
+  record.verified = true;
+  if (sessRecord) sessRecord.verified = true;
+  if (memRecord) memRecord.verified = true;
+  pendingRegOtps.set(cleanEmail, record);
+  req.session.regOtp = record;
+
+  return req.session.save(() => {
+    res.json({ success: true });
+  });
+});
+
 // POST /register - Streamlined High-Converting Instant Onboarding with Mandatory KYC
-// Sequence: Details (Step 1) -> Live Verification (Step 2) -> Email OTP (Step 3) -> Upload ID (Step 4)
+// Sequence: Step 1 (Details) -> Step 2 (Email OTP) -> Step 3 (Upload ID) -> Step 4 (Live Check)
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
+    otp_code,
     doc_type, doc_number, front_image, back_image,
     video_data
   } = req.body;
@@ -394,14 +521,14 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/register'));
   }
 
-  // Step 2: ID Verification Enforcement
+  // Step 3: ID Verification Enforcement
   const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
   if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
     req.session.flash = { error: 'Please provide complete government ID document details and photos.' };
     return req.session.save(() => res.redirect('/register'));
   }
 
-  // Step 3: Live Biometric Verification Enforcement
+  // Step 4: Live Biometric Verification Enforcement
   if (!video_data) {
     req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
     return req.session.save(() => res.redirect('/register'));
@@ -426,19 +553,28 @@ router.post('/register', async (req, res) => {
     }
   }
 
+  // Check if Step 2 Email OTP was verified during the registration wizard
+  const cleanSubmittedOtp = String(otp_code || '').replace(/\D/g, '').trim();
+  const sessOtp = (req.session.regOtp && req.session.regOtp.email === cleanEmail) ? req.session.regOtp : null;
+  const memOtp = pendingRegOtps.get(cleanEmail) || null;
+  const isStep2EmailVerified = Boolean(
+    (sessOtp && (sessOtp.verified || (cleanSubmittedOtp && sessOtp.code === cleanSubmittedOtp))) ||
+    (memOtp && (memOtp.verified || (cleanSubmittedOtp && memOtp.code === cleanSubmittedOtp)))
+  );
+
   const systemSettings = db.prepare('SELECT auto_approve_kyc, didit_auto_approve FROM system_settings WHERE id = 1').get() || {};
   const isAutoApprove = ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) === 1);
   const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
   const docStatus = isAutoApprove ? 'approved' : 'pending';
 
   const hash = bcrypt.hashSync(password, 10);
-  const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const emailCode = isStep2EmailVerified ? null : Math.floor(100000 + Math.random() * 900000).toString();
+  const codeExpires = isStep2EmailVerified ? null : new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
     const result = db.prepare(`
       INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 0, ?, ?, 1)
+      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, ?, ?, ?, 1)
     `).run(
       name.trim(),
       cleanEmail,
@@ -446,6 +582,7 @@ router.post('/register', async (req, res) => {
       country ? country.trim() : 'United States',
       hash,
       initialKycStatus,
+      isStep2EmailVerified ? 1 : 0,
       emailCode,
       codeExpires
     );
@@ -454,7 +591,7 @@ router.post('/register', async (req, res) => {
 
     // Process and store ID documents & live biometric verification
     const resolveDocPath = (img, prefix, fallback) => {
-      if (img && typeof img === 'string' && img.startsWith('/')) return img;
+      if (img && typeof img === String(img) && img.startsWith('/')) return img;
       return saveBase64Media(img, prefix, newUserId) || fallback;
     };
 
@@ -515,11 +652,38 @@ router.post('/register', async (req, res) => {
       `).run(
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
-        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 4 (Email OTP) to unlock live trading.'
+        isStep2EmailVerified
+          ? 'Your institutional trading account has been verified and initialized with $10,000 demo capital.'
+          : 'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 2 (Email OTP) to unlock live trading.'
       );
     } catch(e) {}
 
-    // Dispatch Institutional Email Verification Code to Registered Inbox
+    // Set session user & auto-login
+    req.session.userId = newUserId;
+    req.session.csrfToken = crypto.randomBytes(24).toString('hex');
+    req.session.regOtp = null;
+    pendingRegOtps.delete(cleanEmail);
+
+    const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
+    req.session.user = {
+      id: fullUser.id,
+      name: fullUser.name,
+      email: fullUser.email,
+      role: fullUser.role,
+      country: fullUser.country,
+      kyc_status: fullUser.kyc_status,
+      email_verified: fullUser.email_verified,
+      balance: fullUser.balance,
+      equity: fullUser.equity
+    };
+
+    if (isStep2EmailVerified) {
+      logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed all 4 steps (Details -> Email OTP -> Upload ID -> Live Check)`, req);
+      req.session.flash = { success: 'Account verified & activated! Welcome to your Mainstreet Capital Exchange trading terminal.' };
+      return req.session.save(() => res.redirect('/dashboard'));
+    }
+
+    // Fallback if POST /register was invoked directly without pre-verifying Step 2 OTP
     let emailDelivery = { success: false, error: 'Email dispatch was not attempted' };
     try {
       const forwardedProto = req.headers['x-forwarded-proto'];
@@ -535,9 +699,9 @@ router.post('/register', async (req, res) => {
             <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
             <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
           </div>
-          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 4 of 4)</h2>
+          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 2 of 4)</h2>
           <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
-            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below for Step 4 of 4:
+            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below for Step 2 of 4:
           </p>
           <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
             <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>
@@ -560,7 +724,7 @@ router.post('/register', async (req, res) => {
       console.log(`[OTP DISPATCH] Generated 6-digit verification code ${emailCode} for ${cleanEmail}`);
       const dispatchResult = await sendEmail({
         to: cleanEmail,
-        subject: 'Step 4 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
+        subject: 'Step 2 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
         html: verifyEmailHtml,
         recipientType: 'user'
       });
@@ -576,28 +740,11 @@ router.post('/register', async (req, res) => {
       emailDelivery = { success: false, error: e.message };
     }
 
-    // Set session user & auto-login
-    req.session.userId = newUserId;
-    req.session.csrfToken = crypto.randomBytes(24).toString('hex');
-
-    const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
-    req.session.user = {
-      id: fullUser.id,
-      name: fullUser.name,
-      email: fullUser.email,
-      role: fullUser.role,
-      country: fullUser.country,
-      kyc_status: fullUser.kyc_status,
-      email_verified: 0,
-      balance: fullUser.balance,
-      equity: fullUser.equity
-    };
-
-    logActivity(newUserId, 'REGISTER_ONBOARDING_STEP3_COMPLETED', `User completed Step 2 (ID) & Step 3 (Live check), proceeding to Step 4 (Email OTP)`, req);
+    logActivity(newUserId, 'REGISTER_PENDING_EMAIL_OTP', `User registered, proceeding to Email OTP verification`, req);
 
     req.session.otpDelivery = emailDelivery;
     req.session.flash = emailDelivery.success
-      ? { success: `Identity verification confirmed! Step 4 of 4: Enter the 6-digit confirmation code sent to ${cleanEmail}.` }
+      ? { success: `Step 2 of 4: Enter the 6-digit confirmation code sent to ${cleanEmail}.` }
       : { error: `We could not deliver the confirmation email to ${cleanEmail}. Reason: ${emailDelivery.error}` };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {

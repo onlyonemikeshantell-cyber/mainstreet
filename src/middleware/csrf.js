@@ -4,6 +4,8 @@ const EXEMPT_PREFIXES = [
   '/api/webhooks',
   '/api/market/sync-live-price',
   '/api/notifications',
+  '/register/send-otp',
+  '/register/verify-otp',
   '/logout',
   '/babyoku/logout',
   '/admin/logout',

@@ -141,7 +141,7 @@ const requireAuth = (req, res, next) => {
     return res.redirect('/login');
   }
 
-  // 1. Mandatory Email Verification Gate (Step 3 of 4 in Onboarding Sequence)
+  // 1. Mandatory Email Verification Gate (Step 2 of 4 in Onboarding Sequence)
   const isEmailExempt = req.path === '/verify-email' || 
                         req.path.startsWith('/verify-email') || 
                         req.path === '/logout';
@@ -150,7 +150,7 @@ const requireAuth = (req, res, next) => {
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
       return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to proceed.' });
     }
-    req.session.flash = { error: 'Step 3 of 4: Please verify your email address to proceed with onboarding.' };
+    req.session.flash = { error: 'Step 2 of 4: Please verify your email address to proceed with onboarding.' };
     return req.session.save(() => res.redirect('/verify-email'));
   }
 

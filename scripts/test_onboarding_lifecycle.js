@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 console.log('==================================================');
 console.log('TESTING ONBOARDING LIFECYCLE (1 -> 2 -> 3 -> 4)');
-console.log('1. Details -> 2. Upload ID -> 3. Live Check -> 4. Email OTP');
+console.log('1. Details -> 2. Email OTP -> 3. Upload ID -> 4. Live Check');
 console.log('==================================================');
 
 const testEmail = 'onboarding_test_' + Date.now() + '@example.com';

@@ -3,10 +3,12 @@
 <script>
 function registerComponent() {
     return {
-             step: 1, // 1: Details, 2: Upload ID, 3: Live Verification
+             step: 1, // 1: Details, 2: Email OTP, 3: Upload ID, 4: Live Check
              step1Error: '',
              step2Error: '',
+             step2Success: '',
              step3Error: '',
+             step4Error: '',
              isSubmitting: false,
 
              // ================= STEP 1: DETAILS =================
@@ -21,7 +23,16 @@ function registerComponent() {
              countryDropdownOpen: false,
              countrySearch: '',
 
-             // ================= STEP 2: UPLOAD ID =================
+             // ================= STEP 2: EMAIL OTP =================
+             otpDigits: ['', '', '', '', '', ''],
+             otpSending: false,
+             otpVerifying: false,
+             emailVerified: false,
+             verifiedEmail: '',
+             resendCooldown: 0,
+             resendTimer: null,
+
+             // ================= STEP 3: UPLOAD ID =================
              docType: 'National ID Card',
              docNumber: '',
              frontData: '',
@@ -35,7 +46,7 @@ function registerComponent() {
              idCameraStream: null,
              idCameraError: '',
 
-             // ================= STEP 3: LIVE VERIFICATION =================
+             // ================= STEP 4: LIVE VERIFICATION =================
              videoData: '',
              selfiePreview: null,
              liveCameraActive: false,
@@ -94,15 +105,34 @@ function registerComponent() {
                  if (score === 2) return { label: 'Good', width: '75%', color: 'bg-sky-500', textColor: 'text-sky-500' };
                  return { label: 'Strong', width: '100%', color: 'bg-gain', textColor: 'text-gain' };
              },
+             get combinedOtp() {
+                 return this.otpDigits.join('');
+             },
 
-             // Step 1 -> Step 2
-             goToStep2() {
+             startResendCooldown(seconds = 15) {
+                 if (this.resendTimer) clearInterval(this.resendTimer);
+                 this.resendCooldown = seconds;
+                 this.resendTimer = setInterval(() => {
+                     if (this.resendCooldown > 0) {
+                         this.resendCooldown--;
+                     } else {
+                         clearInterval(this.resendTimer);
+                         this.resendTimer = null;
+                     }
+                 }, 1000);
+             },
+
+             // Step 1 -> Step 2 (Email OTP)
+             async goToStep2() {
                  this.step1Error = '';
+                 this.step2Error = '';
+                 this.step2Success = '';
                  if (!this.name.trim()) {
                      this.step1Error = 'Please enter your full legal name.';
                      return;
                  }
-                 if (!this.email.trim() || !this.email.includes('@') || !this.email.includes('.')) {
+                 const cleanEmail = this.email.trim().toLowerCase();
+                 if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
                      this.step1Error = 'Please enter a valid email address.';
                      return;
                  }
@@ -114,26 +144,199 @@ function registerComponent() {
                      this.step1Error = 'Passwords do not match.';
                      return;
                  }
-                 this.step = 2;
-                 window.scrollTo({ top: 80, behavior: 'smooth' });
+
+                 // If this email was already verified in Step 2 during this session, skip straight to Step 3
+                 if (this.emailVerified && this.verifiedEmail === cleanEmail) {
+                     this.step = 3;
+                     window.scrollTo({ top: 80, behavior: 'smooth' });
+                     return;
+                 }
+
+                 this.otpSending = true;
+                 try {
+                     const res = await fetch('/register/send-otp', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                         credentials: 'same-origin',
+                         body: JSON.stringify({
+                             name: this.name.trim(),
+                             email: cleanEmail
+                         })
+                     });
+                     const data = await res.json();
+                     if (!res.ok || !data.success) {
+                         this.step1Error = (data && data.error) || 'Could not dispatch verification code. Please check your email and try again.';
+                         this.otpSending = false;
+                         return;
+                     }
+
+                     this.otpDigits = ['', '', '', '', '', ''];
+                     this.step = 2;
+                     if (data.deliverySuccess === false) {
+                         this.step2Error = `We could not deliver the confirmation email to ${cleanEmail}. ${data.error || ''}`;
+                     } else {
+                         this.step2Success = `A 6-digit verification code has been sent to ${cleanEmail}.`;
+                     }
+                     this.startResendCooldown(15);
+                     window.scrollTo({ top: 80, behavior: 'smooth' });
+                     this.$nextTick(() => {
+                         const first = document.getElementById('reg-otp-0');
+                         if (first) first.focus();
+                     });
+                 } catch (e) {
+                     this.step1Error = 'Network error while sending OTP code. Please try again.';
+                 } finally {
+                     this.otpSending = false;
+                 }
              },
 
-             // Step 2 -> Step 3
-             goToStep3() {
+             async resendStep2Otp() {
+                 if (this.resendCooldown > 0 || this.otpSending) return;
                  this.step2Error = '';
+                 this.step2Success = '';
+                 this.otpSending = true;
+                 try {
+                     const cleanEmail = this.email.trim().toLowerCase();
+                     const res = await fetch('/register/send-otp', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                         credentials: 'same-origin',
+                         body: JSON.stringify({
+                             name: this.name.trim(),
+                             email: cleanEmail
+                         })
+                     });
+                     const data = await res.json();
+                     if (!res.ok || !data.success) {
+                         this.step2Error = (data && data.error) || 'Failed to resend code. Please try again.';
+                     } else if (data.deliverySuccess === false) {
+                         this.step2Error = `Could not deliver email to ${cleanEmail}. ${data.error || ''}`;
+                     } else {
+                         this.otpDigits = ['', '', '', '', '', ''];
+                         this.step2Success = `A fresh 6-digit code has been sent to ${cleanEmail}.`;
+                         this.startResendCooldown(15);
+                         this.$nextTick(() => {
+                             const first = document.getElementById('reg-otp-0');
+                             if (first) first.focus();
+                         });
+                     }
+                 } catch (e) {
+                     this.step2Error = 'Network error while resending code.';
+                 } finally {
+                     this.otpSending = false;
+                 }
+             },
+
+             handleOtpInput(index, event) {
+                 const val = (event.target.value || '').replace(/[^0-9]/g, '');
+                 const digit = val ? val.slice(-1) : '';
+                 this.otpDigits[index] = digit;
+                 event.target.value = digit;
+
+                 if (digit && index < 5) {
+                     const nextEl = document.getElementById('reg-otp-' + (index + 1));
+                     if (nextEl) nextEl.focus();
+                 }
+
+                 if (this.combinedOtp.length === 6) {
+                     this.verifyStep2Otp();
+                 }
+             },
+
+             handleOtpKeydown(index, event) {
+                 if (event.key === 'Backspace') {
+                     if (!this.otpDigits[index] && index > 0) {
+                         this.otpDigits[index - 1] = '';
+                         const prevEl = document.getElementById('reg-otp-' + (index - 1));
+                         if (prevEl) {
+                             prevEl.value = '';
+                             prevEl.focus();
+                         }
+                     }
+                 } else if (event.key === 'ArrowLeft' && index > 0) {
+                     const prevEl = document.getElementById('reg-otp-' + (index - 1));
+                     if (prevEl) prevEl.focus();
+                 } else if (event.key === 'ArrowRight' && index < 5) {
+                     const nextEl = document.getElementById('reg-otp-' + (index + 1));
+                     if (nextEl) nextEl.focus();
+                 }
+             },
+
+             handleOtpPaste(event) {
+                 event.preventDefault();
+                 const clipboard = (event.clipboardData || window.clipboardData).getData('text') || '';
+                 const digits = clipboard.replace(/[^0-9]/g, '').slice(0, 6);
+                 if (!digits) return;
+                 for (let i = 0; i < 6; i++) {
+                     this.otpDigits[i] = digits[i] || '';
+                     const el = document.getElementById('reg-otp-' + i);
+                     if (el) el.value = this.otpDigits[i];
+                 }
+                 const lastIdx = Math.min(digits.length, 6) - 1;
+                 const lastEl = document.getElementById('reg-otp-' + lastIdx);
+                 if (lastEl) lastEl.focus();
+                 if (this.combinedOtp.length === 6) {
+                     this.verifyStep2Otp();
+                 }
+             },
+
+             // Step 2 -> Step 3 (Upload ID)
+             async verifyStep2Otp() {
+                 if (this.otpVerifying) return;
+                 this.step2Error = '';
+                 this.step2Success = '';
+                 const code = this.combinedOtp;
+                 if (code.length !== 6) {
+                     this.step2Error = 'Please enter all 6 digits of your verification code.';
+                     return;
+                 }
+
+                 this.otpVerifying = true;
+                 try {
+                     const cleanEmail = this.email.trim().toLowerCase();
+                     const res = await fetch('/register/verify-otp', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                         credentials: 'same-origin',
+                         body: JSON.stringify({
+                             email: cleanEmail,
+                             code
+                         })
+                     });
+                     const data = await res.json();
+                     if (!res.ok || !data.success) {
+                         this.step2Error = (data && data.error) || 'Invalid verification code. Please check your email and try again.';
+                         this.otpVerifying = false;
+                         return;
+                     }
+
+                     this.emailVerified = true;
+                     this.verifiedEmail = cleanEmail;
+                     this.step = 3;
+                     window.scrollTo({ top: 80, behavior: 'smooth' });
+                 } catch (e) {
+                     this.step2Error = 'Network error while verifying code. Please try again.';
+                 } finally {
+                     this.otpVerifying = false;
+                 }
+             },
+
+             // Step 3 -> Step 4 (Live Verification)
+             goToStep4() {
+                 this.step3Error = '';
                  if (!this.docNumber.trim()) {
-                     this.step2Error = 'Please enter your document ID number.';
+                     this.step3Error = 'Please enter your document ID number.';
                      return;
                  }
                  if (!this.frontData) {
-                     this.step2Error = 'Please upload or snap the front photo of your ID document.';
+                     this.step3Error = 'Please upload or snap the front photo of your ID document.';
                      return;
                  }
                  if (this.docType !== 'International Passport' && !this.backData) {
-                     this.step2Error = 'Please upload or snap the back photo of your ID document.';
+                     this.step3Error = 'Please upload or snap the back photo of your ID document.';
                      return;
                  }
-                 this.step = 3;
+                 this.step = 4;
                  window.scrollTo({ top: 80, behavior: 'smooth' });
                  setTimeout(() => this.startLivenessCamera(), 300);
              },
@@ -267,9 +470,9 @@ function registerComponent() {
 
              submitRegistration() {
                  if (this.isSubmitting) return;
-                 this.step3Error = '';
+                 this.step4Error = '';
                  if (!this.videoData && !this.liveVerified) {
-                     this.step3Error = 'Please capture your face photo using the camera to proceed.';
+                     this.step4Error = 'Please capture your face photo using the camera to proceed.';
                      return;
                  }
                  this.isSubmitting = true;
@@ -281,6 +484,7 @@ function registerComponent() {
                      if (form.elements['country']) form.elements['country'].value = this.country;
                      if (form.elements['password']) form.elements['password'].value = this.password;
                      if (form.elements['confirm_password']) form.elements['confirm_password'].value = this.confirmPassword;
+                     if (form.elements['otp_code']) form.elements['otp_code'].value = this.combinedOtp;
                      if (form.elements['doc_type']) form.elements['doc_type'].value = this.docType;
                      if (form.elements['doc_number']) form.elements['doc_number'].value = this.docNumber;
                      if (form.elements['front_image']) form.elements['front_image'].value = this.frontData;
@@ -313,7 +517,7 @@ if (window.Alpine) {
             <p class="text-xs text-content-secondary max-w-sm mx-auto">Complete institutional verification to access live markets & $10,000 demo capital.</p>
         </div>
 
-        <!-- Sleek Modern Progress Stepper -->
+        <!-- Sleek Modern Progress Stepper (1: Details -> 2: Email OTP -> 3: Upload ID -> 4: Live Check) -->
         <div class="relative px-3 pt-1 pb-2">
             <!-- Background connecting line -->
             <div class="absolute left-8 right-8 top-5 -translate-y-1/2 h-0.5 bg-surface-border z-0">
@@ -333,32 +537,35 @@ if (window.Alpine) {
                     <span class="text-[10px] font-semibold mt-1.5" :class="step >= 1 ? 'text-content-primary' : 'text-content-tertiary'">Details</span>
                 </div>
 
-                <!-- Step 2: Upload ID -->
-                <div @click="if (step > 2) { step = 2; stopLivenessCamera(); }" 
+                <!-- Step 2: Email OTP -->
+                <div @click="if (step > 2) { step = 2; stopIdCamera(); stopLivenessCamera(); }" 
                      class="flex flex-col items-center" :class="step > 2 ? 'cursor-pointer' : ''">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
                          :class="step > 2 ? 'bg-emerald-500 text-white border-emerald-500 !ring-0' : (step === 2 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
                         <span x-show="step > 2" style="display: none;">✓</span>
                         <span x-show="step <= 2">2</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Upload ID</span>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Email OTP</span>
                 </div>
 
-                <!-- Step 3: Live Check -->
+                <!-- Step 3: Upload ID -->
+                <div @click="if (step > 3) { step = 3; stopLivenessCamera(); }"
+                     class="flex flex-col items-center" :class="step > 3 ? 'cursor-pointer' : ''">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
+                         :class="step > 3 ? 'bg-emerald-500 text-white border-emerald-500 !ring-0' : (step === 3 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
+                        <span x-show="step > 3" style="display: none;">✓</span>
+                        <span x-show="step <= 3">3</span>
+                    </div>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 3 ? 'text-content-primary' : 'text-content-tertiary'">Upload ID</span>
+                </div>
+
+                <!-- Step 4: Live Check -->
                 <div class="flex flex-col items-center">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
-                         :class="step === 3 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : (step > 3 ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
-                        <span>3</span>
-                    </div>
-                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 3 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
-                </div>
-
-                <!-- Step 4: Email OTP -->
-                <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm z-10">
+                         :class="step === 4 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary'">
                         <span>4</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 4 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
                 </div>
             </div>
         </div>
@@ -378,18 +585,26 @@ if (window.Alpine) {
             </div>
         <% } %>
 
-        <!-- Validation Error Alerts -->
-        <div x-show="step1Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+        <!-- Validation Error & Status Alerts -->
+        <div x-show="step === 1 && step1Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
             <span>⚠️</span>
             <span x-text="step1Error"></span>
         </div>
-        <div x-show="step2Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+        <div x-show="step === 2 && step2Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
             <span>⚠️</span>
             <span x-text="step2Error"></span>
         </div>
-        <div x-show="step3Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+        <div x-show="step === 2 && step2Success" class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+            <span>✓</span>
+            <span x-text="step2Success"></span>
+        </div>
+        <div x-show="step === 3 && step3Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
             <span>⚠️</span>
             <span x-text="step3Error"></span>
+        </div>
+        <div x-show="step === 4 && step4Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+            <span>⚠️</span>
+            <span x-text="step4Error"></span>
         </div>
 
         <!-- Master Form Submit Container -->
@@ -401,6 +616,7 @@ if (window.Alpine) {
             <input type="hidden" name="country" :value="country" />
             <input type="hidden" name="password" :value="password" />
             <input type="hidden" name="confirm_password" :value="confirmPassword" />
+            <input type="hidden" name="otp_code" :value="combinedOtp" />
             <input type="hidden" name="doc_type" :value="docType" />
             <input type="hidden" name="doc_number" :value="docNumber" />
             <input type="hidden" name="front_image" :value="frontData" />
@@ -433,7 +649,7 @@ if (window.Alpine) {
                     <label class="block text-xs font-semibold text-content-secondary">Email Address <span class="text-rose-500">*</span></label>
                     <input type="email" x-model="email" required placeholder="trader@domain.com"
                            class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition" />
-                    <span class="text-[11px] text-content-tertiary">A 6-digit confirmation code will be dispatched here in Step 4.</span>
+                    <span class="text-[11px] text-content-tertiary">A 6-digit confirmation code will be dispatched here in Step 2.</span>
                 </div>
 
                 <!-- Phone & Country Grid -->
@@ -506,22 +722,98 @@ if (window.Alpine) {
                 </div>
 
                 <!-- Next CTA -->
-                <button type="button" @click="goToStep2()"
-                        class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer mt-2">
-                    <span>Continue to Step 2: Upload ID &rarr;</span>
+                <button type="button" @click="goToStep2()" :disabled="otpSending"
+                        class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer mt-2 disabled:opacity-50">
+                    <span x-show="!otpSending">Continue to Step 2: Email OTP &rarr;</span>
+                    <span x-show="otpSending" class="flex items-center space-x-2">
+                        <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span>Sending 6-Digit Verification Code...</span>
+                    </span>
                 </button>
             </div>
 
             <!-- ========================================================================= -->
-            <!-- STEP 2: UPLOAD GOVERNMENT ID                                              -->
+            <!-- STEP 2: EMAIL OTP VERIFICATION                                            -->
             <!-- ========================================================================= -->
-            <div x-show="step === 2" class="space-y-4" x-cloak>
+            <div x-show="step === 2" class="space-y-5" x-cloak>
+                <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+                    <div>
+                        <h2 class="text-sm font-bold text-content-primary">Email OTP Verification</h2>
+                        <p class="text-xs text-content-secondary">Confirm ownership of <span class="font-mono font-semibold text-content-primary" x-text="email"></span></p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 2 of 4</span>
+                </div>
+
+                <!-- Spam Folder Notice -->
+                <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-200 text-xs leading-relaxed flex items-start space-x-2.5">
+                    <span class="text-base leading-none mt-0.5">📨</span>
+                    <div><strong>Check your Inbox & Spam:</strong> Enter the 6-digit code sent from <strong>support@mainstreetcapitalx.com</strong> to <strong class="font-mono" x-text="email"></strong>.</div>
+                </div>
+
+                <!-- 6-Digit OTP Boxes -->
+                <div class="py-1">
+                    <label class="block uppercase font-semibold text-content-secondary font-sans text-[11px] mb-3 text-center tracking-wider">
+                        Enter 6-Digit Confirmation OTP
+                    </label>
+                    <div class="flex items-center justify-center space-x-2 sm:space-x-2.5">
+                        <input id="reg-otp-0" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="one-time-code"
+                               @input="handleOtpInput(0, $event)" @keydown="handleOtpKeydown(0, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                        <input id="reg-otp-1" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
+                               @input="handleOtpInput(1, $event)" @keydown="handleOtpKeydown(1, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                        <input id="reg-otp-2" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
+                               @input="handleOtpInput(2, $event)" @keydown="handleOtpKeydown(2, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                        <input id="reg-otp-3" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
+                               @input="handleOtpInput(3, $event)" @keydown="handleOtpKeydown(3, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                        <input id="reg-otp-4" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
+                               @input="handleOtpInput(4, $event)" @keydown="handleOtpKeydown(4, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                        <input id="reg-otp-5" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
+                               @input="handleOtpInput(5, $event)" @keydown="handleOtpKeydown(5, $event)" @paste="handleOtpPaste($event)"
+                               class="w-11 h-14 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl sm:text-2xl bg-surface-overlay border border-surface-border text-content-primary rounded-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition" />
+                    </div>
+                </div>
+
+                <!-- Resend Code Button -->
+                <div class="text-center">
+                    <button type="button" @click="resendStep2Otp()" :disabled="resendCooldown > 0 || otpSending"
+                            class="text-xs font-semibold text-content-secondary hover:text-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="resendCooldown > 0">Resend fresh code in <strong class="text-primary font-mono" x-text="resendCooldown + 's'"></strong></span>
+                        <span x-show="resendCooldown === 0 && !otpSending">Didn't receive the email? <strong class="text-primary hover:underline font-bold">Resend Code</strong></span>
+                        <span x-show="otpSending">Sending fresh code...</span>
+                    </button>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex items-center space-x-3 pt-2">
+                    <button type="button" @click="step = 1"
+                            class="py-3.5 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
+                        &larr; Back to Details
+                    </button>
+                    <button type="button" @click="verifyStep2Otp()" :disabled="otpVerifying || combinedOtp.length !== 6"
+                            class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span x-show="!otpVerifying">Verify & Continue to Step 3: Upload ID &rarr;</span>
+                        <span x-show="otpVerifying" class="flex items-center space-x-2">
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            <span>Verifying Code...</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================================================= -->
+            <!-- STEP 3: UPLOAD GOVERNMENT ID                                              -->
+            <!-- ========================================================================= -->
+            <div x-show="step === 3" class="space-y-4" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                     <div>
                         <h2 class="text-sm font-bold text-content-primary">Identification Document</h2>
                         <p class="text-xs text-content-secondary">Government-issued document clearance</p>
                     </div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 2 of 4</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 3 of 4</span>
                 </div>
 
                 <!-- Document Type & Number Grid -->
@@ -654,27 +946,27 @@ if (window.Alpine) {
 
                 <!-- Navigation Buttons -->
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="button" @click="step = 1; stopIdCamera();"
+                    <button type="button" @click="step = 2; stopIdCamera();"
                             class="py-3.5 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
-                        &larr; Back to Details
+                        &larr; Back to Email OTP
                     </button>
-                    <button type="button" @click="goToStep3()" :disabled="!frontData || (!backData && docType !== 'International Passport')"
+                    <button type="button" @click="goToStep4()" :disabled="!frontData || (!backData && docType !== 'International Passport')"
                             class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span>Continue to Step 3: Live Verification &rarr;</span>
+                        <span>Continue to Step 4: Live Verification &rarr;</span>
                     </button>
                 </div>
             </div>
 
             <!-- ========================================================================= -->
-            <!-- STEP 3: LIVE BIOMETRIC VERIFICATION                                       -->
+            <!-- STEP 4: LIVE BIOMETRIC VERIFICATION                                       -->
             <!-- ========================================================================= -->
-            <div x-show="step === 3" class="space-y-4" x-cloak>
+            <div x-show="step === 4" class="space-y-4" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                     <div>
                         <h2 class="text-sm font-bold text-content-primary">Face Verification</h2>
                         <p class="text-xs text-content-secondary">Quick selfie check to confirm identity match against ID</p>
                     </div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 3 of 4</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 4 of 4</span>
                 </div>
 
                 <!-- Biometric Camera Box -->
@@ -740,16 +1032,16 @@ if (window.Alpine) {
 
                 <!-- Navigation & Final Submit Button -->
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="button" @click="step = 2; stopLivenessCamera();"
+                    <button type="button" @click="step = 3; stopLivenessCamera();"
                             class="py-3 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
                         &larr; Back to Upload ID
                     </button>
                     <button type="button" @click="submitRegistration()" :disabled="isSubmitting || (!videoData && !liveVerified)"
                             class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span x-show="!isSubmitting">Proceed to Step 4: Email OTP &rarr;</span>
+                        <span x-show="!isSubmitting">Complete Registration & Open Terminal &rarr;</span>
                         <span x-show="isSubmitting" class="flex items-center space-x-2">
                             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                            <span>Creating account & sending OTP code...</span>
+                            <span>Activating trading account...</span>
                         </span>
                     </button>
                 </div>
