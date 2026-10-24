@@ -3,6 +3,9 @@ const { detectGeoFromRequest } = require('../services/geoService');
 
 const requireAuth = (req, res, next) => {
   if (!req.session.userId) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, error: 'Please login to access this section.' });
+    }
     req.session.flash = { error: 'Please login to access this section.' };
     return res.redirect('/login');
   }
@@ -13,6 +16,22 @@ const requireAuth = (req, res, next) => {
       res.redirect('/login');
     });
     return;
+  }
+  if (user.role !== 'admin') {
+    if (user.email_verified === 0) {
+      if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+        return res.status(403).json({ success: false, error: 'Email verification required.' });
+      }
+      req.session.flash = { error: 'Step 2 of 4: Please verify your email address to proceed.' };
+      return req.session.save(() => res.redirect('/verify-email'));
+    }
+    if (user.kyc_status !== 'verified') {
+      if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+        return res.status(403).json({ success: false, error: 'Your KYC verification must be approved before accessing your account.' });
+      }
+      req.session.flash = { error: 'Please wait until your KYC verification is approved before accessing your account.' };
+      return req.session.save(() => res.redirect('/onboarding/kyc'));
+    }
   }
   next();
 };
@@ -64,4 +83,3 @@ const injectUser = (req, res, next) => {
 };
 
 module.exports = { requireAuth, requireAdmin, injectUser };
-

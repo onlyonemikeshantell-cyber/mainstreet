@@ -612,16 +612,25 @@ router.post(['/babyoku/user/status', '/admin/user/status'], (req, res) => {
   res.redirect('/babyoku');
 });
 
-router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], (req, res) => {
+router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], async (req, res) => {
   const { user_id, kyc_status } = req.body;
   const validStatus = ['verified', 'pending', 'rejected', 'unverified'].includes(kyc_status) ? kyc_status : 'verified';
   db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(validStatus, user_id);
+  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(user_id);
   if (validStatus === 'verified') {
     db.prepare("UPDATE kyc_documents SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
     try {
       db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
         .run(user_id, 'Compliance Verification Confirmed', 'Administrator has approved your account for Tier-1 Verified status.');
     } catch(e) {}
+    if (targetUser && targetUser.email) {
+      sendEmail({
+        to: targetUser.email,
+        subject: 'KYC Approved — Your Mainstreet Capital Exchange Account Is Now Unlocked',
+        message: `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can now access your dashboard, fund your account, and trade across all institutional markets at https://mainstreetcapitalx.com/dashboard.`,
+        recipientType: 'user'
+      }).catch(() => {});
+    }
   } else if (validStatus === 'rejected') {
     db.prepare("UPDATE kyc_documents SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
   }
@@ -770,6 +779,7 @@ router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
   // Sync user's global KYC status
   const userKycStatus = (status === 'approved') ? 'verified' : 'rejected';
   db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
+  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(doc.user_id);
 
   try {
     const isApp = (status === 'approved');
@@ -779,6 +789,18 @@ router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
       : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
       .run(doc.user_id, notifTitle, notifMsg, 'kyc');
+    if (targetUser && targetUser.email) {
+      sendEmail({
+        to: targetUser.email,
+        subject: isApp
+          ? 'KYC Approved — Your Mainstreet Capital Exchange Account Is Now Unlocked'
+          : 'Action Required: KYC Verification Update — Mainstreet Capital Exchange',
+        message: isApp
+          ? `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can access your trading dashboard at https://mainstreetcapitalx.com/dashboard.`
+          : `Hello ${targetUser.name || 'Trader'},\n\nYour recent KYC document submission could not be approved. Reason: ${rejection_reason || 'Please submit clear, unobstructed identification photos.'}\n\nPlease sign in at https://mainstreetcapitalx.com/onboarding/kyc to resubmit your verification documents.`,
+        recipientType: 'user'
+      }).catch(() => {});
+    }
   } catch(ne) {}
 
   req.session.flash = { success: `KYC Document #${doc.id} successfully marked as ${status.toUpperCase()} (Trader KYC updated to ${userKycStatus}).` };
@@ -802,6 +824,7 @@ router.post(['/babyoku/kyc/review', '/admin/kyc/review'], (req, res) => {
   // Sync user's global KYC status
   const userKycStatus = (status === 'approved') ? 'verified' : (status === 'rejected' ? 'rejected' : 'pending');
   db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
+  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(doc.user_id);
 
   try {
     const isApp = (status === 'approved');
@@ -811,6 +834,18 @@ router.post(['/babyoku/kyc/review', '/admin/kyc/review'], (req, res) => {
       : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
       .run(doc.user_id, notifTitle, notifMsg, 'kyc');
+    if (targetUser && targetUser.email && (status === 'approved' || status === 'rejected')) {
+      sendEmail({
+        to: targetUser.email,
+        subject: isApp
+          ? 'KYC Approved — Your Mainstreet Capital Exchange Account Is Now Unlocked'
+          : 'Action Required: KYC Verification Update — Mainstreet Capital Exchange',
+        message: isApp
+          ? `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can access your trading dashboard at https://mainstreetcapitalx.com/dashboard.`
+          : `Hello ${targetUser.name || 'Trader'},\n\nYour recent KYC document submission could not be approved. Reason: ${rejection_reason || 'Please submit clear, unobstructed identification photos.'}\n\nPlease sign in at https://mainstreetcapitalx.com/onboarding/kyc to resubmit your verification documents.`,
+        recipientType: 'user'
+      }).catch(() => {});
+    }
   } catch(ne) {}
 
   req.session.flash = { success: `KYC Document #${doc.id} marked as ${status} (Trader KYC updated to ${userKycStatus}).` };

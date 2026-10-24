@@ -163,20 +163,20 @@ const sendWelcomeEmail = async ({ userId, name, email, country, req }) => {
         </div>
         <h2 style="color: #FFFFFF; font-size: 22px; font-weight: 700; margin: 0 0 12px; text-align: center;">Welcome to Mainstreet Capital Exchange</h2>
         <p style="color: #CBD5E1; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 22px;">
-          Hello <strong>${(name || 'Valued Trader').trim()}</strong>, congratulations! Your email and identity verification are complete, and your live institutional trading account is now active.
+          Hello <strong>${(name || 'Valued Trader').trim()}</strong>, thank you for registering with Mainstreet Capital Exchange! Your email address is verified and your KYC identity package has been submitted for compliance approval.
         </p>
         <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 18px 20px; margin: 22px 0;">
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38BDF8; font-weight: 700; margin-bottom: 10px;">Account Credentials Summary</div>
           <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Trader UID:</strong> <span style="font-family: monospace; color: #38BDF8;">${traderUid}</span></p>
-          <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Registered Email:</strong> ${email}</p>
+          <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Registered Email:</strong> ${email} <span style="color: #10B981;">(Verified ✓)</span></p>
           <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Jurisdiction:</strong> ${country || 'United States'}</p>
-          <p style="margin: 5px 0; font-size: 13px; color: #10B981;"><strong>Verification Status:</strong> Verified &amp; Active ✓</p>
+          <p style="margin: 5px 0; font-size: 13px; color: #F59E0B;"><strong>KYC Verification Status:</strong> Pending Compliance Approval</p>
         </div>
         <p style="color: #94A3B8; font-size: 13px; line-height: 1.6; text-align: center; margin: 0 0 24px;">
-          You now have full access to our multi-asset WebTrader terminal, Spot Crypto &amp; Equities, Institutional Copy Trading, and Tax-Advantaged Retirement Portfolios.
+          Once our Compliance Desk approves your KYC verification, full access to our multi-asset WebTrader terminal, Spot Crypto &amp; Equities, Copy Trading, and Retirement Portfolios will be unlocked automatically.
         </p>
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${appBaseUrl}/dashboard" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Open Trading Terminal &rarr;</a>
+          <a href="${appBaseUrl}/onboarding/kyc" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Check KYC Approval Status &rarr;</a>
         </div>
         <hr style="border: 0; border-top: 1px solid #1E293B; margin: 25px 0 18px;" />
         <p style="font-size: 11px; color: #64748B; line-height: 1.5; margin: 0; text-align: center;">
@@ -201,9 +201,11 @@ const sendWelcomeEmail = async ({ userId, name, email, country, req }) => {
 router.get('/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   if (req.session.userId) {
-    const user = db.prepare('SELECT id, role, is_active FROM users WHERE id = ?').get(req.session.userId);
+    const user = db.prepare('SELECT id, role, is_active, kyc_status, email_verified FROM users WHERE id = ?').get(req.session.userId);
     if (user && user.is_active !== 0) {
       if (user.role === 'admin') return res.redirect('/babyoku');
+      if (user.email_verified === 0) return res.redirect('/verify-email');
+      if (user.kyc_status !== 'verified') return res.redirect('/onboarding/kyc');
       return res.redirect('/dashboard');
     }
     req.session.userId = null;
@@ -334,8 +336,12 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
       req.session.flash = { error: 'Step 2 of 4: Please enter your 6-digit email confirmation code to complete onboarding.' };
       return res.redirect('/verify-email');
     }
-    if (user.kyc_status === 'unverified') {
-      req.session.flash = { error: 'Step 3 of 4: Please upload your identification document to complete onboarding.' };
+    if (user.kyc_status !== 'verified') {
+      req.session.flash = {
+        error: user.kyc_status === 'pending'
+          ? 'Your KYC verification is currently pending compliance approval. Please wait until your KYC is approved to access your account.'
+          : 'Compulsory KYC Identity Verification is required to unlock live trading access.'
+      };
       return res.redirect('/onboarding/kyc');
     }
     return res.redirect('/dashboard');
@@ -399,8 +405,12 @@ router.post('/login/2fa', (req, res) => {
       req.session.flash = { error: 'Step 2 of 4: Please verify your email address to access your trading account.' };
       return res.redirect('/verify-email');
     }
-    if (user.kyc_status === 'unverified') {
-      req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
+    if (user.kyc_status !== 'verified') {
+      req.session.flash = {
+        error: user.kyc_status === 'pending'
+          ? 'Your KYC verification is currently pending compliance approval. Please wait until your KYC is approved to access your account.'
+          : 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.'
+      };
       return res.redirect('/onboarding/kyc');
     }
     return res.redirect('/dashboard');
@@ -415,7 +425,7 @@ router.get('/register', (req, res) => {
     if (user && user.is_active !== 0) {
       if (user.role === 'admin') return res.redirect('/babyoku');
       if (user.email_verified === 0) return res.redirect('/verify-email');
-      if (user.kyc_status === 'unverified') return res.redirect('/onboarding/kyc');
+      if (user.kyc_status !== 'verified') return res.redirect('/onboarding/kyc');
       return res.redirect('/dashboard');
     }
     req.session.userId = null;
@@ -616,10 +626,9 @@ router.post('/register', async (req, res) => {
     (memOtp && (memOtp.verified || (cleanSubmittedOtp && memOtp.code === cleanSubmittedOtp)))
   );
 
-  const systemSettings = db.prepare('SELECT auto_approve_kyc, didit_auto_approve FROM system_settings WHERE id = 1').get() || {};
-  const isAutoApprove = ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) === 1);
-  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
-  const docStatus = isAutoApprove ? 'approved' : 'pending';
+  // All newly registered accounts must wait for manual KYC compliance approval before accessing the trading terminal
+  const initialKycStatus = 'pending';
+  const docStatus = 'pending';
 
   const hash = bcrypt.hashSync(password, 10);
   const emailCode = isStep2EmailVerified ? null : Math.floor(100000 + Math.random() * 900000).toString();
@@ -664,7 +673,7 @@ router.post('/register', async (req, res) => {
       backPath,
       videoPath,
       docStatus,
-      isAutoApprove ? new Date().toISOString() : null
+      null
     );
 
     // Initialize empty asset ledger rows (0.00 balance)
@@ -701,8 +710,8 @@ router.post('/register', async (req, res) => {
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
         isStep2EmailVerified
-          ? 'Your institutional trading account has been verified and activated. Fund your account via the Cashier to begin live trading.'
-          : 'Your institutional trading account has been created. Complete Step 2 (Email OTP) to unlock live trading.'
+          ? 'Your registration is complete and your KYC documents are currently under compliance review. Full trading access will unlock upon KYC approval.'
+          : 'Your institutional trading account has been created. Complete Step 2 (Email OTP) and await KYC approval to unlock live trading.'
       );
     } catch(e) {}
 
@@ -733,9 +742,9 @@ router.post('/register', async (req, res) => {
         country: fullUser.country,
         req
       });
-      logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed all 4 steps (Details -> Email OTP -> Upload ID -> Live Check)`, req);
-      req.session.flash = { success: 'Account verified & activated! Welcome to your Mainstreet Capital Exchange trading terminal.' };
-      return req.session.save(() => res.redirect('/dashboard'));
+      logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed all 4 steps (Details -> Email OTP -> Upload ID -> Live Check) — awaiting KYC approval`, req);
+      req.session.flash = { success: 'Step 4 of 4 completed! Your KYC verification is under compliance review. Please wait until your KYC is approved before accessing your account.' };
+      return req.session.save(() => res.redirect('/onboarding/kyc'));
     }
 
     // Fallback if POST /register was invoked directly without pre-verifying Step 2 OTP
@@ -852,9 +861,9 @@ router.get('/verify-email', async (req, res) => {
           req
         });
         logActivity(matchedUser.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct link', req);
-        req.session.flash = { success: 'Email verified successfully! Welcome to your trading account.' };
+        req.session.flash = { success: 'Email verified! Your KYC verification is pending compliance approval before you can access your account.' };
         return req.session.save(() => {
-          if (matchedUser.kyc_status === 'unverified') {
+          if (matchedUser.kyc_status !== 'verified') {
             return res.redirect('/onboarding/kyc');
           }
           return res.redirect('/dashboard');
@@ -889,7 +898,7 @@ router.get('/verify-email', async (req, res) => {
   // If already verified, route forward
   if (user.email_verified === 1) {
     return req.session.save(() => {
-      if (user.kyc_status === 'unverified') {
+      if (user.kyc_status !== 'verified') {
         return res.redirect('/onboarding/kyc');
       }
       return res.redirect('/dashboard');
@@ -913,10 +922,10 @@ router.get('/verify-email', async (req, res) => {
         req
       });
       logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct verification link', req);
-      req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
+      req.session.flash = { success: 'Email verified! Your KYC verification is pending compliance approval before you can access your account.' };
       
       return req.session.save(() => {
-        if (user.kyc_status === 'unverified') {
+        if (user.kyc_status !== 'verified') {
           return res.redirect('/onboarding/kyc');
         }
         return res.redirect('/dashboard');
@@ -945,7 +954,7 @@ router.post('/verify-email', async (req, res) => {
   if (user.email_verified === 1) {
     if (req.session.user) req.session.user.email_verified = 1;
     return req.session.save(() => {
-      if (user.kyc_status === 'unverified') {
+      if (user.kyc_status !== 'verified') {
         return res.redirect('/onboarding/kyc');
       }
       return res.redirect('/dashboard');
@@ -989,10 +998,10 @@ router.post('/verify-email', async (req, res) => {
   });
 
   logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via OTP', req);
-  req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
+  req.session.flash = { success: 'Email verified! Your KYC verification is pending compliance approval before you can access your account.' };
 
   return req.session.save(() => {
-    if (user.kyc_status === 'unverified') {
+    if (user.kyc_status !== 'verified') {
       return res.redirect('/onboarding/kyc');
     }
     return res.redirect('/dashboard');

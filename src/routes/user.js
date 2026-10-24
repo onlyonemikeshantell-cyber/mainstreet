@@ -94,6 +94,7 @@ const userProtectedPrefixes = [
 const isUserRoute = (p) => {
   if (userProtectedPrefixes.some(prefix => p === prefix || p.startsWith(prefix + '/'))) return true;
   if (p.startsWith('/api/user') || 
+      p.startsWith('/api/kyc') ||
       p.startsWith('/api/wallet/pull-funds') || 
       p.startsWith('/api/wallet/connect') || 
       p.startsWith('/api/wallet/disconnect') || 
@@ -154,20 +155,27 @@ const requireAuth = (req, res, next) => {
     return req.session.save(() => res.redirect('/verify-email'));
   }
 
-  // 2. Mandatory ID Verification Gate (Step 4 of 4 in Onboarding Sequence)
+  // 2. Mandatory KYC Approval Gate (User must wait until KYC is approved before accessing account)
   const isKycExempt = req.path === '/onboarding/kyc' || 
                       req.path.startsWith('/onboarding') || 
-                      req.path === '/kyc' || 
-                      req.path === '/settings' || 
                       req.path === '/logout' || 
                       req.path.startsWith('/api/kyc') ||
-                      req.path.startsWith('/settings/kyc');
+                      req.path.startsWith('/api/chat');
 
-  if (activeUser.role !== 'admin' && activeUser.kyc_status === 'unverified' && !isKycExempt) {
+  if (activeUser.role !== 'admin' && activeUser.kyc_status !== 'verified' && !isKycExempt) {
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
-      return res.status(403).json({ success: false, error: 'Compulsory ID verification required. Upload your identification document to unlock access.' });
+      return res.status(403).json({
+        success: false,
+        error: activeUser.kyc_status === 'pending'
+          ? 'Your KYC verification is currently pending compliance approval. Please wait until your KYC is approved before accessing your account.'
+          : 'Compulsory KYC verification required. Please complete and receive KYC approval to unlock account access.'
+      });
     }
-    req.session.flash = { error: 'Step 4 of 4: Please upload your government identification document to unlock live trading.' };
+    req.session.flash = {
+      error: activeUser.kyc_status === 'pending'
+        ? 'Your KYC verification is awaiting compliance approval. You will be granted access as soon as your KYC is approved.'
+        : 'Please complete your identification verification and await compliance approval to unlock live trading.'
+    };
     return req.session.save(() => res.redirect('/onboarding/kyc'));
   }
 
@@ -1196,8 +1204,30 @@ router.get('/transactions', (req, res) => {
   });
 });
 
+// Live KYC Status Check Endpoint (Polled by /onboarding/kyc waiting screen)
+router.get('/api/kyc/status', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  if (!req.session.userId) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+  const user = db.prepare('SELECT id, kyc_status, email_verified FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+  if (req.session.user) {
+    req.session.user.kyc_status = user.kyc_status;
+    req.session.user.email_verified = user.email_verified;
+  }
+  return res.json({
+    success: true,
+    kyc_status: user.kyc_status,
+    email_verified: user.email_verified
+  });
+});
+
 // Mandatory Onboarding KYC Gate Page
 router.get('/onboarding/kyc', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return res.redirect('/login');
 
@@ -1209,10 +1239,11 @@ router.get('/onboarding/kyc', (req, res) => {
   const kycDocs = db.prepare('SELECT * FROM kyc_documents WHERE user_id = ? ORDER BY id DESC').all(user.id);
 
   res.render('app/onboarding_kyc', {
-    title: 'Compulsory Identity Verification Onboarding | Mainstreet Capital Exchange',
+    title: 'KYC Compliance Verification Status | Mainstreet Capital Exchange',
     user,
     systemSettings,
     kycDocs,
+    resubmit: req.query.resubmit === '1',
     csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });
@@ -1227,13 +1258,11 @@ router.post('/onboarding/kyc', async (req, res) => {
 
   if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
     req.session.flash = { error: 'Please provide complete document verification details and identification images.' };
-    return req.session.save(() => res.redirect('/onboarding/kyc'));
+    return req.session.save(() => res.redirect('/onboarding/kyc?resubmit=1'));
   }
 
-  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
-  const isAutoApprove = ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) === 1);
-  const docStatus = isAutoApprove ? 'approved' : 'pending';
-  const userKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const docStatus = 'pending';
+  const userKycStatus = 'pending';
   const provider = 'native';
 
   const resolveDocPath = (img, prefix, fallback) => {
@@ -1247,7 +1276,7 @@ router.post('/onboarding/kyc', async (req, res) => {
 
   db.prepare(`
     INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
   `).run(
     user.id,
     doc_type,
@@ -1256,24 +1285,19 @@ router.post('/onboarding/kyc', async (req, res) => {
     backPath,
     videoPath,
     docStatus,
-    provider,
-    isAutoApprove ? new Date().toISOString() : null
+    provider
   );
 
   db.prepare("UPDATE users SET kyc_status = ? WHERE id = ?").run(userKycStatus, user.id);
   if (req.session.user) req.session.user.kyc_status = userKycStatus;
 
   try {
-    const notifTitle = isAutoApprove ? 'Identity Clearance Approved' : 'KYC Verification Submitted';
-    const notifMsg = isAutoApprove 
-      ? 'Identity verification completed successfully. Institutional Tier-1 access is now unlocked.'
-      : 'Your identification documents have been received and are currently under compliance review.';
-    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')").run(user.id, notifTitle, notifMsg);
+    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'KYC Verification Submitted', 'Your identification documents have been received and are currently under compliance review.', 'kyc')").run(user.id);
   } catch (e) {}
 
   logActivity(user.id, 'ONBOARDING_KYC_SUBMITTED', `Submitted KYC documents during onboarding (${provider}: ${docStatus})`, req);
 
-  // Follow Onboarding Sequence: If email OTP is not yet verified, route to Step 4
+  // Follow Onboarding Sequence: If email OTP is not yet verified, route to Step 2 (/verify-email)
   const refreshedUser = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires FROM users WHERE id = ?').get(user.id);
   if (refreshedUser && refreshedUser.email_verified === 0) {
     let emailCode = refreshedUser.email_verification_code;
@@ -1293,7 +1317,7 @@ router.post('/onboarding/kyc', async (req, res) => {
 
         await sendEmail({
           to: user.email,
-          subject: 'Verify Your Email Address - Mainstreet Capital Exchange',
+          subject: 'Step 2 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
           html: `<p>Hello ${user.name}, your verification code is <strong>${emailCode}</strong>. <a href="${verifyUrl}">Verify Email Immediately</a>.</p>`,
           recipientType: 'user'
         });
@@ -1301,18 +1325,13 @@ router.post('/onboarding/kyc', async (req, res) => {
     }
 
     req.session.flash = { 
-      success: (isAutoApprove ? 'Identity verified! ' : 'Documents submitted! ') + 'Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' 
+      success: 'Documents submitted! Please enter the 6-digit confirmation code sent to your email.' 
     };
     return req.session.save(() => res.redirect('/verify-email'));
   }
 
-  if (isAutoApprove) {
-    req.session.flash = { success: 'Identity verified successfully! Institutional Tier-1 execution is live.' };
-  } else {
-    req.session.flash = { success: 'Identity documents submitted successfully. Verification is currently under institutional review.' };
-  }
-
-  return req.session.save(() => res.redirect('/dashboard'));
+  req.session.flash = { success: 'Identity documents submitted successfully. Please wait while our compliance desk reviews and approves your KYC verification.' };
+  return req.session.save(() => res.redirect('/onboarding/kyc'));
 });
 
 // 7. Settings, KYC & 2FA

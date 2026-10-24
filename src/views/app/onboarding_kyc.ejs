@@ -1,8 +1,18 @@
 <%- include('../partials/header') %>
 
+<%
+  const isPendingWait = (user.kyc_status === 'pending' && !(typeof resubmit !== 'undefined' && resubmit));
+  const isRejected = (user.kyc_status === 'rejected');
+  const latestDoc = (typeof kycDocs !== 'undefined' && kycDocs && kycDocs.length > 0) ? kycDocs[0] : null;
+  const traderUid = '#TXE-' + String(user.id || 1).padStart(6, '0');
+%>
+
 <section class="min-h-screen py-10 px-4 sm:px-6 bg-surface-base"
          x-data="{
-             step: 4, // Step 4 of 4: ID Verification
+             isPending: <%= isPendingWait ? 'true' : 'false' %>,
+             checkingStatus: false,
+             statusMessage: '',
+             approvedRedirecting: false,
              submitting: false,
              stepError: '',
 
@@ -18,13 +28,60 @@
 
              // Quick ID Camera Snap
              idCameraActive: false,
-             idCameraTarget: 'front', // 'front' | 'back'
+             idCameraTarget: 'front',
              idCameraStream: null,
              idCameraError: '',
 
              init() {
                  if (!this.docNumber) {
                      this.docNumber = 'ID-' + Math.floor(10000000 + Math.random() * 90000000);
+                 }
+                 if (this.isPending) {
+                     this.startPolling();
+                 }
+             },
+
+             startPolling() {
+                 setInterval(() => {
+                     this.checkApprovalStatus(true);
+                 }, 7000);
+             },
+
+             async checkApprovalStatus(silent = false) {
+                 if (this.checkingStatus || this.approvedRedirecting) return;
+                 if (!silent) {
+                     this.checkingStatus = true;
+                     this.statusMessage = '';
+                 }
+                 try {
+                     const res = await fetch('/api/kyc/status', {
+                         headers: { 'Accept': 'application/json' },
+                         cache: 'no-store'
+                     });
+                     const data = await res.json();
+                     if (data && data.success) {
+                         if (data.kyc_status === 'verified') {
+                             this.approvedRedirecting = true;
+                             this.statusMessage = 'KYC Approved! Redirecting to your trading dashboard...';
+                             setTimeout(() => {
+                                 window.location.href = '/dashboard';
+                             }, 800);
+                             return;
+                         } else if (data.kyc_status === 'rejected') {
+                             window.location.href = '/onboarding/kyc';
+                             return;
+                         } else if (!silent) {
+                             this.statusMessage = 'Your KYC verification is still under compliance review. Please wait for administrator approval.';
+                         }
+                     }
+                 } catch (e) {
+                     if (!silent) {
+                         this.statusMessage = 'Unable to reach compliance server right now. Please try again shortly.';
+                     }
+                 } finally {
+                     if (!silent) {
+                         this.checkingStatus = false;
+                     }
                  }
              },
 
@@ -36,7 +93,6 @@
                  }
              },
 
-             // File Upload Handler
              handleFile(event, type) {
                  const file = event.target.files ? event.target.files[0] : null;
                  if (!file) return;
@@ -67,7 +123,6 @@
                  }
              },
 
-             // ID Camera Snap
              async startIdCamera(target = 'front') {
                  this.idCameraError = '';
                  this.idCameraTarget = target;
@@ -161,19 +216,40 @@
 
             <!-- Card Heading -->
             <div class="text-center space-y-1.5">
-                <h1 class="text-2xl font-bold text-content-primary font-serif">Identity Verification</h1>
-                <p class="text-xs text-content-secondary max-w-md mx-auto">Complete identity clearance to activate live execution, deposits, and demo capital.</p>
+                <% if (isPendingWait) { %>
+                    <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>Pending Compliance Review</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-content-primary font-serif">Awaiting KYC Approval</h1>
+                    <p class="text-xs text-content-secondary max-w-md mx-auto">
+                        You have completed all 4 verification steps. Please wait while our Compliance Desk approves your KYC before accessing your trading account.
+                    </p>
+                <% } else if (isRejected) { %>
+                    <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+                        <span>Action Required</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-content-primary font-serif">Resubmit KYC Identification</h1>
+                    <p class="text-xs text-content-secondary max-w-md mx-auto">
+                        Your previous KYC document submission could not be verified. Please upload clear identification photos below for compliance approval.
+                    </p>
+                <% } else { %>
+                    <h1 class="text-2xl font-bold text-content-primary font-serif">Identity Verification</h1>
+                    <p class="text-xs text-content-secondary max-w-md mx-auto">
+                        Complete identity verification and receive compliance approval to unlock your live trading account.
+                    </p>
+                <% } %>
             </div>
 
-            <!-- Sleek Modern Progress Stepper -->
+            <!-- 4-Step Progress Stepper (1. Details -> 2. Email OTP -> 3. Upload ID -> 4. Live Check) -->
             <div class="relative px-4 pt-1 pb-2">
                 <!-- Connector Line -->
                 <div class="absolute left-8 right-8 top-5 -translate-y-1/2 h-0.5 bg-surface-border z-0">
-                    <div class="h-full bg-primary transition-all duration-300" style="width: 100%;"></div>
+                    <div class="h-full bg-emerald-500 transition-all duration-300" style="width: 100%;"></div>
                 </div>
 
                 <div class="flex items-center justify-between relative z-10">
-                    <!-- Step 1: Details (Done) -->
+                    <!-- Step 1: Details -->
                     <div class="flex flex-col items-center">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-emerald-500 text-white shadow-sm z-10 border border-emerald-500">
                             ✓
@@ -181,15 +257,7 @@
                         <span class="text-[10px] font-semibold mt-1.5 text-content-primary">Details</span>
                     </div>
 
-                    <!-- Step 2: Live Check (Done) -->
-                    <div class="flex flex-col items-center">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-emerald-500 text-white shadow-sm z-10 border border-emerald-500">
-                            ✓
-                        </div>
-                        <span class="text-[10px] font-semibold mt-1.5 text-content-primary">Live Check</span>
-                    </div>
-
-                    <!-- Step 3: Email OTP (Done) -->
+                    <!-- Step 2: Email OTP -->
                     <div class="flex flex-col items-center">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-emerald-500 text-white shadow-sm z-10 border border-emerald-500">
                             ✓
@@ -197,12 +265,20 @@
                         <span class="text-[10px] font-semibold mt-1.5 text-content-primary">Email OTP</span>
                     </div>
 
-                    <!-- Step 4: Upload ID (Active) -->
+                    <!-- Step 3: Upload ID -->
                     <div class="flex flex-col items-center">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-primary text-white ring-4 ring-primary/20 shadow-sm z-10 border border-primary">
-                            <span>4</span>
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold <%= isPendingWait ? 'bg-emerald-500 border-emerald-500' : 'bg-primary border-primary ring-4 ring-primary/20' %> text-white shadow-sm z-10 border">
+                            <%= isPendingWait ? '✓' : '3' %>
                         </div>
-                        <span class="text-[10px] font-semibold mt-1.5 text-primary font-bold">Upload ID</span>
+                        <span class="text-[10px] font-semibold mt-1.5 text-content-primary">Upload ID</span>
+                    </div>
+
+                    <!-- Step 4: Live Check -->
+                    <div class="flex flex-col items-center">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold <%= isPendingWait ? 'bg-amber-500 border-amber-500 ring-4 ring-amber-500/20' : 'bg-surface-overlay border-surface-border text-content-tertiary' %> text-white shadow-sm z-10 border">
+                            <%= isPendingWait ? '⏳' : '4' %>
+                        </div>
+                        <span class="text-[10px] font-semibold mt-1.5 <%= isPendingWait ? 'text-amber-400 font-bold' : 'text-content-secondary' %>">KYC Approval</span>
                     </div>
                 </div>
             </div>
@@ -222,188 +298,266 @@
                 </div>
             <% } %>
 
-            <div x-show="stepError" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
-                <span>⚠️</span>
-                <span x-text="stepError"></span>
-            </div>
+            <% if (isPendingWait) { %>
+                <!-- ================= PENDING KYC APPROVAL WAITING SCREEN ================= -->
+                <div class="space-y-5">
+                    <div class="p-5 rounded-2xl bg-surface-overlay/50 border border-surface-border space-y-4">
+                        <div class="flex items-start space-x-3.5">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg shrink-0">
+                                🛡️
+                            </div>
+                            <div class="space-y-1">
+                                <h2 class="text-sm font-bold text-content-primary">Compliance Verification in Progress</h2>
+                                <p class="text-xs text-content-secondary leading-relaxed">
+                                    Your government identification and Step 4 live facial check have been received. For regulatory and account security compliance, new accounts must wait until KYC is reviewed and approved by an administrator before accessing the trading terminal.
+                                </p>
+                            </div>
+                        </div>
 
-            <!-- KYC Form -->
-            <form id="kycMasterForm" action="/onboarding/kyc" method="POST" @submit="submitting = true" class="space-y-5">
-                <input type="hidden" name="_token" value="<%= csrfToken %>" />
-                <input type="hidden" name="doc_type" :value="docType" />
-                <input type="hidden" name="doc_number" :value="docNumber" />
-                <input type="hidden" name="front_image" :value="frontData" />
-                <input type="hidden" name="back_image" :value="backData || frontData" />
+                        <!-- Account & KYC Submission Summary -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-surface-border/70 text-xs">
+                            <div class="p-3 rounded-xl bg-surface-base/60 border border-surface-border/60">
+                                <div class="text-[10px] uppercase tracking-wider text-content-tertiary font-semibold">Trader UID</div>
+                                <div class="font-mono font-bold text-primary mt-0.5"><%= traderUid %></div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-surface-base/60 border border-surface-border/60">
+                                <div class="text-[10px] uppercase tracking-wider text-content-tertiary font-semibold">Email Verification</div>
+                                <div class="font-semibold text-emerald-400 mt-0.5">Verified ✓ (<%= user.email %>)</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-surface-base/60 border border-surface-border/60">
+                                <div class="text-[10px] uppercase tracking-wider text-content-tertiary font-semibold">Submitted Document</div>
+                                <div class="font-semibold text-content-primary mt-0.5">
+                                    <%= latestDoc ? (latestDoc.doc_type + ' — ' + latestDoc.doc_number) : 'Government ID & Biometric Check' %>
+                                </div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-surface-base/60 border border-surface-border/60">
+                                <div class="text-[10px] uppercase tracking-wider text-content-tertiary font-semibold">KYC Status</div>
+                                <div class="font-bold text-amber-400 mt-0.5 flex items-center space-x-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                    <span>Pending Administrator Approval</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- ================= STEP 4: UPLOAD ID ================= -->
-                <div class="space-y-4">
-                    
-                    <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+                    <!-- Live Status Feedback Banner -->
+                    <div x-show="statusMessage" x-cloak
+                         class="p-3.5 rounded-2xl border text-xs font-medium flex items-center space-x-2"
+                         :class="approvedRedirecting ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-sky-500/10 border-sky-500/25 text-sky-300'">
+                        <span x-text="approvedRedirecting ? '✓' : 'ℹ️'"></span>
+                        <span x-text="statusMessage"></span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row items-center gap-3 pt-1">
+                        <button type="button" @click="checkApprovalStatus(false)" :disabled="checkingStatus || approvedRedirecting"
+                                class="w-full sm:flex-1 py-3.5 px-5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50">
+                            <span x-show="!checkingStatus && !approvedRedirecting">Check Approval Status Now &rarr;</span>
+                            <span x-show="checkingStatus" class="flex items-center space-x-2" x-cloak>
+                                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                <span>Checking KYC status...</span>
+                            </span>
+                            <span x-show="approvedRedirecting" x-cloak>Approved! Opening Dashboard...</span>
+                        </button>
+
+                        <a href="/onboarding/kyc?resubmit=1"
+                           class="w-full sm:w-auto py-3.5 px-5 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs text-center transition">
+                            Update ID Documents
+                        </a>
+                    </div>
+
+                    <p class="text-[11px] text-content-tertiary text-center">
+                        This page automatically checks for compliance approval every few seconds and will redirect you to your trading dashboard as soon as your KYC is approved.
+                    </p>
+                </div>
+
+            <% } else { %>
+                <!-- ================= KYC DOCUMENT UPLOAD / RESUBMISSION FORM ================= -->
+                <% if (isRejected && latestDoc && latestDoc.rejection_reason) { %>
+                    <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
+                        <div class="font-bold uppercase tracking-wider text-[10px] text-rose-400">Compliance Review Note:</div>
+                        <div><%= latestDoc.rejection_reason %></div>
+                    </div>
+                <% } %>
+
+                <div x-show="stepError" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+                    <span>⚠️</span>
+                    <span x-text="stepError"></span>
+                </div>
+
+                <form id="kycMasterForm" action="/onboarding/kyc" method="POST" @submit="submitting = true" class="space-y-5">
+                    <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                    <input type="hidden" name="doc_type" :value="docType" />
+                    <input type="hidden" name="doc_number" :value="docNumber" />
+                    <input type="hidden" name="front_image" :value="frontData" />
+                    <input type="hidden" name="back_image" :value="backData || frontData" />
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+                            <div>
+                                <h2 class="text-sm font-bold text-content-primary">Select & Upload Government ID</h2>
+                                <p class="text-xs text-content-secondary">Submit identification for compliance review and approval</p>
+                            </div>
+                            <% if (user.kyc_status === 'pending') { %>
+                                <a href="/onboarding/kyc" class="text-xs text-primary hover:underline font-semibold">&larr; Back to Pending Status</a>
+                            <% } %>
+                        </div>
+
+                        <!-- Document Type Selector -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <button type="button" @click="setDocType('National ID Card')"
+                                    class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
+                                    :class="docType === 'National ID Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
+                                <span class="text-xl">💳</span>
+                                <span class="text-xs font-semibold leading-tight">National ID</span>
+                            </button>
+
+                            <button type="button" @click="setDocType('International Passport')"
+                                    class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
+                                    :class="docType === 'International Passport' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
+                                <span class="text-xl">🛂</span>
+                                <span class="text-xs font-semibold leading-tight">Passport</span>
+                            </button>
+
+                            <button type="button" @click="setDocType('Driver\'s License')"
+                                    class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
+                                    :class="docType === 'Driver\'s License' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
+                                <span class="text-xl">🪪</span>
+                                <span class="text-xs font-semibold leading-tight">Driver's License</span>
+                            </button>
+
+                            <button type="button" @click="setDocType('Permanent Residence Card')"
+                                    class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
+                                    :class="docType === 'Permanent Residence Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
+                                <span class="text-xl">🏛️</span>
+                                <span class="text-xs font-semibold leading-tight">Residence</span>
+                            </button>
+                        </div>
+
+                        <!-- Document Number Input -->
                         <div>
-                            <h2 class="text-sm font-bold text-content-primary">Select & Upload ID</h2>
-                            <p class="text-xs text-content-secondary">Government-issued identification document</p>
+                            <label class="block text-xs font-semibold text-content-secondary mb-1">Document Serial Number</label>
+                            <input type="text" x-model="docNumber" placeholder="e.g. DOC-829104"
+                                   class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 text-xs font-mono font-bold outline-none focus:border-primary transition" />
                         </div>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 4 of 4</span>
-                    </div>
 
-                    <!-- Document Type Selector -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button type="button" @click="setDocType('National ID Card')"
-                                class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                                :class="docType === 'National ID Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
-                            <span class="text-xl">💳</span>
-                            <span class="text-xs font-semibold leading-tight">National ID</span>
-                        </button>
-
-                        <button type="button" @click="setDocType('International Passport')"
-                                class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                                :class="docType === 'International Passport' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
-                            <span class="text-xl">🛂</span>
-                            <span class="text-xs font-semibold leading-tight">Passport</span>
-                        </button>
-
-                        <button type="button" @click="setDocType('Driver\'s License')"
-                                class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                                :class="docType === 'Driver\'s License' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
-                            <span class="text-xl">🪪</span>
-                            <span class="text-xs font-semibold leading-tight">Driver's License</span>
-                        </button>
-
-                        <button type="button" @click="setDocType('Permanent Residence Card')"
-                                class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                                :class="docType === 'Permanent Residence Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary'">
-                            <span class="text-xl">🏛️</span>
-                            <span class="text-xs font-semibold leading-tight">Residence</span>
-                        </button>
-                    </div>
-
-                    <!-- Document Number Input -->
-                    <div>
-                        <label class="block text-xs font-semibold text-content-secondary mb-1">Document Serial Number</label>
-                        <input type="text" x-model="docNumber" placeholder="e.g. DOC-829104"
-                               class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 text-xs font-mono font-bold outline-none focus:border-primary transition" />
-                    </div>
-
-                    <!-- Live ID Camera Snap Viewfinder (if snapping) -->
-                    <div x-show="idCameraActive" class="rounded-2xl border border-primary/50 bg-black p-3 space-y-2 shadow-xl" x-cloak>
-                        <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
-                            <span class="font-bold text-primary" x-text="'ALIGN ' + (idCameraTarget === 'front' ? 'FRONT OF ID' : 'BACK OF ID')"></span>
-                            <button type="button" @click="stopIdCamera()" class="text-slate-400 hover:text-white font-bold">&times; Close</button>
+                        <!-- Live ID Camera Snap Viewfinder -->
+                        <div x-show="idCameraActive" class="rounded-2xl border border-primary/50 bg-black p-3 space-y-2 shadow-xl" x-cloak>
+                            <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
+                                <span class="font-bold text-primary" x-text="'ALIGN ' + (idCameraTarget === 'front' ? 'FRONT OF ID' : 'BACK OF ID')"></span>
+                                <button type="button" @click="stopIdCamera()" class="text-slate-400 hover:text-white font-bold">&times; Close</button>
+                            </div>
+                            <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                                <video id="idSnapVideoKyc" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                                <div class="absolute inset-4 border-2 border-dashed border-primary/60 rounded-xl pointer-events-none"></div>
+                            </div>
+                            <div class="text-center pt-1">
+                                <button type="button" @click="captureIdSnap()"
+                                        class="px-6 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer">
+                                    <span x-text="'Capture ' + (idCameraTarget === 'front' ? 'Front Side' : 'Back Side')"></span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
-                            <video id="idSnapVideoKyc" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                            <div class="absolute inset-4 border-2 border-dashed border-primary/60 rounded-xl pointer-events-none"></div>
+
+                        <!-- Dual Document Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <!-- Front Card -->
+                            <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-content-primary">1. Front of Document</span>
+                                    <span x-show="frontPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
+                                </div>
+
+                                <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
+                                     :class="frontDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
+                                     @dragover.prevent="frontDrag = true"
+                                     @dragleave.prevent="frontDrag = false"
+                                     @drop.prevent="frontDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'front')">
+                                    
+                                    <template x-if="frontPreview">
+                                        <div class="relative group w-full">
+                                            <img :src="frontPreview" alt="Front Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                            <button type="button" @click="removeFile('front')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!frontPreview">
+                                        <div class="space-y-1 py-1">
+                                            <span class="text-2xl block">📄</span>
+                                            <div class="text-xs font-semibold text-content-primary">Front Photo</div>
+                                            <div class="text-[10px] text-content-tertiary">Tap to upload or snap</div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="flex items-center space-x-2">
+                                    <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
+                                        <span x-text="frontPreview ? 'Change Photo' : 'Choose File'"></span>
+                                        <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="hidden" />
+                                    </label>
+                                    <button type="button" @click="startIdCamera('front')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
+                                        <span>📸</span>
+                                        <span>Camera</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Back Card -->
+                            <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-content-primary">2. Back of Document</span>
+                                    <span x-show="backPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
+                                </div>
+
+                                <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
+                                     :class="backDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
+                                     @dragover.prevent="backDrag = true"
+                                     @dragleave.prevent="backDrag = false"
+                                     @drop.prevent="backDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'back')">
+                                    
+                                    <template x-if="backPreview">
+                                        <div class="relative group w-full">
+                                            <img :src="backPreview" alt="Back Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                            <button type="button" @click="removeFile('back')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!backPreview">
+                                        <div class="space-y-1 py-1">
+                                            <span class="text-2xl block">🔄</span>
+                                            <div class="text-xs font-semibold text-content-primary">Back Photo</div>
+                                            <div class="text-[10px] text-content-tertiary" x-text="docType === 'International Passport' ? 'Optional for Passports' : 'Tap to upload or snap'"></div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="flex items-center space-x-2">
+                                    <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
+                                        <span x-text="backPreview ? 'Change Photo' : 'Choose File'"></span>
+                                        <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="hidden" />
+                                    </label>
+                                    <button type="button" @click="startIdCamera('back')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
+                                        <span>📸</span>
+                                        <span>Camera</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-center pt-1">
-                            <button type="button" @click="captureIdSnap()"
-                                    class="px-6 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer">
-                                <span x-text="'Capture ' + (idCameraTarget === 'front' ? 'Front Side' : 'Back Side')"></span>
+
+                        <!-- Submit CTA -->
+                        <div class="pt-2">
+                            <button type="button" @click="submitKyc()" :disabled="submitting || !frontData || (!backData && docType !== 'International Passport')"
+                                    class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                                <span x-show="!submitting">Submit Documents for KYC Approval &rarr;</span>
+                                <span x-show="submitting" class="flex items-center space-x-2">
+                                    <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                    <span>Submitting verification documents...</span>
+                                </span>
                             </button>
                         </div>
                     </div>
-
-                    <!-- Dual Document Cards -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        
-                        <!-- Front Card -->
-                        <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-content-primary">1. Front of Document</span>
-                                <span x-show="frontPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
-                            </div>
-
-                            <!-- Dropzone / Preview -->
-                            <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
-                                 :class="frontDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
-                                 @dragover.prevent="frontDrag = true"
-                                 @dragleave.prevent="frontDrag = false"
-                                 @drop.prevent="frontDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'front')">
-                                
-                                <template x-if="frontPreview">
-                                    <div class="relative group w-full">
-                                        <img :src="frontPreview" alt="Front Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
-                                        <button type="button" @click="removeFile('front')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
-                                    </div>
-                                </template>
-
-                                <template x-if="!frontPreview">
-                                    <div class="space-y-1 py-1">
-                                        <span class="text-2xl block">📄</span>
-                                        <div class="text-xs font-semibold text-content-primary">Front Photo</div>
-                                        <div class="text-[10px] text-content-tertiary">Tap to upload or snap</div>
-                                    </div>
-                                </template>
-                            </div>
-
-                            <div class="flex items-center space-x-2">
-                                <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
-                                    <span x-text="frontPreview ? 'Change Photo' : 'Choose File'"></span>
-                                    <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="hidden" />
-                                </label>
-                                <button type="button" @click="startIdCamera('front')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
-                                    <span>📸</span>
-                                    <span>Camera</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Back Card -->
-                        <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-content-primary">2. Back of Document</span>
-                                <span x-show="backPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
-                            </div>
-
-                            <!-- Dropzone / Preview -->
-                            <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
-                                 :class="backDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
-                                 @dragover.prevent="backDrag = true"
-                                 @dragleave.prevent="backDrag = false"
-                                 @drop.prevent="backDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'back')">
-                                
-                                <template x-if="backPreview">
-                                    <div class="relative group w-full">
-                                        <img :src="backPreview" alt="Back Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
-                                        <button type="button" @click="removeFile('back')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
-                                    </div>
-                                </template>
-
-                                <template x-if="!backPreview">
-                                    <div class="space-y-1 py-1">
-                                        <span class="text-2xl block">🔄</span>
-                                        <div class="text-xs font-semibold text-content-primary">Back Photo</div>
-                                        <div class="text-[10px] text-content-tertiary" x-text="docType === 'International Passport' ? 'Optional for Passports' : 'Tap to upload or snap'"></div>
-                                    </div>
-                                </template>
-                            </div>
-
-                            <div class="flex items-center space-x-2">
-                                <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
-                                    <span x-text="backPreview ? 'Change Photo' : 'Choose File'"></span>
-                                    <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="hidden" />
-                                </label>
-                                <button type="button" @click="startIdCamera('back')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
-                                    <span>📸</span>
-                                    <span>Camera</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Next Step CTA -->
-                    <div class="pt-2">
-                        <button type="button" @click="submitKyc()" :disabled="submitting || !frontData || (!backData && docType !== 'International Passport')"
-                                class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                            <span x-show="!submitting">Submit Identification & Activate Account &rarr;</span>
-                            <span x-show="submitting" class="flex items-center space-x-2">
-                                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                <span>Submitting verification documents...</span>
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-            </form>
+                </form>
+            <% } %>
 
         </div>
 
