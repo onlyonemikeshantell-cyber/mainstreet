@@ -8,3 +8,6 @@ yarn-error.log*
 .system_generated/
 scratch/
 *.zip
+
+*.db-wal
+*.db-shm

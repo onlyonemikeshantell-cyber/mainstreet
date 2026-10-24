@@ -7,7 +7,7 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'tradexedge.db');
+const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'mainstreet.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -797,5 +797,7 @@ try {
 } catch (e) {}
 
 // Strictly preserve all user accounts and balances on startup (no automatic user deletion or balance resets)
+db.ensureUserCryptoBalances = ensureUserCryptoBalances;
+db.ensureUserRetirementAccount = ensureUserRetirementAccount;
 
 module.exports = db;

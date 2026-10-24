@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const db = require('../db');
 const { distributeQuarterlyDividends } = require('../services/dripService');
+const { syncToCloudVault } = require('../services/cloudPersistenceService');
 const { requireAdmin } = require('../middleware/auth');
 
 // Activity Logger helper
@@ -692,7 +693,13 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
   });
 
   try {
-    deleteTransaction();
+    db.pragma('foreign_keys = OFF');
+    try {
+      deleteTransaction();
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+    syncToCloudVault(db).catch(() => {});
     req.session.flash = { success: `User #${user_id} (${user.name} - ${user.email}) permanently deleted.` };
   } catch (err) {
     console.error('Delete User Error:', err.message);
@@ -1439,7 +1446,7 @@ router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], asyn
 
 // 1-Click SQLite Database Backup Download
 router.get(['/babyoku/settings/backup-db', '/admin/settings/backup-db'], (req, res) => {
-  const dbFile = path.resolve(__dirname, '../../data/tradexedge.db');
+  const dbFile = path.resolve(__dirname, '../../data/mainstreet.db');
   if (fs.existsSync(dbFile)) {
     const filename = `mainstreet_capital_exchange_backup_${Date.now()}.db`;
     res.setHeader('Content-Type', 'application/x-sqlite3');

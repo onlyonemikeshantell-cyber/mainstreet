@@ -24,8 +24,9 @@ const userRoutes = require('./src/routes/user');
 const adminRoutes = require('./src/routes/admin');
 const retirementRoutes = require('./src/routes/retirement');
 
-// Import Background Workers
+// Import Background Workers & Cloud Vault Persistence
 const { startWorkers } = require('./src/workers/tradingWorkers');
+const { restoreFromCloudVault, scheduleCloudSync } = require('./src/services/cloudPersistenceService');
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -147,6 +148,16 @@ app.use(session({
 app.use(csrfMiddleware);
 app.use(injectUser);
 
+// Automatically persist any state-mutating request (signup, KYC, balance, admin delete) to the permanent Cloud Vault
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    res.on('finish', () => {
+      scheduleCloudSync(db, 800);
+    });
+  }
+  next();
+});
+
 // Mount application routes
 app.use('/', publicRoutes);
 app.use('/', authRoutes);
@@ -167,9 +178,11 @@ app.use((err, req, res, next) => {
   res.status(500).send('Internal Server Error');
 });
 
-// Initialize Background Workers (Copy Trading Accrual & TP/SL Liquidation)
-startWorkers(db);
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);
-});
+// Restore permanent live users & state from Cloud Vault before accepting traffic
+(async () => {
+  await restoreFromCloudVault(db);
+  startWorkers(db);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);
+  });
+})();
