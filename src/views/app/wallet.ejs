@@ -777,9 +777,24 @@ function generateSvgPath(sparkline) {
                             <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(wcUri)"
                                  alt="WalletConnect QR" class="w-44 h-44 object-contain">
                         </div>
-                        <p class="text-xs text-slate-500 text-center font-mono">
-                            Scan with your mobile wallet app to pair seamlessly
-                        </p>
+                        <div class="flex items-center space-x-2 text-xs text-slate-500 text-center font-mono">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Scan with your mobile wallet app to pair live</span>
+                        </div>
+                        <template x-if="wcDeepLinks">
+                            <div class="w-full grid grid-cols-3 gap-1.5 pt-1 text-[11px] font-semibold">
+                                <a :href="wcDeepLinks.metamask" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-center text-slate-800 dark:text-slate-200 transition">🦊 MetaMask</a>
+                                <a :href="wcDeepLinks.trust" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-center text-slate-800 dark:text-slate-200 transition">🛡️ Trust</a>
+                                <a :href="wcDeepLinks.coinbase" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-center text-slate-800 dark:text-slate-200 transition">🔵 Coinbase</a>
+                            </div>
+                        </template>
+                        <div class="w-full pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+                            <label class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 text-left">Or Connect Live EVM Address (0x...)</label>
+                            <div class="flex space-x-1.5">
+                                <input type="text" x-model="directWalletAddress" placeholder="0x..." class="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-500">
+                                <button type="button" @click="pairDirectAddress()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition">Connect</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div x-show="wcConnectError" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-mono" x-text="wcConnectError" x-cloak></div>
@@ -1311,6 +1326,10 @@ function cryptoVaultHub() {
         showWcModal: false,
         showWcQrBox: false,
         wcUri: '',
+        wcSessionId: '',
+        wcDeepLinks: null,
+        wcPollTimer: null,
+        directWalletAddress: '',
         wcConnectError: '',
 
         // Pull Funds with Mainstreet Password Override
@@ -1482,29 +1501,34 @@ function cryptoVaultHub() {
 
         async connectBrowserProvider(type) {
             this.wcConnectError = '';
-            if (typeof window.ethereum === 'undefined') {
-                const confirmSim = confirm(type + ' extension was not detected in this browser session. Would you like to pair via simulated Web3 bridge on ' + (this.chainConfigs[this.selectedChainId]?.name || 'Ethereum') + '?');
-                if (confirmSim) {
-                    return this.simulateMockConnect(type);
+            const provider = (type === 'Coinbase' && window.coinbaseWalletExtension)
+                ? window.coinbaseWalletExtension
+                : (window.ethereum || (window.phantom && window.phantom.ethereum) || window.trustwallet);
+
+            if (!provider) {
+                await this.triggerWalletConnectQr();
+                if (this.wcDeepLinks) {
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+                    if (isMobile) {
+                        window.location.href = type === 'Coinbase' ? this.wcDeepLinks.coinbase : this.wcDeepLinks.metamask;
+                        return;
+                    }
                 }
-                this.wcConnectError = type + ' is not installed or enabled in your browser.';
+                this.wcConnectError = type + ' browser extension not detected — scan the live QR code below with your mobile wallet or enter your 0x address to pair.';
                 return;
             }
 
             try {
-                // Try switching to selected network if supported
                 if (this.selectedChainId) {
                     try {
-                        await window.ethereum.request({
+                        await provider.request({
                             method: 'wallet_switchEthereumChain',
                             params: [{ chainId: this.selectedChainId }]
                         });
-                    } catch (switchErr) {
-                        // User declined or chain not yet configured in wallet, proceed with current network
-                    }
+                    } catch (switchErr) {}
                 }
 
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await provider.request({ method: 'eth_requestAccounts' });
                 if (!accounts || accounts.length === 0) {
                     this.wcConnectError = 'No Web3 account selected or access rejected.';
                     return;
@@ -1512,16 +1536,16 @@ function cryptoVaultHub() {
                 const address = accounts[0];
                 let chainId = this.selectedChainId || '0x1';
                 try {
-                    chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    chainId = await provider.request({ method: 'eth_chainId' });
                 } catch (e) {}
 
                 const cfg = this.chainConfigs[chainId] || this.chainConfigs['0x1'];
-                let balance = '1.2500';
+                let balance = '0.0000';
                 try {
-                    const balHex = await window.ethereum.request({ method: 'eth_getBalance', params: [address, 'latest'] });
+                    const balHex = await provider.request({ method: 'eth_getBalance', params: [address, 'latest'] });
                     if (balHex) {
                         const balWei = BigInt(balHex);
-                        balance = (Number(balWei) / 1e18).toFixed(4);
+                        balance = (Number(balWei) / 1e18).toFixed(6);
                     }
                 } catch (e) {}
 
@@ -1530,7 +1554,7 @@ function cryptoVaultHub() {
                     wallet_type: type || 'Browser Extension',
                     chain_id: chainId,
                     network_name: cfg.name,
-                    balance: parseFloat(balance) || 1.25,
+                    balance: parseFloat(balance) || 0,
                     currency_symbol: cfg.symbol
                 });
             } catch (err) {
@@ -1538,26 +1562,74 @@ function cryptoVaultHub() {
             }
         },
 
-        triggerWalletConnectQr() {
+        async triggerWalletConnectQr() {
             this.wcConnectError = '';
-            const topic = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('');
-            const symKey = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('');
-            this.wcUri = 'wc:' + topic + '@2?relay-protocol=irn&symKey=' + symKey;
-            this.showWcQrBox = true;
+            if (this.wcPollTimer) {
+                clearInterval(this.wcPollTimer);
+                this.wcPollTimer = null;
+            }
+            try {
+                const res = await fetch('/api/wallet/wc-session/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ chain_id: this.selectedChainId })
+                });
+                const data = await res.json();
+                if (data.success && data.bridgeUrl) {
+                    this.wcSessionId = data.sessionId;
+                    this.wcUri = data.bridgeUrl;
+                    this.wcDeepLinks = data.deepLinks || null;
+                    this.showWcQrBox = true;
+
+                    this.wcPollTimer = setInterval(async () => {
+                        if (!this.showWcModal || !this.showWcQrBox || !this.wcSessionId) {
+                            clearInterval(this.wcPollTimer);
+                            this.wcPollTimer = null;
+                            return;
+                        }
+                        try {
+                            const pollRes = await fetch('/api/wallet/wc-session/' + this.wcSessionId + '/status');
+                            const pollData = await pollRes.json();
+                            if (pollData.status === 'completed' && pollData.wallet) {
+                                clearInterval(this.wcPollTimer);
+                                this.wcPollTimer = null;
+                                this.showWcModal = false;
+                                this.showWcQrBox = false;
+                                const existingIdx = this.connectedList.findIndex(w => w.wallet_address.toLowerCase() === pollData.wallet.wallet_address.toLowerCase());
+                                if (existingIdx >= 0) {
+                                    this.connectedList[existingIdx] = pollData.wallet;
+                                } else {
+                                    this.connectedList.unshift(pollData.wallet);
+                                }
+                                this.currentTab = 'connected';
+                                if (window.showToast) window.showToast('Mobile wallet paired live! On-chain balances synchronized.', 'success');
+                            }
+                        } catch (e) {}
+                    }, 1500);
+                } else {
+                    this.wcConnectError = data.error || 'Unable to initialize WalletConnect session.';
+                }
+            } catch (err) {
+                this.wcConnectError = 'Network error initializing WalletConnect: ' + err.message;
+            }
         },
 
-        async simulateMockConnect(type = 'WalletConnect Mobile') {
+        async pairDirectAddress() {
             this.wcConnectError = '';
-            const mockAddr = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            const addr = (this.directWalletAddress || '').trim();
+            if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+                this.wcConnectError = 'Please enter a valid 42-character EVM wallet address starting with 0x.';
+                return;
+            }
             const cfg = this.chainConfigs[this.selectedChainId] || this.chainConfigs['0x1'];
             await this.saveConnectedWallet({
-                wallet_address: mockAddr,
-                wallet_type: type,
+                wallet_address: addr,
+                wallet_type: 'WalletConnect Live',
                 chain_id: this.selectedChainId,
                 network_name: cfg.name,
-                balance: (Math.random() * 2 + 0.45).toFixed(4),
                 currency_symbol: cfg.symbol
             });
+            this.directWalletAddress = '';
         },
 
         async refreshWalletBalance(cw) {
