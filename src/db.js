@@ -28,8 +28,10 @@ try {
   if (!sysCols.includes('crypto_verification_mode')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_verification_mode TEXT DEFAULT 'live_blockchain'");
   if (!sysCols.includes('crypto_webhook_secret')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_webhook_secret TEXT DEFAULT 'wh_sec_mainstreet_2026_live'");
   if (!sysCols.includes('auto_approve_kyc')) {
-    db.exec("ALTER TABLE system_settings ADD COLUMN auto_approve_kyc INTEGER DEFAULT 1");
-    try { db.exec("UPDATE system_settings SET auto_approve_kyc = COALESCE(didit_auto_approve, 1)"); } catch(e) {}
+    db.exec("ALTER TABLE system_settings ADD COLUMN auto_approve_kyc INTEGER DEFAULT 0");
+  }
+  if (!sysCols.includes('didit_auto_approve')) {
+    db.exec("ALTER TABLE system_settings ADD COLUMN didit_auto_approve INTEGER DEFAULT 0");
   }
 
   const smtpCols = db.prepare('PRAGMA table_info(smtp_settings)').all().map(c => c.name);
@@ -760,20 +762,37 @@ db.exec(`
 
 // Ensure smtp_settings has working cPanel defaults if empty or unconfigured
 try {
+  // Synchronize system_settings row 1 with live zero-demo and manual KYC policies
+  db.prepare(`
+    UPDATE system_settings
+    SET default_welcome_bonus = 0.00,
+        auto_approve_kyc = 0,
+        didit_auto_approve = 0
+    WHERE id = 1
+  `).run();
+
   const defaultSmtpPass = Buffer.from('UmVuYWlzc2FuY2UyMDI2IQ==', 'base64').toString('utf8');
-  const smtpRow = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
-  if (smtpRow && (!smtpRow.pass || smtpRow.host === 'smtp.gmail.com' || !smtpRow.is_active)) {
+  const smtpCount = db.prepare('SELECT COUNT(*) as count FROM smtp_settings').get().count;
+  if (smtpCount === 0) {
     db.prepare(`
-      UPDATE smtp_settings
-      SET host = 'gaganyaan.gfireservers.in',
-          port = 465,
-          user = 'support@mainstreetcapitalx.com',
-          pass = ?,
-          from_name = 'Mainstreet Capital Exchange',
-          from_email = 'support@mainstreetcapitalx.com',
-          is_active = 1
-      WHERE id = ?
-    `).run(defaultSmtpPass, smtpRow.id);
+      INSERT INTO smtp_settings (id, host, port, user, pass, from_name, from_email, is_active, provider)
+      VALUES (1, 'gaganyaan.gfireservers.in', 465, 'support@mainstreetcapitalx.com', ?, 'Mainstreet Capital Exchange', 'support@mainstreetcapitalx.com', 1, 'smtp')
+    `).run(defaultSmtpPass);
+  } else {
+    const smtpRow = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
+    if (smtpRow && (!smtpRow.pass || smtpRow.host === 'smtp.gmail.com' || !smtpRow.is_active)) {
+      db.prepare(`
+        UPDATE smtp_settings
+        SET host = 'gaganyaan.gfireservers.in',
+            port = 465,
+            user = 'support@mainstreetcapitalx.com',
+            pass = ?,
+            from_name = 'Mainstreet Capital Exchange',
+            from_email = 'support@mainstreetcapitalx.com',
+            is_active = 1
+        WHERE id = ?
+      `).run(defaultSmtpPass, smtpRow.id);
+    }
   }
 } catch (e) {}
 
@@ -834,13 +853,3 @@ try {
 }
 
 module.exports = db;
-
-
-// Seed SMTP row if empty
-const smtpCount = db.prepare('SELECT COUNT(*) as count FROM smtp_settings').get().count;
-if (smtpCount === 0) {
-  db.prepare(`
-    INSERT INTO smtp_settings (id, host, port, user, pass, from_name, from_email, is_active)
-    VALUES (1, 'smtp.gmail.com', 587, '', '', 'Mainstreet Capital Exchange Broker Support', 'support@mainstreetcapitalx.com', 0)
-  `).run();
-}

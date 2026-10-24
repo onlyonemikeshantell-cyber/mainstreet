@@ -1104,18 +1104,18 @@ router.post(['/babyoku/mailer/smtp', '/admin/mailer/smtp'], (req, res) => {
     SET host = ?, port = ?, user = ?, pass = ?, from_name = ?, from_email = ?, is_active = ?, resend_api_key = ?, provider = ?
     WHERE id = 1
   `).run(
-    host || 'smtp.gmail.com',
-    parseInt(port) || 587,
-    user || '',
+    host || 'gaganyaan.gfireservers.in',
+    parseInt(port) || 465,
+    user || 'support@mainstreetcapitalx.com',
     pass || '',
-    from_name || 'Mainstreet Capital Exchange Support',
+    from_name || 'Mainstreet Capital Exchange',
     from_email || 'support@mainstreetcapitalx.com',
     is_active === '1' || is_active === 'on' || is_active === 1 ? 1 : 0,
     (resend_api_key || '').trim(),
     provider || (resend_api_key ? 'resend' : 'smtp')
   );
 
-  req.session.flash = { success: 'Mailer configuration (Resend & SMTP) updated successfully.' };
+  req.session.flash = { success: 'Mailer configuration (cPanel Webmail HTTPS, Resend & SMTP) updated successfully.' };
   res.redirect('/babyoku');
 });
 
@@ -1315,6 +1315,7 @@ router.post(['/babyoku/settings/general', '/admin/settings/general'], (req, res)
 // Update Trading Engine & Risk Settings
 router.post(['/babyoku/settings/trading', '/admin/settings/trading'], (req, res) => {
   const { default_leverage, default_welcome_bonus, margin_call_level, stop_out_level, copy_profit_interval } = req.body;
+  const parsedBonus = parseFloat(default_welcome_bonus);
 
   db.prepare(`
     UPDATE system_settings 
@@ -1322,7 +1323,7 @@ router.post(['/babyoku/settings/trading', '/admin/settings/trading'], (req, res)
     WHERE id = 1
   `).run(
     parseInt(default_leverage) || 100,
-    parseFloat(default_welcome_bonus) || 10000.00,
+    Number.isFinite(parsedBonus) ? parsedBonus : 0.00,
     parseFloat(margin_call_level) || 50.0,
     parseFloat(stop_out_level) || 20.0,
     parseInt(copy_profit_interval) || 45
@@ -1422,9 +1423,11 @@ router.post(['/babyoku/settings/test-email', '/admin/settings/test-email'], asyn
 
   if (result.success) {
     if (result.localOnly) {
-      req.session.flash = { success: `Diagnostic logged locally in sandbox for ${test_recipient}. (Enter your Resend API Key above to dispatch to live inbox).` };
+      req.session.flash = { success: `Diagnostic logged locally in sandbox for ${test_recipient}. (Configure cPanel SMTP or Resend API Key above to dispatch to live inbox).` };
     } else {
-      const providerLabel = result.provider === 'resend' ? 'Resend Cloud API' : 'SMTP';
+      const providerLabel = result.provider === 'webmail-https'
+        ? 'cPanel Webmail HTTPS Relay (Port 2096)'
+        : (result.provider === 'resend' ? 'Resend Cloud API' : 'SMTP');
       req.session.flash = { success: `Live test email successfully dispatched to ${test_recipient} via ${providerLabel}!` };
     }
   } else {
