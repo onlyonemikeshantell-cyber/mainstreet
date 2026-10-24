@@ -1088,19 +1088,6 @@
                 </div>
             </div>
 
-            <!-- Auto-Reflect Guarantee Banner -->
-            <div class="p-4 rounded-2xl bg-gain/10 border border-gain/20 flex items-start space-x-3 text-xs">
-                <div class="w-8 h-8 rounded-xl bg-gain/20 text-gain flex items-center justify-center font-bold text-base flex-shrink-0">
-                    ⚡
-                </div>
-                <div class="space-y-0.5 font-sans">
-                    <h4 class="font-bold text-content-primary text-xs">Instant Balance Auto-Credit Active</h4>
-                    <p class="text-[11px] text-content-secondary leading-relaxed">
-                        Your deposit automatically reflects in your trading purchasing power, margin equity, and crypto portfolio holdings immediately upon submitting or detecting your transaction on-chain. Zero manual wait times.
-                    </p>
-                </div>
-            </div>
-
             <!-- Step 3: Submission & Hash Verification Form -->
             <form action="/deposit" method="POST" @submit="submitting = true" class="space-y-5 text-xs font-mono">
                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
@@ -1115,7 +1102,6 @@
                                class="w-full bg-white dark:bg-black/20 border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
                         <div class="flex items-center justify-between text-[11px] mt-1.5 text-content-secondary font-mono">
                             <span class="text-primary font-bold" x-text="cryptoEquivalent ? cryptoEquivalent : 'Valued in real-time USD'"></span>
-                            <span class="text-gain font-semibold">⚡ Instant Auto-Credit</span>
                         </div>
                     </div>
 
@@ -1145,11 +1131,6 @@
                         
                         <div class="flex items-center justify-between mt-1.5 text-[10px] font-sans">
                             <span class="text-content-tertiary" x-text="isCrypto ? 'Verified via Bitcoin, Ethereum, or Tron RPC nodes.' : 'Verified against incoming Fedwire.'"></span>
-                            
-                            <!-- 1-Click Demo Hash Shortcut for Sandbox/Testing -->
-                            <button type="button" @click="fillDemoHash()" x-show="isCrypto" class="text-primary hover:underline font-mono font-bold flex items-center space-x-1">
-                                <span>⚡ Fill Demo Test Hash</span>
-                            </button>
                         </div>
                     </div>
                 </div>
