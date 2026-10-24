@@ -79,27 +79,6 @@ document.addEventListener('alpine:init', () => {
                     this.submitForm();
                 }
             });
-        },
-
-        async demoQuickVerify() {
-            try {
-                const res = await fetch('/api/dev/verification-code');
-                const data = await res.json();
-                if (data.code && data.code.length === 6) {
-                    const newDigits = [];
-                    for (let i = 0; i < 6; i++) {
-                        newDigits.push(data.code[i]);
-                    }
-                    this.digits = newDigits;
-                    this.$nextTick(() => {
-                        this.submitForm();
-                    });
-                } else {
-                    alert('No pending verification code found.');
-                }
-            } catch (e) {
-                console.error('Demo verify error:', e);
-            }
         }
     }));
 });
@@ -205,13 +184,6 @@ document.addEventListener('alpine:init', () => {
                     <span x-show="resending">Sending fresh code...</span>
                 </button>
             </form>
-
-            <!-- Demo Quick Verify Helper for Testing -->
-            <div class="pt-1">
-                <button type="button" @click="demoQuickVerify()" class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-mono font-bold transition">
-                    ⚡ Demo Quick Auto-Fill
-                </button>
-            </div>
         </div>
 
         <!-- Footer / Sign Out Link -->

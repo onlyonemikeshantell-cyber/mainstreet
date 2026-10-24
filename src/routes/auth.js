@@ -782,13 +782,6 @@ router.post('/verify-email/resend', async (req, res) => {
   return req.session.save(() => res.redirect('/verify-email'));
 });
 
-// GET /api/dev/verification-code (Quick test helper for dev/compliance preview)
-router.get('/api/dev/verification-code', (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
-  const user = db.prepare('SELECT email_verification_code FROM users WHERE id = ?').get(req.session.userId);
-  return res.json({ code: user ? user.email_verification_code : null });
-});
-
 // GET /forgot-password
 router.get('/forgot-password', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
