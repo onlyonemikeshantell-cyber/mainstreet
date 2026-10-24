@@ -796,8 +796,47 @@ try {
   }
 } catch (e) {}
 
-// Purge all auto-seeded demo data from user accounts
+// Purge all auto-seeded demo data and demo/test user accounts
 try {
+  // 0. Delete all seeded demo and test user accounts (along with all their related records)
+  const demoUsers = db.prepare(`
+    SELECT id, email FROM users
+    WHERE email IN ('trader@mainstreetcapitalx.com', 'admin_legacy@mainstreetcapitalx.com')
+       OR email LIKE 'testtrader_%@mainstreetcapitalx.com'
+       OR email LIKE 'test_onboard_%@mainstreetcapitalx.com'
+       OR email LIKE 'eleanor_kyc_%@mainstreetcapitalx.com'
+       OR email LIKE 'swiss_trader_%@mainstreetcapitalx.com'
+       OR email LIKE 'teststream%@example.com'
+       OR email LIKE 'verifier_%@mce.io'
+       OR email LIKE 'onboarding_test_%@example.com'
+  `).all();
+
+  for (const du of demoUsers) {
+    const uid = du.id;
+    try {
+      const accts = db.prepare('SELECT id FROM retirement_accounts WHERE user_id = ?').all(uid);
+      for (const a of accts) {
+        db.prepare('DELETE FROM retirement_holdings WHERE account_id = ?').run(a.id);
+        db.prepare('DELETE FROM retirement_contributions WHERE account_id = ?').run(a.id);
+      }
+      db.prepare('DELETE FROM retirement_accounts WHERE user_id = ?').run(uid);
+      db.prepare('DELETE FROM retirement_contributions WHERE user_id = ?').run(uid);
+    } catch (e) {}
+    try { db.prepare('DELETE FROM user_saved_wallets WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM user_connected_wallets WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM trades WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM transactions WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM copy_subscriptions WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM activity_logs WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM support_chat_messages WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM user_investments WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM notifications WHERE user_id = ?').run(uid); } catch (e) {}
+    try { db.prepare('DELETE FROM referrals WHERE referee_id = ? OR referrer_id = ?').run(uid, uid); } catch (e) {}
+    db.prepare('DELETE FROM users WHERE id = ?').run(uid);
+  }
+
   // 1. Remove hardcoded demo saved wallets
   db.prepare(`
     DELETE FROM user_saved_wallets
