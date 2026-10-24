@@ -133,7 +133,7 @@ window.smartsupp||(function(d) {
     <% if (typeof user !== 'undefined' && user) { %>
     <!-- Sticky Mobile App Bottom Navigation Dock -->
     <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#161617]/95 backdrop-blur-2xl border-t border-black/[0.08] dark:border-white/[0.1] px-2 py-1.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] select-none">
-        <div class="grid grid-cols-5 gap-1 max-w-md mx-auto text-[10px] font-medium">
+        <div class="grid grid-cols-4 gap-1 max-w-md mx-auto text-[10px] font-medium">
             <a href="/dashboard" class="flex flex-col items-center justify-center py-1 rounded-xl transition <%= (typeof currentPath !== 'undefined' && currentPath === '/dashboard') ? 'text-primary dark:text-sky-400 font-bold bg-primary/10' : 'text-content-secondary dark:text-neutral-400 hover:text-content-primary' %>">
                 <span class="text-sm leading-none mb-0.5">📊</span>
                 <span>Portfolio</span>
@@ -150,10 +150,6 @@ window.smartsupp||(function(d) {
                 <span class="text-sm leading-none mb-0.5">👛</span>
                 <span>Wallet</span>
             </a>
-            <button type="button" @click="$store.sidepanel ? $store.sidepanel.toggle() : null" class="flex flex-col items-center justify-center py-1 rounded-xl text-content-secondary dark:text-neutral-400 hover:text-content-primary transition cursor-pointer">
-                <span class="text-sm leading-none mb-0.5">☰</span>
-                <span>More</span>
-            </button>
         </div>
     </nav>
     <div class="lg:hidden h-14"></div>
