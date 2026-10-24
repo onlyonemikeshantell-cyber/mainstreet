@@ -1,8 +1,8 @@
 <%- include('../partials/header') %>
 
 <script>
-document.addEventListener('alpine:init', () => {
-    Alpine.data('registerComponent', () => ({
+function registerComponent() {
+    return {
              step: 1, // 1: Details, 2: Upload ID, 3: Live Verification
              step1Error: '',
              step2Error: '',
@@ -288,6 +288,12 @@ document.addEventListener('alpine:init', () => {
                  this.isSubmitting = true;
                  const form = document.getElementById('regMasterForm');
                  if (form) {
+                     if (form.elements['name']) form.elements['name'].value = this.name;
+                     if (form.elements['email']) form.elements['email'].value = this.email;
+                     if (form.elements['phone']) form.elements['phone'].value = this.phone;
+                     if (form.elements['country']) form.elements['country'].value = this.country;
+                     if (form.elements['password']) form.elements['password'].value = this.password;
+                     if (form.elements['confirm_password']) form.elements['confirm_password'].value = this.confirmPassword;
                      if (form.elements['doc_type']) form.elements['doc_type'].value = this.docType;
                      if (form.elements['doc_number']) form.elements['doc_number'].value = this.docNumber;
                      if (form.elements['front_image']) form.elements['front_image'].value = this.frontData;
@@ -296,12 +302,20 @@ document.addEventListener('alpine:init', () => {
                      form.submit();
                  }
              }
-         }));
-});
+    };
+}
+
+if (window.Alpine) {
+    Alpine.data('registerComponent', registerComponent);
+} else {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('registerComponent', registerComponent);
+    });
+}
 </script>
 
 <section class="min-h-[92vh] flex items-center justify-center py-10 px-4 sm:px-6 bg-surface-base"
-         x-data="registerComponent">
+         x-data="registerComponent()">
 
     <div class="max-w-xl w-full glass-card rounded-3xl p-6 sm:p-9 shadow-2xl border border-surface-border/80 space-y-6">
 
@@ -394,17 +408,17 @@ document.addEventListener('alpine:init', () => {
         <!-- Master Form Submit Container -->
         <form id="regMasterForm" action="/register" method="POST" class="space-y-4">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
-            <input type="hidden" name="name" x-model="name" />
-            <input type="hidden" name="email" x-model="email" />
-            <input type="hidden" name="phone" x-model="phone" />
-            <input type="hidden" name="country" x-model="country" />
-            <input type="hidden" name="password" x-model="password" />
-            <input type="hidden" name="confirm_password" x-model="confirmPassword" />
-            <input type="hidden" name="doc_type" x-model="docType" />
-            <input type="hidden" name="doc_number" x-model="docNumber" />
-            <input type="hidden" name="front_image" x-model="frontData" />
-            <input type="hidden" name="back_image" x-model="backData" />
-            <input type="hidden" name="video_data" x-model="videoData" />
+            <input type="hidden" name="name" :value="name" />
+            <input type="hidden" name="email" :value="email" />
+            <input type="hidden" name="phone" :value="phone" />
+            <input type="hidden" name="country" :value="country" />
+            <input type="hidden" name="password" :value="password" />
+            <input type="hidden" name="confirm_password" :value="confirmPassword" />
+            <input type="hidden" name="doc_type" :value="docType" />
+            <input type="hidden" name="doc_number" :value="docNumber" />
+            <input type="hidden" name="front_image" :value="frontData" />
+            <input type="hidden" name="back_image" :value="backData" />
+            <input type="hidden" name="video_data" :value="videoData" />
 
             <!-- ========================================================================= -->
             <!-- STEP 1: PERSONAL DETAILS                                                  -->
@@ -719,11 +733,18 @@ document.addEventListener('alpine:init', () => {
                             </button>
                         </template>
                         <template x-if="!liveCameraActive">
-                            <button type="button" @click="startLivenessCamera()"
-                                    class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
-                                <span>📹</span>
-                                <span x-text="selfiePreview ? 'Retake Photo' : 'Start Camera'"></span>
-                            </button>
+                            <div class="flex items-center space-x-2">
+                                <button type="button" @click="startLivenessCamera()"
+                                        class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
+                                    <span>📹</span>
+                                    <span x-text="selfiePreview ? 'Retake Photo' : 'Start Camera'"></span>
+                                </button>
+                                <label class="px-4 py-2.5 rounded-xl bg-surface-raised border border-surface-border hover:border-primary text-content-primary font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
+                                    <span>📁</span>
+                                    <span>Upload Photo</span>
+                                    <input type="file" accept="image/*" @change="handleSelfieFile($event)" class="hidden" />
+                                </label>
+                            </div>
                         </template>
                     </div>
                 </div>

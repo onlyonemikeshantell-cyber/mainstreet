@@ -408,10 +408,22 @@ router.post('/register', async (req, res) => {
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
-  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+  const existing = db.prepare('SELECT id, email_verified FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (existing) {
-    req.session.flash = { error: 'An account with that email already exists. Please log in.' };
-    return req.session.save(() => res.redirect('/login'));
+    if (existing.email_verified === 1) {
+      req.session.flash = { error: 'An account with that email already exists. Please sign in.' };
+      return req.session.save(() => res.redirect('/login'));
+    }
+    // If an uncompleted/unverified account exists, purge stale record so registration proceeds cleanly
+    try {
+      db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(existing.id);
+      db.prepare('DELETE FROM notifications WHERE user_id = ?').run(existing.id);
+      db.prepare('DELETE FROM transactions WHERE user_id = ?').run(existing.id);
+      db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(existing.id);
+      db.prepare('DELETE FROM users WHERE id = ?').run(existing.id);
+    } catch (e) {
+      console.warn('Notice cleaning up unverified user record:', e.message);
+    }
   }
 
   const systemSettings = db.prepare('SELECT auto_approve_kyc, didit_auto_approve FROM system_settings WHERE id = 1').get() || {};
