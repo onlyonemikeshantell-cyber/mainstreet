@@ -624,7 +624,7 @@
         }, 8000);
       },
 
-      startLiveMonitoring(customHash = null, autoConfirm = false) {
+      startLiveMonitoring(customHash = null) {
         const hashToWatch = (customHash || this.txHash || '').trim();
 
         if (this.pollTimer) clearInterval(this.pollTimer);
@@ -634,13 +634,10 @@
         this.monitorMessage = 'Scanning blockchain nodes & mempool for incoming transfer to custody address...';
         this.confirmations = 0;
         this.verifiedResult = null;
-        let pollAttempts = 0;
 
         const checkStatus = async () => {
-          pollAttempts++;
           try {
-            const shouldAutoConfirm = autoConfirm && pollAttempts >= 2 ? '1' : '0';
-            const url = `/api/crypto/verify-status?tx_hash=${encodeURIComponent(hashToWatch)}&currency=${encodeURIComponent(this.selectedGateway.currency || 'USD')}&gateway_id=${this.selectedGateway.id}&amount=${encodeURIComponent(this.amount)}&auto_confirm=${shouldAutoConfirm}`;
+            const url = `/api/crypto/verify-status?tx_hash=${encodeURIComponent(hashToWatch)}&currency=${encodeURIComponent(this.selectedGateway.currency || 'USD')}&gateway_id=${this.selectedGateway.id}&amount=${encodeURIComponent(this.amount)}`;
             const res = await fetch(url);
             const data = await res.json();
 
@@ -650,7 +647,7 @@
 
             if (data.status === 'not_found' || data.status === 'listening') {
               this.monitorState = 'detecting';
-              this.monitorMessage = 'Automatic on-chain scanner active — monitoring custody wallet address across network validators...';
+              this.monitorMessage = 'Monitoring custody wallet address across blockchain validators...';
             } else if (data.status === 'in_mempool') {
               this.monitorState = 'in_mempool';
               this.monitorMessage = data.message || 'Detected incoming transfer in mempool! Waiting for block confirmation...';
@@ -715,12 +712,6 @@
         }).catch(e => {
           prompt('Copy deposit address:', this.selectedGateway.address);
         });
-      },
-
-      fillDemoHash() {
-        const randHex = Array.from({ length: 48 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        this.txHash = '0xDEMO_' + randHex;
-        this.startLiveMonitoring(this.txHash);
       }
     };
   };

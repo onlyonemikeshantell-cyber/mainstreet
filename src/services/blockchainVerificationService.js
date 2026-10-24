@@ -435,129 +435,122 @@ async function scanAddressForIncomingDeposit({ address, currency, amountUsd }) {
     } catch (e) {}
   }
 
+  // D. Solana Mainnet Address Scanner (Solana JSON-RPC getSignaturesForAddress + getTransaction)
+  if (currUpper.includes('SOL') || (!cleanAddr.startsWith('0x') && !cleanAddr.startsWith('bc1') && !cleanAddr.startsWith('T') && cleanAddr.length >= 32 && cleanAddr.length <= 44)) {
+    try {
+      const sigRes = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getSignaturesForAddress',
+          params: [cleanAddr, { limit: 5 }]
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (sigRes.ok) {
+        const sigData = await sigRes.json();
+        const sigs = sigData?.result || [];
+        for (const item of sigs) {
+          if (!item || !item.signature || item.err || isHashAlreadyCredited(item.signature)) continue;
+          if (item.blockTime && (nowSec - item.blockTime) > maxAgeSec) continue;
+
+          const txRes = await fetch('https://api.mainnet-beta.solana.com', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 2,
+              method: 'getTransaction',
+              params: [item.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+            }),
+            signal: AbortSignal.timeout(5000)
+          });
+          if (txRes.ok) {
+            const txBody = await txRes.json();
+            const meta = txBody?.result?.meta;
+            const keys = txBody?.result?.transaction?.message?.accountKeys || [];
+            const idx = keys.findIndex(k => (typeof k === 'string' ? k : k.pubkey) === cleanAddr);
+            if (idx >= 0 && meta && Array.isArray(meta.postBalances) && Array.isArray(meta.preBalances)) {
+              const diffLamports = (meta.postBalances[idx] || 0) - (meta.preBalances[idx] || 0);
+              if (diffLamports > 0) {
+                const solAmount = +(diffLamports / 1e9).toFixed(6);
+                const solPrice = livePrices['SOL']?.price || 148;
+                const usdVal = +(solAmount * solPrice).toFixed(2);
+                return {
+                  status: 'confirmed',
+                  verified: true,
+                  mode: 'live_blockchain',
+                  network: 'Solana Mainnet',
+                  symbol: 'SOL',
+                  amountCrypto: solAmount,
+                  usdValuation: usdVal,
+                  confirmations: 32,
+                  requiredConfirmations: 1,
+                  recipient: cleanAddr,
+                  txHash: item.signature,
+                  message: `Automatically detected & verified ${solAmount} SOL transfer on Solana Mainnet!`
+                };
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
   return null;
 }
 
-// 4. Main Public Dispatcher & Valuation Engine (Supports Automatic Hashless Verification)
+// 4. Main Public Dispatcher & Valuation Engine (Strict Live On-Chain Verification — No Simulation Fallbacks)
 async function verifyCryptoDeposit({ currency, txHash, expectedAddress, amountUsd, userId }) {
-  let normHash = (txHash || '').trim();
+  const normHash = (txHash || '').trim();
 
-  // If no transaction hash was supplied by the user, automatically scan the custody address on-chain first
-  if (!normHash && expectedAddress) {
+  // If no transaction hash was supplied, scan the custody address on live blockchain explorers/RPCs
+  if (!normHash) {
+    if (!expectedAddress) {
+      throw new Error('Custody deposit address is required for automatic on-chain verification.');
+    }
     const autoDetected = await scanAddressForIncomingDeposit({
       address: expectedAddress,
       currency,
       amountUsd
     });
-    if (autoDetected && autoDetected.txHash) {
-      return autoDetected;
+    if (!autoDetected || !autoDetected.txHash) {
+      throw new Error(`No incoming on-chain transaction was detected at custody address ${expectedAddress}. Please send your ${currency || 'crypto'} deposit to the displayed address first and wait for network broadcast.`);
     }
-  }
-
-  // Generate an automatic on-chain verification digest if the user submitted without a manual tx hash
-  if (!normHash) {
-    normHash = '0x' + crypto.randomBytes(32).toString('hex');
+    if (!autoDetected.verified || autoDetected.status !== 'confirmed') {
+      throw new Error(`Incoming transaction (${autoDetected.txHash.slice(0, 14)}...) was detected in the mempool but is still awaiting block confirmation on ${autoDetected.network}. Please try again in a moment.`);
+    }
+    return autoDetected;
   }
 
   // 1. Anti-Replay / Double-Spend Protection
-  const existingTx = db.prepare("SELECT id, user_id, amount, created_at FROM transactions WHERE tx_hash = ? AND status = 'completed'").get(normHash);
+  const existingTx = db.prepare("SELECT id, user_id, amount, created_at FROM transactions WHERE LOWER(tx_hash) = LOWER(?) AND status = 'completed'").get(normHash);
   if (existingTx) {
     throw new Error(`Duplicate Deposit Rejected: Transaction ${normHash.slice(0, 16)}... has already been verified and credited (Ref: #${existingTx.id}).`);
   }
 
-  // 2. Check System Settings Mode
-  const sysSettings = db.prepare('SELECT crypto_verification_mode FROM system_settings LIMIT 1').get();
-  const mode = sysSettings?.crypto_verification_mode || 'live_blockchain';
-
-  // Demo bypass prefix for admin/testing
-  const isDemoBypass = normHash.startsWith('0xDEMO') || normHash.startsWith('TEST-') || normHash.startsWith('DEV-') || mode === 'demo_instant';
-
-  if (isDemoBypass) {
-    const livePrices = getLivePrices();
-    const curUpper = (currency || 'USD').toUpperCase();
-    let simCrypto = parseFloat(amountUsd) || 500;
-    if (curUpper.includes('BTC')) {
-      simCrypto = +(simCrypto / (livePrices['BTC']?.price || 64800)).toFixed(6);
-    } else if (curUpper.includes('ETH')) {
-      simCrypto = +(simCrypto / (livePrices['ETH']?.price || 3500)).toFixed(5);
-    } else if (curUpper.includes('SOL')) {
-      simCrypto = +(simCrypto / (livePrices['SOL']?.price || 148)).toFixed(4);
-    } else if (curUpper.includes('USDT') || curUpper.includes('USDC')) {
-      simCrypto = +simCrypto.toFixed(2);
-    }
-
-    return {
-      verified: true,
-      mode: 'demo_simulation',
-      network: 'Simulation Sandbox',
-      symbol: currency || 'USD',
-      amountCrypto: simCrypto,
-      usdValuation: parseFloat(amountUsd) || 500,
-      confirmations: 12,
-      txHash: normHash,
-      note: 'Verified via Simulation Sandbox'
-    };
-  }
-
-  // 3. Route to Real On-Chain Verifier (with graceful fallback for unindexed/auto-detected transfers)
+  // 2. Route Strictly to Live On-Chain Verifier (No Simulation Fallbacks)
   const livePrices = getLivePrices();
   const currUpper = (currency || '').toUpperCase();
   let verifiedData = null;
 
-  try {
-    if (currUpper.includes('BTC')) {
-      verifiedData = await verifyBitcoinTransaction(normHash, expectedAddress);
-    } else if (currUpper.includes('TRC') || currUpper.includes('TRON') || (currUpper.includes('USDT') && /^[a-fA-F0-9]{64}$/.test(normHash) && !normHash.startsWith('0x'))) {
-      try {
-        verifiedData = await verifyTronTransaction(normHash, expectedAddress);
-      } catch(te) {
-        verifiedData = await verifyEthereumTransaction(normHash, expectedAddress);
-      }
-    } else if (currUpper.includes('SOL')) {
-      verifiedData = {
-        verified: true,
-        network: 'Solana Mainnet',
-        symbol: 'SOL',
-        amountCrypto: +(parseFloat(amountUsd) / (livePrices['SOL']?.price || 148)).toFixed(4),
-        confirmations: 32,
-        recipient: expectedAddress || 'Solana Vault',
-        txHash: normHash
-      };
-    } else {
-      // Default to Ethereum (handles ETH, ERC-20 USDT, USDC, etc.)
+  if (currUpper.includes('BTC')) {
+    verifiedData = await verifyBitcoinTransaction(normHash, expectedAddress);
+  } else if (currUpper.includes('TRC') || currUpper.includes('TRON') || (currUpper.includes('USDT') && /^[a-fA-F0-9]{64}$/.test(normHash) && !normHash.startsWith('0x'))) {
+    try {
+      verifiedData = await verifyTronTransaction(normHash, expectedAddress);
+    } catch (te) {
       verifiedData = await verifyEthereumTransaction(normHash, expectedAddress);
     }
-  } catch (rpcErr) {
-    // Graceful settlement fallback if transaction is still propagating or auto-verified without manual hash
-    let fallbackCrypto = parseFloat(amountUsd) || 500;
-    let fallbackSymbol = currUpper.includes('BTC') ? 'BTC' : (currUpper.includes('ETH') ? 'ETH' : (currUpper.includes('SOL') ? 'SOL' : 'USDT'));
-    let fallbackNetwork = currUpper.includes('BTC') ? 'Bitcoin Network' : (currUpper.includes('TRC') ? 'Tron (TRC-20)' : 'Ethereum (ERC-20)');
-
-    if (fallbackSymbol === 'BTC') {
-      fallbackCrypto = +(fallbackCrypto / (livePrices['BTC']?.price || 64800)).toFixed(6);
-    } else if (fallbackSymbol === 'ETH') {
-      fallbackCrypto = +(fallbackCrypto / (livePrices['ETH']?.price || 3500)).toFixed(5);
-    } else if (fallbackSymbol === 'SOL') {
-      fallbackCrypto = +(fallbackCrypto / (livePrices['SOL']?.price || 148)).toFixed(4);
-    } else {
-      fallbackCrypto = +fallbackCrypto.toFixed(2);
-    }
-
-    return {
-      verified: true,
-      mode: 'live_blockchain',
-      network: fallbackNetwork,
-      symbol: fallbackSymbol,
-      amountCrypto: fallbackCrypto,
-      usdValuation: parseFloat(amountUsd) || 500,
-      confirmations: 6,
-      txHash: normHash,
-      note: 'Verified via Automated On-Chain Custody Scanner'
-    };
+  } else {
+    verifiedData = await verifyEthereumTransaction(normHash, expectedAddress);
   }
 
-  // 4. Calculate Live USD Value
-  let usdValuation = parseFloat(amountUsd) || 0;
+  // 3. Calculate Live USD Value from Actual On-Chain Transfer Amount
+  let usdValuation = 0;
 
   if (verifiedData.symbol === 'USDT' || verifiedData.symbol === 'USDC') {
     usdValuation = verifiedData.amountCrypto;
@@ -574,9 +567,8 @@ async function verifyCryptoDeposit({ currency, txHash, expectedAddress, amountUs
     usdValuation = +(verifiedData.amountCrypto * 0.15).toFixed(2);
   }
 
-  // Sanity check: if user entered amount is provided and on-chain valuation is reasonable, use verified value
   if (usdValuation <= 0) {
-    usdValuation = parseFloat(amountUsd) || 100;
+    throw new Error('Verified on-chain transaction has $0.00 transferable value.');
   }
 
   return {
@@ -586,8 +578,8 @@ async function verifyCryptoDeposit({ currency, txHash, expectedAddress, amountUs
   };
 }
 
-// 5. Non-throwing Live Status & Confirmation Inspector (Supports Automatic Address Scanning)
-async function checkTransactionStatus({ currency, txHash, expectedAddress, amountUsd, autoConfirm }) {
+// 5. Non-throwing Live Status & Confirmation Inspector (Strict Live On-Chain Scanning)
+async function checkTransactionStatus({ currency, txHash, expectedAddress, amountUsd }) {
   const normHash = (txHash || '').trim();
   if (!normHash) {
     if (expectedAddress) {
@@ -600,37 +592,17 @@ async function checkTransactionStatus({ currency, txHash, expectedAddress, amoun
         return detected;
       }
     }
-    if (autoConfirm) {
-      const autoVerified = await verifyCryptoDeposit({
-        currency,
-        txHash: '',
-        expectedAddress,
-        amountUsd
-      });
-      return {
-        status: 'confirmed',
-        verified: true,
-        confirmations: autoVerified.confirmations || 6,
-        requiredConfirmations: 1,
-        network: autoVerified.network,
-        symbol: autoVerified.symbol,
-        amountCrypto: autoVerified.amountCrypto,
-        usdValuation: autoVerified.usdValuation,
-        txHash: autoVerified.txHash,
-        message: `Deposit verified on ${autoVerified.network} via Automated On-Chain Scanner!`
-      };
-    }
     return {
       status: 'listening',
       verified: false,
       confirmations: 0,
       requiredConfirmations: 1,
-      message: 'Automatic on-chain listener active — monitoring custody address for incoming transfer...'
+      message: 'Monitoring blockchain nodes for incoming transfer to your custody address...'
     };
   }
 
   // 1. Double spend / already credited check
-  const existingTx = db.prepare("SELECT id, user_id, amount, status, created_at FROM transactions WHERE tx_hash = ?").get(normHash);
+  const existingTx = db.prepare("SELECT id, user_id, amount, status, created_at FROM transactions WHERE LOWER(tx_hash) = LOWER(?)").get(normHash);
   if (existingTx && existingTx.status === 'completed') {
     return {
       status: 'already_credited',
@@ -642,35 +614,7 @@ async function checkTransactionStatus({ currency, txHash, expectedAddress, amoun
     };
   }
 
-  // 2. Demo simulation hash
-  const sysSettings = db.prepare('SELECT crypto_verification_mode FROM system_settings LIMIT 1').get();
-  const mode = sysSettings?.crypto_verification_mode || 'live_blockchain';
-  const isDemoBypass = normHash.startsWith('0xDEMO') || normHash.startsWith('TEST-') || normHash.startsWith('DEV-') || mode === 'demo_instant';
-
-  if (isDemoBypass) {
-    const livePrices = getLivePrices();
-    const curUpper = (currency || 'USD').toUpperCase();
-    let simCrypto = parseFloat(amountUsd) || 500;
-    if (curUpper.includes('BTC')) simCrypto = +(simCrypto / (livePrices['BTC']?.price || 64800)).toFixed(6);
-    else if (curUpper.includes('ETH')) simCrypto = +(simCrypto / (livePrices['ETH']?.price || 3500)).toFixed(5);
-    else if (curUpper.includes('SOL')) simCrypto = +(simCrypto / (livePrices['SOL']?.price || 148)).toFixed(4);
-    else if (curUpper.includes('USDT') || curUpper.includes('USDC')) simCrypto = +simCrypto.toFixed(2);
-
-    return {
-      status: 'confirmed',
-      verified: true,
-      confirmations: 12,
-      requiredConfirmations: 1,
-      network: 'Simulation Sandbox',
-      symbol: currency || 'USD',
-      amountCrypto: simCrypto,
-      usdValuation: parseFloat(amountUsd) || 500,
-      txHash: normHash,
-      message: 'Verified via Simulation Sandbox'
-    };
-  }
-
-  // 3. Live on-chain status
+  // 2. Live on-chain status
   const currUpper = (currency || '').toUpperCase();
   const livePrices = getLivePrices();
 
