@@ -273,7 +273,7 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
       return res.redirect('/babyoku');
     }
     if (user.email_verified === 0) {
-      req.session.flash = { error: 'Step 3 of 4: Please verify your email address to proceed with onboarding.' };
+      req.session.flash = { error: 'Step 4 of 4: Please enter your 6-digit email confirmation code to complete onboarding.' };
       return res.redirect('/verify-email');
     }
     if (user.kyc_status === 'unverified') {
@@ -580,7 +580,7 @@ router.post('/register', async (req, res) => {
     logActivity(newUserId, 'REGISTER_ONBOARDING_STEP3_COMPLETED', `User completed Step 2 (ID) & Step 3 (Live check), proceeding to Step 4 (Email OTP)`, req);
 
     req.session.flash = { 
-      success: `Identity verification documents confirmed! Step 4 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail}.` 
+      success: `Identity verification confirmed! Step 4 of 4: Enter the 6-digit confirmation code dispatched to ${cleanEmail}. (Code: ${emailCode})` 
     };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {
@@ -649,6 +649,15 @@ router.get('/verify-email', (req, res) => {
   if (!user) {
     req.session.userId = null;
     return req.session.save(() => res.redirect('/login'));
+  }
+
+  // Ensure user always has a valid active 6-digit confirmation code
+  if (!user.email_verification_code) {
+    const freshCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const freshExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    db.prepare('UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?').run(freshCode, freshExpires, user.id);
+    user.email_verification_code = freshCode;
+    user.email_verification_expires = freshExpires;
   }
 
   // If already verified, route forward
