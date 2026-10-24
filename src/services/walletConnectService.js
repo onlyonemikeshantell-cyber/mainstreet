@@ -643,13 +643,30 @@ function registerWalletConnectRoutes(router, logActivity) {
     });
   });
 
-  // 8. API: Pull / Deposit Funds from Connected External Wallet
+  // 8. API: Get Custody Receiving Addresses for Web3 Client-Side Signing
+  router.get('/api/wallet/custody-addresses', (req, res) => {
+    try {
+      const gateways = db.prepare('SELECT id, name, currency, network, address, min_deposit FROM payment_gateways WHERE is_active = 1').all();
+      res.json({
+        success: true,
+        gateways,
+        token_contracts: {
+          'USDT': { address: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 6 },
+          'USDC': { address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', decimals: 6 }
+        }
+      });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // 9. API: Pull / Deposit Funds from Connected External Wallet via Real Web3 Transaction Verification
   router.post('/api/wallet/pull-funds', async (req, res) => {
     const userId = req.session.userId;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
 
-    const { wallet_address, asset_symbol, amount, password, tx_hash } = req.body;
+    const { wallet_address, asset_symbol, amount, tx_hash } = req.body;
     const numAmount = parseFloat(amount);
     const sym = (asset_symbol || 'ETH').trim().toUpperCase();
 
@@ -657,42 +674,92 @@ function registerWalletConnectRoutes(router, logActivity) {
       return res.status(400).json({ success: false, error: 'Please enter a valid transfer amount greater than 0.' });
     }
 
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        requires_password: true,
-        error: 'Security Verification Required: Please enter your Mainstreet account password to authorize and sign this transfer.'
-      });
-    }
-
-    const isPasswordValid = bcrypt.compareSync(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(403).json({
-        success: false,
-        error: 'Invalid Mainstreet account password. Authorization denied.'
-      });
-    }
-
     const fromAddr = (wallet_address || '').trim().toLowerCase();
     const wallet = db.prepare('SELECT * FROM user_connected_wallets WHERE user_id = ? AND LOWER(wallet_address) = ? AND is_active = 1').get(userId, fromAddr);
     if (!wallet) {
-      return res.status(404).json({ success: false, error: 'Connected external wallet not found.' });
+      return res.status(404).json({ success: false, error: 'Connected external wallet not found in your linked accounts.' });
     }
 
-    // Refresh real on-chain balance before authorizing transfer unless an on-chain tx_hash was already broadcast
-    const { nativeBal, tokensMap } = await fetchLiveOnChainBalances(fromAddr, wallet.chain_id || '0x1');
-    const availableOnChain = sym === wallet.currency_symbol ? nativeBal : (Number(tokensMap[sym]) || 0);
+    // Determine target platform custody address from payment_gateways
+    let gateway = db.prepare('SELECT * FROM payment_gateways WHERE UPPER(currency) = ? AND is_active = 1').get(sym);
+    if (!gateway) {
+      gateway = db.prepare('SELECT * FROM payment_gateways WHERE UPPER(currency) LIKE ? AND is_active = 1').get(`%${sym}%`);
+    }
+    if (!gateway) {
+      gateway = db.prepare("SELECT * FROM payment_gateways WHERE UPPER(currency) = 'ETH' AND is_active = 1").get();
+    }
+    const custodyAddress = gateway ? gateway.address : '0x71C8366420A09271E59b208F38992D8f0019C45F';
 
-    if (!tx_hash && availableOnChain < numAmount) {
+    // In Option A, real on-chain transaction hash signed by user's Web3 wallet is strictly required
+    const cleanHash = (tx_hash || '').trim();
+    if (!cleanHash || cleanHash === 'simulate' || !cleanHash.startsWith('0x') || cleanHash.length < 66) {
       return res.status(400).json({
         success: false,
-        error: `Insufficient on-chain ${sym} balance in connected wallet (${fromAddr.slice(0, 8)}...). Live On-Chain Balance: ${availableOnChain} ${sym}, Requested: ${numAmount} ${sym}.`
+        requires_signing: true,
+        custody_address: custodyAddress,
+        error: 'Web3 Transaction Signature Required: Please sign and broadcast the transfer from your connected wallet (MetaMask, Trust Wallet, Coinbase, OKX, Phantom).'
       });
     }
 
+    // Anti-replay / duplicate deposit prevention
+    const existingTx = db.prepare("SELECT id, user_id, amount, created_at FROM transactions WHERE LOWER(tx_hash) = LOWER(?) AND status = 'completed'").get(cleanHash);
+    if (existingTx) {
+      return res.status(400).json({
+        success: false,
+        error: `Duplicate Deposit Rejected: Transaction ${cleanHash.slice(0, 16)}... has already been verified and credited (Ref: #${existingTx.id}).`
+      });
+    }
+
+    // Strictly verify on-chain via live blockchain RPC nodes (No simulation)
+    const { verifyCryptoDeposit } = require('./blockchainVerificationService');
+    let verification;
+    try {
+      verification = await verifyCryptoDeposit({
+        currency: sym,
+        txHash: cleanHash,
+        expectedAddress: custodyAddress,
+        amountUsd: 0,
+        userId
+      });
+    } catch (err) {
+      const errMsg = err.message || '';
+      // If currently pending in mempool awaiting block inclusion
+      if (errMsg.includes('mempool') || errMsg.includes('unconfirmed') || errMsg.includes('confirmation')) {
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          tx_hash: cleanHash,
+          message: 'Transaction broadcast detected on blockchain! Awaiting network block confirmation. Verifying...'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'On-Chain Blockchain Verification Failed: ' + errMsg
+      });
+    }
+
+    if (!verification || !verification.verified) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transaction could not be confirmed on the blockchain.'
+      });
+    }
+
+    // Confirm recipient matches platform custody
+    if (verification.recipient && custodyAddress) {
+      if (verification.recipient.toLowerCase() !== custodyAddress.toLowerCase()) {
+        return res.status(400).json({
+          success: false,
+          error: `Recipient Mismatch: Transaction transferred funds to ${verification.recipient}, but platform custody address is ${custodyAddress}.`
+        });
+      }
+    }
+
+    // Verified on-chain crypto amount and live market valuation
+    const verifiedCryptoAmt = Number(verification.amountCrypto) || numAmount;
     const livePrices = getLivePrices();
     const rateUsd = livePrices[sym]?.price || (sym === 'USDT' || sym === 'USDC' ? 1.0 : (sym === 'ETH' ? 3500 : (sym === 'BNB' ? 620 : (sym === 'POL' ? 0.45 : 65000))));
-    const amountUsd = numAmount * rateUsd;
+    const amountUsd = verification.usdValuation || +(verifiedCryptoAmt * rateUsd).toFixed(2);
 
     try {
       const executeFundImport = db.transaction(() => {
@@ -706,13 +773,12 @@ function registerWalletConnectRoutes(router, logActivity) {
         }
 
         db.prepare('UPDATE user_crypto_balances SET balance = balance + ?, rate_usd = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-          .run(numAmount, rateUsd, assetRow.id);
+          .run(verifiedCryptoAmt, rateUsd, assetRow.id);
 
         const newBalance = user.balance + amountUsd;
         db.prepare('UPDATE users SET balance = ?, equity = equity + ? WHERE id = ?').run(newBalance, amountUsd, userId);
 
         const ref = 'WC-' + Math.floor(100000 + Math.random() * 900000);
-        const generatedTxHash = (tx_hash && tx_hash.startsWith('0x')) ? tx_hash.trim() : ('0x' + crypto.randomBytes(32).toString('hex'));
 
         db.prepare(`
           INSERT INTO transactions (user_id, type, amount, currency, method, reference, tx_hash, status, description)
@@ -722,12 +788,15 @@ function registerWalletConnectRoutes(router, logActivity) {
           amountUsd,
           'USD',
           ref,
-          generatedTxHash,
-          `Direct WalletConnect transfer of ${numAmount} ${sym} ($${amountUsd.toFixed(2)} USD) from external wallet ${wallet.wallet_address.slice(0, 8)}...`
+          cleanHash,
+          `Verified Web3 transfer of ${verifiedCryptoAmt} ${sym} ($${amountUsd.toFixed(2)} USD) from external wallet ${wallet.wallet_address.slice(0, 8)}... (Tx: ${cleanHash.slice(0, 14)}...)`
         );
 
-        tokensMap[sym] = Math.max(0, +(availableOnChain - numAmount).toFixed(6));
-        const newNativeBal = sym === wallet.currency_symbol ? tokensMap[sym] : nativeBal;
+        // Update local wallet balance cache
+        let tokensMap = {};
+        try { tokensMap = JSON.parse(wallet.token_balances || '{}'); } catch(e) {}
+        tokensMap[sym] = Math.max(0, +((tokensMap[sym] || verifiedCryptoAmt) - verifiedCryptoAmt).toFixed(6));
+        const newNativeBal = sym === wallet.currency_symbol ? tokensMap[sym] : wallet.balance_cache;
 
         db.prepare(`
           UPDATE user_connected_wallets 
@@ -738,32 +807,34 @@ function registerWalletConnectRoutes(router, logActivity) {
         try {
           db.prepare(`
             INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
-            VALUES (?, 'WalletConnect Funds Received', ?, 'deposit', 0, CURRENT_TIMESTAMP)
-          `).run(userId, `Transferred ${numAmount} ${sym} ($${amountUsd.toFixed(2)} USD) from external wallet into Mainstreet custody.`);
+            VALUES (?, 'Web3 Deposit Verified & Credited', ?, 'deposit', 0, CURRENT_TIMESTAMP)
+          `).run(userId, `On-chain transfer of ${verifiedCryptoAmt} ${sym} ($${amountUsd.toFixed(2)} USD) verified on ${verification.network || 'Ethereum'}. Trading account credited.`);
         } catch (ne) {}
 
-        return { ref, generatedTxHash, newBalance, cryptoBalance: assetRow.balance + numAmount };
+        return { ref, txHash: cleanHash, newBalance, cryptoBalance: assetRow.balance + verifiedCryptoAmt };
       });
 
       const result = executeFundImport();
-      logActivity(userId, 'WALLET_FUND_IMPORT', `Imported ${numAmount} ${sym} ($${amountUsd.toFixed(2)} USD) from connected wallet ${wallet_address} (Ref: ${result.ref})`, req);
+      logActivity(userId, 'WALLET_FUND_IMPORT', `Verified on-chain transfer of ${verifiedCryptoAmt} ${sym} ($${amountUsd.toFixed(2)} USD) from ${wallet_address} (Tx: ${result.txHash})`, req);
 
       res.json({
         success: true,
-        message: `Successfully transferred ${numAmount} ${sym} ($${amountUsd.toFixed(2)} USD) from your external wallet into your Mainstreet portfolio!`,
+        message: `Successfully verified and transferred ${verifiedCryptoAmt} ${sym} ($${amountUsd.toFixed(2)} USD) from your external wallet into your Mainstreet portfolio!`,
         transaction: {
           reference: result.ref,
-          tx_hash: result.generatedTxHash,
-          amount_crypto: numAmount,
+          tx_hash: result.txHash,
+          amount_crypto: verifiedCryptoAmt,
           asset_symbol: sym,
-          amount_usd: amountUsd
+          amount_usd: amountUsd,
+          network: verification.network,
+          confirmations: verification.confirmations
         },
         newBalance: result.newBalance,
         cryptoBalance: result.cryptoBalance
       });
     } catch (err) {
       console.error('Wallet Pull Funds Error:', err.message);
-      res.status(500).json({ success: false, error: 'Failed to process external wallet transfer: ' + err.message });
+      res.status(500).json({ success: false, error: 'Failed to process verified transfer: ' + err.message });
     }
   });
 }

@@ -23,6 +23,9 @@
       linkedAsset: 'USDT',
       linkedAmount: '',
       linkedPassword: '',
+      linkedManualTxHash: '',
+      showLinkedManualHash: false,
+      linkedStatusText: '',
       linkedSubmitting: false,
       linkedError: '',
       linkedSuccess: '',
@@ -105,32 +108,139 @@
           this.linkedError = 'Please enter a valid deposit amount greater than 0.';
           return;
         }
-        if (!this.linkedPassword) {
-          this.linkedError = 'Please enter your Mainstreet account password to authorize this transfer.';
-          return;
-        }
 
         this.linkedSubmitting = true;
         this.linkedError = '';
         this.linkedSuccess = '';
+        this.linkedStatusText = 'Initiating on-chain transfer...';
 
         try {
-          const res = await fetch('/api/wallet/pull-funds', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-              wallet_address: this.selectedLinkedWallet.wallet_address,
-              asset_symbol: this.linkedAsset,
-              amount: amt,
-              password: this.linkedPassword
-            })
-          });
-          const data = await res.json();
+          const sym = (this.linkedAsset || 'ETH').toUpperCase();
+          const targetChain = this.selectedLinkedWallet.chain_id || '0x1';
+          
+          // 1. Resolve custody destination address
+          let custodyAddr = '0x71C8366420A09271E59b208F38992D8f0019C45F';
+          if (this.gateways && this.gateways.length > 0) {
+            const gw = this.gateways.find(g => (g.currency || '').toUpperCase() === sym)
+                    || this.gateways.find(g => (g.currency || '').toUpperCase().includes(sym))
+                    || this.gateways.find(g => (g.currency || '').toUpperCase() === 'ETH');
+            if (gw && gw.address) custodyAddr = gw.address;
+          }
+
+          let txHash = (this.linkedManualTxHash || '').trim();
+
+          // 2. Trigger real Web3 client-side signing if no manual hash provided
+          if (!txHash) {
+            let provider = null;
+            if (window.ethereum) {
+              if (Array.isArray(window.ethereum.providers) && window.ethereum.providers.length > 0) {
+                provider = window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
+              } else {
+                provider = window.ethereum;
+              }
+            } else if (window.trustwallet?.ethereum || window.trustwallet) {
+              provider = window.trustwallet.ethereum || window.trustwallet;
+            } else if (window.okxwallet?.ethereum || window.okxwallet) {
+              provider = window.okxwallet.ethereum || window.okxwallet;
+            } else if (window.phantom?.ethereum) {
+              provider = window.phantom.ethereum;
+            } else if (window.coinbaseWalletExtension) {
+              provider = window.coinbaseWalletExtension;
+            }
+
+            if (!provider || typeof provider.request !== 'function') {
+              this.showLinkedManualHash = true;
+              throw new Error('No injected Web3 browser wallet detected in this window. If you transferred funds from an external mobile wallet app, please paste the transaction hash (tx_hash) below, or open this page inside your MetaMask / Trust Wallet in-app browser.');
+            }
+
+            this.linkedStatusText = 'Opening Web3 wallet for signing...';
+            
+            // Request accounts & match
+            const accounts = await provider.request({ method: 'eth_requestAccounts' });
+            const activeAcc = (accounts && accounts[0]) ? accounts[0] : this.selectedLinkedWallet.wallet_address;
+
+            // Switch network if needed
+            try {
+              await provider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: targetChain }]
+              });
+            } catch (switchErr) {}
+
+            let txParams = {};
+            if (sym === 'ETH' || sym === 'BNB' || sym === 'POL' || sym === 'MATIC') {
+              const parts = amt.toString().split('.');
+              const whole = parts[0] || '0';
+              const frac = (parts[1] || '').slice(0, 18).padEnd(18, '0');
+              const wei = BigInt(whole) * BigInt('1000000000000000000') + BigInt(frac);
+              txParams = {
+                from: activeAcc,
+                to: custodyAddr,
+                value: '0x' + wei.toString(16)
+              };
+            } else if (sym === 'USDT' || sym === 'USDC') {
+              const tokenContract = (sym === 'USDT')
+                ? '0xdac17f958d2ee523a2206206994597c13d831ec7'
+                : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+              const parts = amt.toString().split('.');
+              const whole = parts[0] || '0';
+              const frac = (parts[1] || '').slice(0, 6).padEnd(6, '0');
+              const units = BigInt(whole) * BigInt('1000000') + BigInt(frac);
+              const cleanRecipient = custodyAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+              const cleanAmtHex = units.toString(16).padStart(64, '0');
+              txParams = {
+                from: activeAcc,
+                to: tokenContract,
+                value: '0x0',
+                data: '0xa9059cbb' + cleanRecipient + cleanAmtHex
+              };
+            } else {
+              throw new Error('Direct Web3 wallet signing currently supports ETH, USDT, USDC, BNB, and POL.');
+            }
+
+            this.linkedStatusText = 'Waiting for your signature in wallet...';
+            txHash = await provider.request({
+              method: 'eth_sendTransaction',
+              params: [txParams]
+            });
+          }
+
+          if (!txHash || !txHash.startsWith('0x')) {
+            throw new Error('Valid transaction hash was not returned by wallet.');
+          }
+
+          this.linkedStatusText = 'Transaction broadcast! Verifying on blockchain...';
+
+          // 3. Post to backend and poll for block confirmation
+          const verifyOnBackend = async (attempt = 1) => {
+            const res = await fetch('/api/wallet/pull-funds', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                wallet_address: this.selectedLinkedWallet.wallet_address,
+                asset_symbol: this.linkedAsset,
+                amount: amt,
+                tx_hash: txHash
+              })
+            });
+            const data = await res.json();
+            if (res.status === 202 || (data && data.pending)) {
+              this.linkedStatusText = `Awaiting network block confirmation (Attempt ${attempt})...`;
+              if (attempt < 15) {
+                await new Promise(r => setTimeout(r, 3500));
+                return verifyOnBackend(attempt + 1);
+              }
+            }
+            return data;
+          };
+
+          const data = await verifyOnBackend();
           this.linkedSubmitting = false;
 
-          if (data.success) {
+          if (data && data.success) {
             this.linkedSuccess = data.message || `Successfully transferred ${amt} ${this.linkedAsset} into your trading account!`;
-            this.linkedPassword = '';
+            this.linkedManualTxHash = '';
+            this.showLinkedManualHash = false;
             this.playSuccessChime();
             if (window.showToast) window.showToast(this.linkedSuccess, 'success');
 
@@ -146,12 +256,16 @@
               balEls.forEach(el => el.textContent = '$' + Number(data.newBalance).toLocaleString(undefined, { minimumFractionDigits: 2 }));
             }
           } else {
-            this.linkedError = data.error || 'Transfer authorization failed. Please check your password.';
+            this.linkedError = (data && data.error) || 'On-chain transaction verification failed. Please try again.';
             if (window.showToast) window.showToast(this.linkedError, 'error');
           }
         } catch (err) {
           this.linkedSubmitting = false;
-          this.linkedError = 'Network error while processing linked deposit: ' + err.message;
+          if (err.message && (err.message.includes('User rejected') || err.message.includes('user rejected') || err.message.includes('4001'))) {
+            this.linkedError = 'Transaction was cancelled in your Web3 wallet.';
+          } else {
+            this.linkedError = err.message || 'Error processing Web3 wallet transfer.';
+          }
           if (window.showToast) window.showToast(this.linkedError, 'error');
         }
       },
@@ -854,17 +968,30 @@
                         </div>
                     </div>
 
-                    <!-- Clean Password Authorization Input -->
-                    <div class="p-3.5 rounded-2xl bg-surface-base dark:bg-slate-900/80 border border-surface-border space-y-1.5">
+                    <!-- Web3 Transaction Authorization & Signing Card (Option A Direct On-Chain) -->
+                    <div class="p-4 rounded-2xl bg-surface-base dark:bg-slate-900/80 border border-surface-border space-y-3">
                         <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-content-primary flex items-center space-x-1.5">
-                                <span>🔒</span>
-                                <span>Authorize with Mainstreet Account Password</span>
-                            </label>
-                            <span class="text-[10px] text-content-tertiary font-sans">Secure Internal Bridge</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-xs font-bold text-content-primary">Client-Side Web3 Transaction Signing</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-md font-semibold border border-emerald-500/20">Option A Direct On-Chain</span>
                         </div>
-                        <input type="password" x-model="linkedPassword" required placeholder="Enter your password to authorize transfer"
-                               class="w-full px-3.5 py-2.5 rounded-xl bg-surface-raised border border-surface-border text-content-primary text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                        <p class="text-[11px] text-content-secondary leading-relaxed">
+                            Clicking transfer triggers an authentic blockchain transaction signing request in your connected Web3 wallet (<strong class="text-content-primary">MetaMask, Trust Wallet, OKX, Phantom</strong>). Funds are transferred directly to platform custody on-chain and credited upon network confirmation.
+                        </p>
+                        
+                        <!-- Toggle / Input for External Browser Hash Paste -->
+                        <div x-show="showLinkedManualHash" class="pt-2 border-t border-surface-border/50 space-y-1.5" x-cloak>
+                            <label class="block text-[11px] font-semibold text-content-secondary">
+                                Broadcasted Transaction Hash (tx_hash)
+                            </label>
+                            <input type="text" x-model="linkedManualTxHash" placeholder="0x... (paste 66-character transaction hash)"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-surface-raised border border-surface-border text-content-primary font-mono text-xs outline-none focus:border-emerald-500">
+                            <p class="text-[10px] text-content-tertiary">
+                                If you transferred funds from an external mobile wallet app, paste the transaction hash here to verify and credit your deposit.
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Success / Error Alerts -->
@@ -874,13 +1001,19 @@
                         <span x-text="linkedSuccess"></span>
                     </div>
 
-                    <!-- Action Button -->
-                    <div class="flex items-center justify-end">
+                    <!-- Action Button Row -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                        <button type="button" @click="showLinkedManualHash = !showLinkedManualHash" class="text-[11px] text-content-tertiary hover:text-content-primary underline transition">
+                            <span x-text="showLinkedManualHash ? 'Hide Manual Hash' : 'Paste Transaction Hash Manually'"></span>
+                        </button>
                         <button type="submit" :disabled="linkedSubmitting"
                                 :class="linkedSubmitting ? 'opacity-70 cursor-not-allowed bg-emerald-600' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30'"
                                 class="w-full sm:w-auto px-6 py-3 rounded-xl text-white font-bold text-xs shadow-lg transition flex items-center justify-center space-x-2">
-                            <span x-show="!linkedSubmitting">⚡ Instant Deposit from Linked Wallet</span>
-                            <span x-show="linkedSubmitting" x-cloak>Authorizing & Transferring...</span>
+                            <span x-show="!linkedSubmitting">⚡ Sign & Transfer from Linked Wallet</span>
+                            <span x-show="linkedSubmitting" class="flex items-center space-x-2" x-cloak>
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span x-text="linkedStatusText || 'Awaiting Wallet Signature...'"></span>
+                            </span>
                         </button>
                     </div>
                 </form>
