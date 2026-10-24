@@ -375,6 +375,7 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
+    doc_type, doc_number, front_image, back_image,
     video_data
   } = req.body;
 
@@ -393,7 +394,14 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/register'));
   }
 
-  // Step 2: Live Verification Enforcement during Registration
+  // Step 2: ID Verification Enforcement
+  const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
+  if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
+    req.session.flash = { error: 'Please provide complete government ID document details and photos.' };
+    return req.session.save(() => res.redirect('/register'));
+  }
+
+  // Step 3: Live Biometric Verification Enforcement
   if (!video_data) {
     req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
     return req.session.save(() => res.redirect('/register'));
@@ -406,44 +414,54 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/login'));
   }
 
+  const systemSettings = db.prepare('SELECT auto_approve_kyc, didit_auto_approve FROM system_settings WHERE id = 1').get() || {};
+  const isAutoApprove = ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) === 1);
+  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
+
   const hash = bcrypt.hashSync(password, 10);
   const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
   const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
-    // Initial KYC status is unverified until ID is uploaded at Step 4
     const result = db.prepare(`
       INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', 'unverified', 0, ?, ?, 1)
+      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 0, ?, ?, 1)
     `).run(
       name.trim(),
       cleanEmail,
       phone ? phone.trim() : null,
       country ? country.trim() : 'United States',
       hash,
+      initialKycStatus,
       emailCode,
       codeExpires
     );
 
     const newUserId = result.lastInsertRowid;
 
-    // Process and store preliminary live biometric verification
+    // Process and store ID documents & live biometric verification
     const resolveDocPath = (img, prefix, fallback) => {
       if (img && typeof img === 'string' && img.startsWith('/')) return img;
       return saveBase64Media(img, prefix, newUserId) || fallback;
     };
 
+    const frontPath = resolveDocPath(front_image, 'id_front', '/storage/kyc/default_front.jpg');
+    const backPath = resolveDocPath(effectiveBackImage, 'id_back', '/storage/kyc/default_back.jpg');
     const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', '/storage/kyc/default_video.webm') : null;
 
     db.prepare(`
-      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider)
-      VALUES (?, 'Biometric Live Check', ?, ?, ?, ?, 'pending', 'native')
+      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'native', ?)
     `).run(
       newUserId,
-      'BIO-' + Math.floor(100000 + Math.random() * 900000),
-      videoPath || '/storage/kyc/default_front.jpg',
-      videoPath || '/storage/kyc/default_back.jpg',
-      videoPath
+      doc_type || 'National ID Card',
+      doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
+      frontPath,
+      backPath,
+      videoPath,
+      docStatus,
+      isAutoApprove ? new Date().toISOString() : null
     );
 
     // Initial Welcome Demo Capital ($10,000 USD)
@@ -485,7 +503,7 @@ router.post('/register', async (req, res) => {
       `).run(
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
-        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 3 (Email OTP) and Step 4 (ID Document) to unlock live trading.'
+        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 4 (Email OTP) to unlock live trading.'
       );
     } catch(e) {}
 
@@ -504,9 +522,9 @@ router.post('/register', async (req, res) => {
             <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
             <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
           </div>
-          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 3 of 4)</h2>
+          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 4 of 4)</h2>
           <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
-            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below for Step 3 of 4:
+            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below for Step 4 of 4:
           </p>
           <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
             <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>

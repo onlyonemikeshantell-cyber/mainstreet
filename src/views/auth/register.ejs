@@ -2,9 +2,10 @@
 
 <section class="min-h-[92vh] flex items-center justify-center py-10 px-4 sm:px-6 bg-surface-base"
          x-data="{
-             step: 1, // 1: Input Details, 2: Live Verification
+             step: 1, // 1: Details, 2: Upload ID, 3: Live Verification
              step1Error: '',
              step2Error: '',
+             step3Error: '',
              isSubmitting: false,
 
              // ================= STEP 1: DETAILS =================
@@ -19,14 +20,27 @@
              countryDropdownOpen: false,
              countrySearch: '',
 
-             // ================= STEP 2: LIVE VERIFICATION =================
+             // ================= STEP 2: UPLOAD ID =================
+             docType: 'National ID Card',
+             docNumber: '',
+             frontData: '',
+             backData: '',
+             frontPreview: null,
+             backPreview: null,
+             frontDrag: false,
+             backDrag: false,
+             idCameraActive: false,
+             idCameraTarget: 'front', // 'front' | 'back'
+             idCameraStream: null,
+             idCameraError: '',
+
+             // ================= STEP 3: LIVE VERIFICATION =================
              videoData: '',
              selfiePreview: null,
              liveCameraActive: false,
              liveCameraStream: null,
              liveCameraError: '',
              liveVerified: false,
-             livenessScore: 99.4,
 
              countries: [
                  { name: 'United States', code: 'US', dial: '+1', flag: '🇺🇸' },
@@ -80,7 +94,7 @@
                  return { label: 'Strong', width: '100%', color: 'bg-gain', textColor: 'text-gain' };
              },
 
-             // Step Navigation
+             // Step 1 -> Step 2
              goToStep2() {
                  this.step1Error = '';
                  if (!this.name.trim()) {
@@ -101,7 +115,105 @@
                  }
                  this.step = 2;
                  window.scrollTo({ top: 80, behavior: 'smooth' });
+             },
+
+             // Step 2 -> Step 3
+             goToStep3() {
+                 this.step2Error = '';
+                 if (!this.docNumber.trim()) {
+                     this.step2Error = 'Please enter your document ID number.';
+                     return;
+                 }
+                 if (!this.frontData) {
+                     this.step2Error = 'Please upload or snap the front photo of your ID document.';
+                     return;
+                 }
+                 if (this.docType !== 'International Passport' && !this.backData) {
+                     this.step2Error = 'Please upload or snap the back photo of your ID document.';
+                     return;
+                 }
+                 this.step = 3;
+                 window.scrollTo({ top: 80, behavior: 'smooth' });
                  setTimeout(() => this.startLivenessCamera(), 300);
+             },
+
+             // ID Camera Snapper
+             async startIdCamera(target = 'front') {
+                 this.idCameraError = '';
+                 this.idCameraTarget = target;
+                 this.stopIdCamera();
+                 try {
+                     const stream = await navigator.mediaDevices.getUserMedia({
+                         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                         audio: false
+                     });
+                     this.idCameraStream = stream;
+                     this.idCameraActive = true;
+                     this.$nextTick(() => {
+                         const video = document.getElementById('idSnapVideoReg');
+                         if (video) {
+                             video.srcObject = stream;
+                             video.play();
+                         }
+                     });
+                 } catch (err) {
+                     this.idCameraActive = false;
+                     this.idCameraError = 'Device camera unavailable. Please choose an image file from your device.';
+                 }
+             },
+
+             stopIdCamera() {
+                 if (this.idCameraStream) {
+                     this.idCameraStream.getTracks().forEach(t => t.stop());
+                     this.idCameraStream = null;
+                 }
+                 this.idCameraActive = false;
+             },
+
+             captureIdSnap() {
+                 const video = document.getElementById('idSnapVideoReg');
+                 if (!video) return;
+                 const canvas = document.createElement('canvas');
+                 canvas.width = video.videoWidth || 1280;
+                 canvas.height = video.videoHeight || 720;
+                 const ctx = canvas.getContext('2d');
+                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+                 if (this.idCameraTarget === 'front') {
+                     this.frontData = dataUrl;
+                     this.frontPreview = dataUrl;
+                 } else {
+                     this.backData = dataUrl;
+                     this.backPreview = dataUrl;
+                 }
+                 this.stopIdCamera();
+             },
+
+             handleIdFile(event, side) {
+                 const file = event.target.files ? event.target.files[0] : null;
+                 if (!file) return;
+                 const reader = new FileReader();
+                 reader.onload = (e) => {
+                     if (side === 'front') {
+                         this.frontData = e.target.result;
+                         this.frontPreview = e.target.result;
+                     } else {
+                         this.backData = e.target.result;
+                         this.backPreview = e.target.result;
+                     }
+                 };
+                 reader.readAsDataURL(file);
+             },
+
+             removeIdFile(side) {
+                 if (side === 'front') {
+                     this.frontData = '';
+                     this.frontPreview = null;
+                 } else {
+                     this.backData = '';
+                     this.backPreview = null;
+                 }
              },
 
              // Live Liveness Camera Engine
@@ -167,14 +279,18 @@
 
              submitRegistration() {
                  if (this.isSubmitting) return;
-                 this.step2Error = '';
+                 this.step3Error = '';
                  if (!this.videoData && !this.liveVerified) {
-                     this.step2Error = 'Please capture your face photo or upload a selfie to proceed.';
+                     this.step3Error = 'Please capture your face photo or upload a selfie to complete biometric verification.';
                      return;
                  }
                  this.isSubmitting = true;
                  const form = document.getElementById('regMasterForm');
                  if (form) {
+                     if (form.elements['doc_type']) form.elements['doc_type'].value = this.docType;
+                     if (form.elements['doc_number']) form.elements['doc_number'].value = this.docNumber;
+                     if (form.elements['front_image']) form.elements['front_image'].value = this.frontData;
+                     if (form.elements['back_image']) form.elements['back_image'].value = this.backData || (this.docType === 'International Passport' ? this.frontData : '');
                      if (form.elements['video_data']) form.elements['video_data'].value = this.videoData;
                      form.submit();
                  }
@@ -200,9 +316,9 @@
             <!-- Steps Container -->
             <div class="flex items-center justify-between relative z-10">
                 <!-- Step 1: Details -->
-                <div @click="if (step > 1) { step = 1; stopLivenessCamera(); }" 
+                <div @click="if (step > 1) { step = 1; stopIdCamera(); stopLivenessCamera(); }" 
                      class="flex flex-col items-center cursor-pointer group">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10 bg-primary text-white border border-primary ring-4 ring-primary/20"
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
                          :class="step > 1 ? 'bg-emerald-500 text-white border-emerald-500 !ring-0' : (step === 1 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
                         <span x-show="step > 1" style="display: none;">✓</span>
                         <span x-show="step <= 1">1</span>
@@ -210,29 +326,32 @@
                     <span class="text-[10px] font-semibold mt-1.5" :class="step >= 1 ? 'text-content-primary' : 'text-content-tertiary'">Details</span>
                 </div>
 
-                <!-- Step 2: Live Check -->
-                <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10 bg-surface-raised border border-surface-border text-content-tertiary"
-                         :class="step === 2 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : (step > 2 ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
-                        <span>2</span>
+                <!-- Step 2: Upload ID -->
+                <div @click="if (step > 2) { step = 2; stopLivenessCamera(); }" 
+                     class="flex flex-col items-center" :class="step > 2 ? 'cursor-pointer' : ''">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
+                         :class="step > 2 ? 'bg-emerald-500 text-white border-emerald-500 !ring-0' : (step === 2 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
+                        <span x-show="step > 2" style="display: none;">✓</span>
+                        <span x-show="step <= 2">2</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Upload ID</span>
                 </div>
 
-                <!-- Step 3: Email OTP -->
+                <!-- Step 3: Live Check -->
                 <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm z-10">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10"
+                         :class="step === 3 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : (step > 3 ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
                         <span>3</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 3 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
                 </div>
 
-                <!-- Step 4: Upload ID -->
+                <!-- Step 4: Email OTP -->
                 <div class="flex flex-col items-center">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm z-10">
                         <span>4</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Upload ID</span>
+                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
                 </div>
             </div>
         </div>
@@ -261,113 +380,294 @@
             <span>⚠️</span>
             <span x-text="step2Error"></span>
         </div>
+        <div x-show="step3Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
+            <span>⚠️</span>
+            <span x-text="step3Error"></span>
+        </div>
 
-        <!-- Form Element -->
-        <form id="regMasterForm" action="/register" method="POST" @submit="isSubmitting = true" class="space-y-5">
+        <!-- Master Form Submit Container -->
+        <form id="regMasterForm" action="/register" method="POST" class="space-y-4">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
-
-            <!-- Hidden KYC Biometric Payload -->
-            <input type="hidden" name="video_data" :value="videoData" />
+            <input type="hidden" name="name" x-model="name" />
+            <input type="hidden" name="email" x-model="email" />
+            <input type="hidden" name="phone" x-model="phone" />
+            <input type="hidden" name="country" x-model="country" />
+            <input type="hidden" name="password" x-model="password" />
+            <input type="hidden" name="confirm_password" x-model="confirmPassword" />
+            <input type="hidden" name="doc_type" x-model="docType" />
+            <input type="hidden" name="doc_number" x-model="docNumber" />
+            <input type="hidden" name="front_image" x-model="frontData" />
+            <input type="hidden" name="back_image" x-model="backData" />
+            <input type="hidden" name="video_data" x-model="videoData" />
 
             <!-- ========================================================================= -->
-            <!-- STEP 1: INPUT DETAILS                                                     -->
+            <!-- STEP 1: PERSONAL DETAILS                                                  -->
             <!-- ========================================================================= -->
             <div x-show="step === 1" class="space-y-4">
                 
-                <div>
-                    <label class="block text-xs font-semibold text-content-secondary mb-1.5">Full Legal Name</label>
-                    <input type="text" name="name" x-model="name" required placeholder="e.g. Alexander Vance"
-                           class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm transition" />
+                <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+                    <div>
+                        <h2 class="text-sm font-bold text-content-primary">Account Details</h2>
+                        <p class="text-xs text-content-secondary">Personal and contact credentials</p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 1 of 4</span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                        <label class="block text-xs font-semibold text-content-secondary mb-1.5">Email Address</label>
-                        <input type="email" name="email" x-model="email" required placeholder="alex@example.com"
-                               class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm transition" />
+                <!-- Legal Full Name -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-content-secondary">Legal Full Name <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="name" required placeholder="e.g. John Alexander Smith"
+                           class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition" />
+                    <span class="text-[11px] text-content-tertiary">Must match your government-issued ID exactly.</span>
+                </div>
+
+                <!-- Email Address -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-content-secondary">Email Address <span class="text-rose-500">*</span></label>
+                    <input type="email" x-model="email" required placeholder="trader@domain.com"
+                           class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition" />
+                    <span class="text-[11px] text-content-tertiary">A 6-digit confirmation code will be dispatched here in Step 4.</span>
+                </div>
+
+                <!-- Phone & Country Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-content-secondary">Phone Number</label>
+                        <input type="tel" x-model="phone" placeholder="+1 (555) 000-0000"
+                               class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition font-mono" />
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-content-secondary mb-1.5">Phone Number <span class="text-content-tertiary font-normal">(Optional)</span></label>
-                        <input type="tel" name="phone" x-model="phone" placeholder="+1 (555) 019-2834"
-                               class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm transition" />
+
+                    <!-- Country Selector -->
+                    <div class="space-y-1.5 relative">
+                        <label class="block text-xs font-semibold text-content-secondary">Country of Residence</label>
+                        <div @click="countryDropdownOpen = !countryDropdownOpen"
+                             class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2.5 text-xs font-medium flex items-center justify-between cursor-pointer hover:border-primary transition">
+                            <span class="flex items-center space-x-2 truncate">
+                                <span x-text="selectedCountry.flag"></span>
+                                <span x-text="selectedCountry.name" class="truncate"></span>
+                            </span>
+                            <span class="text-content-tertiary text-xs">&darr;</span>
+                        </div>
+
+                        <div x-show="countryDropdownOpen" @click.outside="countryDropdownOpen = false" class="absolute z-50 left-0 right-0 mt-2 bg-surface-raised border border-surface-border rounded-2xl shadow-2xl p-2 space-y-1 max-h-56 overflow-y-auto" x-cloak>
+                            <input type="text" x-model="countrySearch" placeholder="Search country..." class="w-full bg-surface-overlay px-3 py-2 rounded-xl text-xs outline-none border border-surface-border text-content-primary mb-1" />
+                            <template x-for="c in filteredCountries" :key="c.code">
+                                <div @click="selectCountry(c)" class="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-surface-overlay cursor-pointer text-xs transition">
+                                    <span x-text="c.flag"></span>
+                                    <span class="font-medium text-content-primary flex-1" x-text="c.name"></span>
+                                    <span class="text-content-tertiary font-mono text-[11px]" x-text="c.dial"></span>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="text-xs font-semibold text-content-secondary">Password</label>
-                            <button type="button" @click="showPass = !showPass" class="text-[11px] text-content-tertiary hover:text-primary transition">
+                <!-- Password and Confirmation -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-content-secondary">Password <span class="text-rose-500">*</span></label>
+                            <button type="button" @click="showPass = !showPass" class="text-[11px] text-primary hover:underline">
                                 <span x-text="showPass ? 'Hide' : 'Show'"></span>
                             </button>
                         </div>
-                        <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required minlength="6" placeholder="Min 6 characters"
-                               class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm transition" />
-                        <div class="mt-1.5 flex items-center space-x-1.5" x-show="password.length > 0">
-                            <div class="h-1 flex-1 rounded-full overflow-hidden bg-surface-border">
-                                <div class="h-full transition-all duration-300" :class="passwordStrength.color" :style="'width: ' + passwordStrength.width"></div>
-                            </div>
-                            <span class="text-[10px] font-mono font-bold" :class="passwordStrength.textColor" x-text="passwordStrength.label"></span>
-                        </div>
+                        <input :type="showPass ? 'text' : 'password'" x-model="password" required placeholder="Min. 6 chars"
+                               class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition" />
                     </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="text-xs font-semibold text-content-secondary">Confirm Password</label>
-                            <button type="button" @click="showConfirm = !showConfirm" class="text-[11px] text-content-tertiary hover:text-primary transition">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-content-secondary">Confirm Password <span class="text-rose-500">*</span></label>
+                            <button type="button" @click="showConfirm = !showConfirm" class="text-[11px] text-primary hover:underline">
                                 <span x-text="showConfirm ? 'Hide' : 'Show'"></span>
                             </button>
                         </div>
-                        <input :type="showConfirm ? 'text' : 'password'" name="confirm_password" x-model="confirmPassword" required minlength="6" placeholder="Repeat password"
-                               class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm transition" />
+                        <input :type="showConfirm ? 'text' : 'password'" x-model="confirmPassword" required placeholder="Re-enter password"
+                               class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-3 outline-none focus:border-primary text-xs font-medium transition" />
                     </div>
                 </div>
 
-                <!-- Country Picker -->
-                <div class="relative" @click.outside="countryDropdownOpen = false">
-                    <input type="hidden" name="country" :value="country" />
-                    <label class="block text-xs font-semibold text-content-secondary mb-1.5">Country of Residence</label>
-                    
-                    <div @click="countryDropdownOpen = !countryDropdownOpen"
-                         class="w-full bg-surface-overlay/80 border border-surface-border hover:border-primary text-content-primary rounded-xl px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition">
-                        <div class="flex items-center space-x-2.5">
-                            <span class="text-base" x-text="selectedCountry.flag"></span>
-                            <span class="font-medium" x-text="selectedCountry.name"></span>
-                            <span class="text-xs text-content-tertiary font-mono" x-text="'(' + selectedCountry.dial + ')'"></span>
-                        </div>
-                        <span class="text-xs text-content-tertiary">▼</span>
+                <!-- Password Strength Indicator -->
+                <div class="space-y-1 pt-0.5">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-content-tertiary">Security Strength</span>
+                        <span :class="passwordStrength.textColor" class="font-bold font-mono" x-text="passwordStrength.label"></span>
                     </div>
-
-                    <div x-show="countryDropdownOpen" class="absolute z-50 left-0 right-0 mt-2 bg-surface-raised border border-surface-border rounded-2xl shadow-2xl p-2 space-y-1 max-h-56 overflow-y-auto" x-cloak>
-                        <input type="text" x-model="countrySearch" placeholder="Search country..." class="w-full bg-surface-overlay px-3 py-2 rounded-xl text-xs outline-none border border-surface-border text-content-primary mb-1" />
-                        <template x-for="c in filteredCountries" :key="c.code">
-                            <div @click="selectCountry(c)" class="flex items-center space-x-2.5 px-3 py-2 rounded-xl hover:bg-surface-overlay cursor-pointer text-xs transition">
-                                <span x-text="c.flag"></span>
-                                <span class="font-medium text-content-primary flex-1" x-text="c.name"></span>
-                                <span class="text-content-tertiary font-mono text-[11px]" x-text="c.dial"></span>
-                            </div>
-                        </template>
+                    <div class="h-1.5 w-full bg-surface-overlay rounded-full overflow-hidden border border-surface-border">
+                        <div class="h-full transition-all duration-300" :class="passwordStrength.color" :style="'width: ' + passwordStrength.width"></div>
                     </div>
                 </div>
 
                 <!-- Next CTA -->
                 <button type="button" @click="goToStep2()"
                         class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer mt-2">
-                    <span>Continue to Live Verification &rarr;</span>
+                    <span>Continue to Step 2: Upload ID &rarr;</span>
                 </button>
             </div>
 
             <!-- ========================================================================= -->
-            <!-- STEP 2: LIVE VERIFICATION                                                 -->
+            <!-- STEP 2: UPLOAD GOVERNMENT ID                                              -->
             <!-- ========================================================================= -->
             <div x-show="step === 2" class="space-y-4" x-cloak>
-                
+                <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+                    <div>
+                        <h2 class="text-sm font-bold text-content-primary">Identification Document</h2>
+                        <p class="text-xs text-content-secondary">Government-issued document clearance</p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 2 of 4</span>
+                </div>
+
+                <!-- Document Type & Number Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-content-secondary">Document Type <span class="text-rose-500">*</span></label>
+                        <select x-model="docType" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2.5 outline-none focus:border-primary text-xs font-medium">
+                            <option value="National ID Card">National ID Card</option>
+                            <option value="International Passport">International Passport</option>
+                            <option value="Driver's License">Driver's License</option>
+                            <option value="Residence Permit">Residence Permit</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-content-secondary">Document / ID Number <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="docNumber" placeholder="e.g. A12345678"
+                               class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-2.5 outline-none focus:border-primary text-xs font-mono font-bold" />
+                    </div>
+                </div>
+
+                <!-- In-page ID Camera Viewfinder (if snapping photo) -->
+                <div x-show="idCameraActive" class="p-3 bg-black rounded-2xl border border-primary/50 space-y-2 shadow-xl" x-cloak>
+                    <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
+                        <span class="font-bold text-primary" x-text="'ALIGN ' + (idCameraTarget === 'front' ? 'FRONT OF ID' : 'BACK OF ID')"></span>
+                        <button type="button" @click="stopIdCamera()" class="text-slate-400 hover:text-white font-bold">&times; Close Camera</button>
+                    </div>
+                    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                        <video id="idSnapVideoReg" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                        <div class="absolute inset-4 border-2 border-dashed border-primary/70 rounded-xl pointer-events-none"></div>
+                    </div>
+                    <div class="text-center pt-1">
+                        <button type="button" @click="captureIdSnap()"
+                                class="px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow-md transition cursor-pointer">
+                            <span x-text="'Snap ' + (idCameraTarget === 'front' ? 'Front ID' : 'Back ID')"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div x-show="idCameraError" class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-[11px]" x-cloak>
+                    <span x-text="idCameraError"></span>
+                </div>
+
+                <!-- Dual Upload Cards: Front & Back -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Front ID Card -->
+                    <div class="p-4 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-2.5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs text-content-primary">Front of ID Document <span class="text-rose-500">*</span></span>
+                                <span x-show="frontData" class="text-[10px] text-emerald-500 font-bold font-mono">Ready ✓</span>
+                            </div>
+                            <p class="text-[10px] text-content-secondary leading-tight">Must show your photo, full name, and document details clearly.</p>
+                        </div>
+
+                        <!-- Preview or Placeholder -->
+                        <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/50"
+                             :class="frontDrag ? 'border-primary bg-primary/5' : 'border-surface-border'">
+                            <template x-if="frontPreview">
+                                <div class="relative group w-full">
+                                    <img :src="frontPreview" alt="Front Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                    <button type="button" @click="removeIdFile('front')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
+                                </div>
+                            </template>
+                            <template x-if="!frontPreview">
+                                <div class="space-y-1 py-1">
+                                    <span class="text-2xl block">🪪</span>
+                                    <div class="text-[11px] font-bold text-content-primary">Upload Front Photo</div>
+                                    <div class="text-[9px] text-content-tertiary">PNG, JPG, or JPEG up to 10MB</div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Upload / Camera Buttons -->
+                        <div class="flex items-center space-x-2 pt-1">
+                            <label class="flex-1 py-2 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-[11px] font-bold text-content-primary transition">
+                                <span x-text="frontPreview ? 'Change Photo' : 'Browse File'"></span>
+                                <input type="file" accept="image/*" @change="handleIdFile($event, 'front')" class="hidden" />
+                            </label>
+                            <button type="button" @click="startIdCamera('front')"
+                                    class="py-2 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer">
+                                <span>📸</span>
+                                <span>Snap</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Back ID Card -->
+                    <div class="p-4 rounded-2xl border border-surface-border bg-surface-overlay/40 space-y-2.5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs text-content-primary">Back of ID Document <span class="text-rose-500" x-show="docType !== 'International Passport'">*</span></span>
+                                <span x-show="backData" class="text-[10px] text-emerald-500 font-bold font-mono">Ready ✓</span>
+                            </div>
+                            <p class="text-[10px] text-content-secondary leading-tight" x-text="docType === 'International Passport' ? 'Optional for International Passports.' : 'Must show barcode, issue dates, or signature.'"></p>
+                        </div>
+
+                        <!-- Preview or Placeholder -->
+                        <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/50"
+                             :class="backDrag ? 'border-primary bg-primary/5' : 'border-surface-border'">
+                            <template x-if="backPreview">
+                                <div class="relative group w-full">
+                                    <img :src="backPreview" alt="Back Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
+                                    <button type="button" @click="removeIdFile('back')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
+                                </div>
+                            </template>
+                            <template x-if="!backPreview">
+                                <div class="space-y-1 py-1">
+                                    <span class="text-2xl block">🔄</span>
+                                    <div class="text-[11px] font-bold text-content-primary">Upload Back Photo</div>
+                                    <div class="text-[9px] text-content-tertiary" x-text="docType === 'International Passport' ? 'Optional for Passports' : 'PNG, JPG, or JPEG up to 10MB'"></div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Upload / Camera Buttons -->
+                        <div class="flex items-center space-x-2 pt-1">
+                            <label class="flex-1 py-2 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-[11px] font-bold text-content-primary transition">
+                                <span x-text="backPreview ? 'Change Photo' : 'Browse File'"></span>
+                                <input type="file" accept="image/*" @change="handleIdFile($event, 'back')" class="hidden" />
+                            </label>
+                            <button type="button" @click="startIdCamera('back')"
+                                    class="py-2 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer">
+                                <span>📸</span>
+                                <span>Snap</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex items-center space-x-3 pt-2">
+                    <button type="button" @click="step = 1; stopIdCamera();"
+                            class="py-3.5 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
+                        &larr; Back to Details
+                    </button>
+                    <button type="button" @click="goToStep3()" :disabled="!frontData || (!backData && docType !== 'International Passport')"
+                            class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span>Continue to Step 3: Live Verification &rarr;</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================================================= -->
+            <!-- STEP 3: LIVE BIOMETRIC VERIFICATION                                       -->
+            <!-- ========================================================================= -->
+            <div x-show="step === 3" class="space-y-4" x-cloak>
                 <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                     <div>
                         <h2 class="text-sm font-bold text-content-primary">Face Verification</h2>
-                        <p class="text-xs text-content-secondary">Quick selfie check to confirm identity match</p>
+                        <p class="text-xs text-content-secondary">Quick selfie check to confirm identity match against ID</p>
                     </div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 2 of 4</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 3 of 4</span>
                 </div>
 
                 <!-- Biometric Camera Box -->
@@ -388,7 +688,7 @@
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end justify-center p-3">
                                     <div class="bg-emerald-500/20 border border-emerald-500/60 rounded-xl px-4 py-1.5 text-emerald-400 font-mono font-bold text-xs flex items-center space-x-2">
                                         <span>✓</span>
-                                        <span>Biometric Match Confirmed (99.4%)</span>
+                                        <span>Biometric Match Confirmed</span>
                                     </div>
                                 </div>
                             </div>
@@ -445,16 +745,16 @@
 
                 <!-- Navigation & Final Submit Button -->
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="button" @click="step = 1; stopLivenessCamera();"
+                    <button type="button" @click="step = 2; stopLivenessCamera();"
                             class="py-3 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
-                        &larr; Back
+                        &larr; Back to Upload ID
                     </button>
                     <button type="button" @click="submitRegistration()" :disabled="isSubmitting || (!videoData && !liveVerified)"
                             class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span x-show="!isSubmitting">Proceed to Step 3: Email OTP &rarr;</span>
+                        <span x-show="!isSubmitting">Proceed to Step 4: Email OTP &rarr;</span>
                         <span x-show="isSubmitting" class="flex items-center space-x-2">
                             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                            <span>Registering & sending verification code...</span>
+                            <span>Creating account & sending OTP code...</span>
                         </span>
                     </button>
                 </div>
