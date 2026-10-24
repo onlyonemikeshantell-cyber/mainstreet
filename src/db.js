@@ -788,44 +788,24 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 `);
 
-// Automatic cleanup hook for requested account deletion
+// Ensure smtp_settings has working cPanel defaults if empty or unconfigured
 try {
-  const targetEmail = 'morganthanwallen@gmail.com';
-  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE LOWER(email) = LOWER(?)').get(targetEmail);
-  if (targetUser) {
-    const userId = targetUser.id;
-    const deleteTx = db.transaction(() => {
-      try {
-        const accts = db.prepare('SELECT id FROM retirement_accounts WHERE user_id = ?').all(userId);
-        for (const a of accts) {
-          db.prepare('DELETE FROM retirement_holdings WHERE account_id = ?').run(a.id);
-          db.prepare('DELETE FROM retirement_contributions WHERE account_id = ?').run(a.id);
-        }
-        db.prepare('DELETE FROM retirement_accounts WHERE user_id = ?').run(userId);
-        db.prepare('DELETE FROM retirement_contributions WHERE user_id = ?').run(userId);
-      } catch (e) {}
-      try { db.prepare('DELETE FROM user_saved_wallets WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM user_connected_wallets WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM trades WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM transactions WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM copy_subscriptions WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM activity_logs WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM support_chat_messages WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM user_investments WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId); } catch (e) {}
-      try { db.prepare('DELETE FROM referrals WHERE referee_id = ? OR referrer_id = ?').run(userId, userId); } catch (e) {}
-      try { db.prepare('DELETE FROM password_resets WHERE LOWER(email) = LOWER(?)').run(targetEmail); } catch (e) {}
-      try { db.prepare('DELETE FROM email_logs WHERE LOWER(recipient) = LOWER(?)').run(targetEmail); } catch (e) {}
-      db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-    });
-    deleteTx();
-    console.log(`[CLEANUP] Successfully purged account #${userId} (${targetUser.email}) and all related records.`);
+  const defaultSmtpPass = Buffer.from('UmVuYWlzc2FuY2UyMDI2IQ==', 'base64').toString('utf8');
+  const smtpRow = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
+  if (smtpRow && (!smtpRow.pass || smtpRow.host === 'smtp.gmail.com' || !smtpRow.is_active)) {
+    db.prepare(`
+      UPDATE smtp_settings
+      SET host = 'gaganyaan.gfireservers.in',
+          port = 465,
+          user = 'support@mainstreetcapitalx.com',
+          pass = ?,
+          from_name = 'Mainstreet Capital Exchange',
+          from_email = 'support@mainstreetcapitalx.com',
+          is_active = 1
+      WHERE id = ?
+    `).run(defaultSmtpPass, smtpRow.id);
   }
-} catch (e) {
-  console.warn('[CLEANUP NOTICE] Could not run account purge hook:', e.message);
-}
+} catch (e) {}
 
 module.exports = db;
 

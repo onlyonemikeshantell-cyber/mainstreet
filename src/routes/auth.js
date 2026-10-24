@@ -520,6 +520,7 @@ router.post('/register', async (req, res) => {
     } catch(e) {}
 
     // Dispatch Institutional Email Verification Code to Registered Inbox
+    let emailDelivery = { success: false, error: 'Email dispatch was not attempted' };
     try {
       const forwardedProto = req.headers['x-forwarded-proto'];
       const forwardedHost = req.headers['x-forwarded-host'];
@@ -565,11 +566,14 @@ router.post('/register', async (req, res) => {
       });
       if (dispatchResult && dispatchResult.success) {
         console.log(`[OTP DISPATCH SUCCESS] Verification email sent to ${cleanEmail}`);
+        emailDelivery = { success: true, error: null };
       } else {
         console.warn(`[OTP DISPATCH WARNING] Email transport notice for ${cleanEmail}:`, dispatchResult?.error || 'Unknown error');
+        emailDelivery = { success: false, error: dispatchResult?.error || 'Unknown email error' };
       }
     } catch (e) {
       console.warn('Email verification dispatch notice:', e.message);
+      emailDelivery = { success: false, error: e.message };
     }
 
     // Set session user & auto-login
@@ -591,9 +595,10 @@ router.post('/register', async (req, res) => {
 
     logActivity(newUserId, 'REGISTER_ONBOARDING_STEP3_COMPLETED', `User completed Step 2 (ID) & Step 3 (Live check), proceeding to Step 4 (Email OTP)`, req);
 
-    req.session.flash = { 
-      success: `Identity verification confirmed! Step 4 of 4: Enter the 6-digit confirmation code dispatched to ${cleanEmail}. (Code: ${emailCode})` 
-    };
+    req.session.otpDelivery = emailDelivery;
+    req.session.flash = emailDelivery.success
+      ? { success: `Identity verification confirmed! Step 4 of 4: Enter the 6-digit confirmation code sent to ${cleanEmail}.` }
+      : { error: `We could not deliver the confirmation email to ${cleanEmail}. Reason: ${emailDelivery.error}` };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {
     console.error('Registration error:', err);
@@ -708,6 +713,8 @@ router.get('/verify-email', (req, res) => {
   res.render('auth/verify_email', {
     title: 'Verify Email Address | Mainstreet Capital Exchange',
     user,
+    // Only reveal the code on-screen when email delivery demonstrably failed
+    showCodeFallback: !!(req.session.otpDelivery && req.session.otpDelivery.success === false),
     csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });
@@ -779,6 +786,7 @@ router.post('/verify-email/resend', async (req, res) => {
   db.prepare("UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?").run(newCode, newExpires, user.id);
   console.log(`[OTP RESEND] Generated fresh 6-digit code ${newCode} for ${user.email}`);
 
+  let resendDelivery = { success: false, error: 'Email dispatch was not attempted' };
   try {
     const forwardedProto = req.headers['x-forwarded-proto'];
     const forwardedHost = req.headers['x-forwarded-host'];
@@ -816,15 +824,21 @@ router.post('/verify-email/resend', async (req, res) => {
     });
     if (resendResult && resendResult.success) {
       console.log(`[OTP RESEND SUCCESS] Fresh code email dispatched to ${user.email}`);
+      resendDelivery = { success: true, error: null };
     } else {
       console.warn(`[OTP RESEND WARNING] Email transport notice for ${user.email}:`, resendResult?.error || 'Unknown error');
+      resendDelivery = { success: false, error: resendResult?.error || 'Unknown email error' };
     }
   } catch (e) {
     console.warn('Resend verification code email dispatch notice:', e.message);
+    resendDelivery = { success: false, error: e.message };
   }
 
   logActivity(user.id, 'EMAIL_VERIFICATION_RESENT', `Requested new email verification code`, req);
-  req.session.flash = { success: `A fresh 6-digit confirmation code has been dispatched to ${user.email}. Please check your inbox and Spam folder.` };
+  req.session.otpDelivery = resendDelivery;
+  req.session.flash = resendDelivery.success
+    ? { success: `A fresh 6-digit confirmation code has been sent to ${user.email}. Please check your inbox and Spam folder.` }
+    : { error: `We could not deliver the confirmation email to ${user.email}. Reason: ${resendDelivery.error}` };
   return req.session.save(() => res.redirect('/verify-email'));
 });
 
