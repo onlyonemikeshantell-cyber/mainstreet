@@ -143,6 +143,60 @@ const logActivity = (userId, action, details, req) => {
 // Unified Mailer Service (Resend / SMTP / Sandbox)
 const { sendEmail } = require('../services/mailer');
 
+// Dispatch Branded Welcome Email Upon Successful Sign Up & Verification
+const sendWelcomeEmail = async ({ userId, name, email, country, req }) => {
+  if (!email) return;
+  try {
+    const forwardedProto = req && req.headers ? req.headers['x-forwarded-proto'] : null;
+    const forwardedHost = req && req.headers ? req.headers['x-forwarded-host'] : null;
+    const host = forwardedHost || (req && req.get && req.get('host')) || 'mainstreetcapitalx.com';
+    const isHttps = forwardedProto === 'https' || (req && req.secure) || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+    const protocol = isHttps ? 'https' : ((req && req.protocol) || 'https');
+    const appBaseUrl = `${protocol}://${host}`;
+    const traderUid = `#TXE-${String(userId || 1).padStart(6, '0')}`;
+
+    const welcomeHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <img src="${appBaseUrl}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
+          <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Official Account Activation</div>
+        </div>
+        <h2 style="color: #FFFFFF; font-size: 22px; font-weight: 700; margin: 0 0 12px; text-align: center;">Welcome to Mainstreet Capital Exchange</h2>
+        <p style="color: #CBD5E1; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 22px;">
+          Hello <strong>${(name || 'Valued Trader').trim()}</strong>, congratulations! Your email and identity verification are complete, and your live institutional trading account is now active.
+        </p>
+        <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 18px 20px; margin: 22px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38BDF8; font-weight: 700; margin-bottom: 10px;">Account Credentials Summary</div>
+          <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Trader UID:</strong> <span style="font-family: monospace; color: #38BDF8;">${traderUid}</span></p>
+          <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Registered Email:</strong> ${email}</p>
+          <p style="margin: 5px 0; font-size: 13px; color: #E2E8F0;"><strong>Jurisdiction:</strong> ${country || 'United States'}</p>
+          <p style="margin: 5px 0; font-size: 13px; color: #10B981;"><strong>Verification Status:</strong> Verified &amp; Active ✓</p>
+        </div>
+        <p style="color: #94A3B8; font-size: 13px; line-height: 1.6; text-align: center; margin: 0 0 24px;">
+          You now have full access to our multi-asset WebTrader terminal, Spot Crypto &amp; Equities, Institutional Copy Trading, and Tax-Advantaged Retirement Portfolios.
+        </p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${appBaseUrl}/dashboard" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Open Trading Terminal &rarr;</a>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #1E293B; margin: 25px 0 18px;" />
+        <p style="font-size: 11px; color: #64748B; line-height: 1.5; margin: 0; text-align: center;">
+          Need assistance? Contact our 24/7 Institutional Desk at <a href="mailto:support@mainstreetcapitalx.com" style="color: #38BDF8; text-decoration: none;">support@mainstreetcapitalx.com</a>.
+        </p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'Welcome to Mainstreet Capital Exchange — Your Trading Account Is Active',
+      html: welcomeHtml,
+      recipientType: 'user'
+    });
+    console.log(`[WELCOME EMAIL SENT] Dispatched welcome notification to ${email}`);
+  } catch (err) {
+    console.warn(`[WELCOME EMAIL WARNING] Could not send welcome email to ${email}:`, err.message);
+  }
+};
+
 // GET /login
 router.get('/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -672,6 +726,13 @@ router.post('/register', async (req, res) => {
     };
 
     if (isStep2EmailVerified) {
+      await sendWelcomeEmail({
+        userId: newUserId,
+        name: fullUser.name,
+        email: fullUser.email,
+        country: fullUser.country,
+        req
+      });
       logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed all 4 steps (Details -> Email OTP -> Upload ID -> Live Check)`, req);
       req.session.flash = { success: 'Account verified & activated! Welcome to your Mainstreet Capital Exchange trading terminal.' };
       return req.session.save(() => res.redirect('/dashboard'));
@@ -749,7 +810,7 @@ router.post('/register', async (req, res) => {
 });
 
 // GET /verify-email -> Render Email Verification Prompt & Auto-Verify via Link
-router.get('/verify-email', (req, res) => {
+router.get('/verify-email', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
   const queryCode = (req.query.code || '').trim();
@@ -783,6 +844,13 @@ router.get('/verify-email', (req, res) => {
         try {
           db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(matchedUser.id);
         } catch (e) {}
+        await sendWelcomeEmail({
+          userId: matchedUser.id,
+          name: matchedUser.name,
+          email: matchedUser.email,
+          country: matchedUser.country,
+          req
+        });
         logActivity(matchedUser.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct link', req);
         req.session.flash = { success: 'Email verified successfully! Welcome to your trading account.' };
         return req.session.save(() => {
@@ -803,7 +871,7 @@ router.get('/verify-email', (req, res) => {
     return req.session.save(() => res.redirect('/login'));
   }
 
-  const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
+  const user = db.prepare('SELECT id, name, email, country, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
   if (!user) {
     req.session.userId = null;
     return req.session.save(() => res.redirect('/login'));
@@ -837,6 +905,13 @@ router.get('/verify-email', (req, res) => {
       try {
         db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
       } catch (e) {}
+      await sendWelcomeEmail({
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        country: user.country,
+        req
+      });
       logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via direct verification link', req);
       req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
       
@@ -861,9 +936,9 @@ router.get('/verify-email', (req, res) => {
 });
 
 // POST /verify-email -> Verify 6-Digit Code
-router.post('/verify-email', (req, res) => {
+router.post('/verify-email', async (req, res) => {
   if (!req.session.userId) return req.session.save(() => res.redirect('/login'));
-  const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
+  const user = db.prepare('SELECT id, name, email, country, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return req.session.save(() => res.redirect('/login'));
 
   // If already verified, forward immediately to dashboard
@@ -904,6 +979,14 @@ router.post('/verify-email', (req, res) => {
   try {
     db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Email Verified', 'Your email address has been verified successfully.', 'system')").run(user.id);
   } catch (e) {}
+
+  await sendWelcomeEmail({
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    country: user.country,
+    req
+  });
 
   logActivity(user.id, 'EMAIL_VERIFIED', 'Email verified successfully via OTP', req);
   req.session.flash = { success: 'Email verified successfully! Institutional prime access is now unlocked.' };
