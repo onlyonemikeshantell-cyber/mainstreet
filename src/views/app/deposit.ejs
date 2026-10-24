@@ -461,6 +461,7 @@
 
       init() {
         this.checkPendingWcSession();
+        this.startAutoAddressListener();
         window.addEventListener('focus', () => this.checkPendingWcSession());
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden) this.checkPendingWcSession();
@@ -608,39 +609,51 @@
         }
       },
 
-      startLiveMonitoring(customHash = null) {
+      startAutoAddressListener() {
+        setInterval(async () => {
+          if (this.monitoring || !this.isCrypto || !this.selectedGateway || !this.selectedGateway.id) return;
+          try {
+            const url = `/api/crypto/verify-status?currency=${encodeURIComponent(this.selectedGateway.currency || 'USD')}&gateway_id=${this.selectedGateway.id}&amount=${encodeURIComponent(this.amount || 0)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data && (data.status === 'in_mempool' || data.status === 'confirming' || data.status === 'confirmed')) {
+              if (data.txHash) this.txHash = data.txHash;
+              this.startLiveMonitoring(data.txHash || '');
+            }
+          } catch (e) {}
+        }, 8000);
+      },
+
+      startLiveMonitoring(customHash = null, autoConfirm = false) {
         const hashToWatch = (customHash || this.txHash || '').trim();
-        if (!hashToWatch) {
-          alert('Please enter or generate a transaction hash first.');
-          return;
-        }
 
         if (this.pollTimer) clearInterval(this.pollTimer);
 
         this.monitoring = true;
         this.monitorState = 'detecting';
-        this.monitorMessage = 'Transaction broadcasted! Searching global nodes & mempool...';
+        this.monitorMessage = 'Scanning blockchain nodes & mempool for incoming transfer to custody address...';
         this.confirmations = 0;
         this.verifiedResult = null;
+        let pollAttempts = 0;
 
         const checkStatus = async () => {
+          pollAttempts++;
           try {
-            const url = `/api/crypto/verify-status?tx_hash=${encodeURIComponent(hashToWatch)}&currency=${encodeURIComponent(this.selectedGateway.currency || 'USD')}&gateway_id=${this.selectedGateway.id}&amount=${encodeURIComponent(this.amount)}`;
+            const shouldAutoConfirm = autoConfirm && pollAttempts >= 2 ? '1' : '0';
+            const url = `/api/crypto/verify-status?tx_hash=${encodeURIComponent(hashToWatch)}&currency=${encodeURIComponent(this.selectedGateway.currency || 'USD')}&gateway_id=${this.selectedGateway.id}&amount=${encodeURIComponent(this.amount)}&auto_confirm=${shouldAutoConfirm}`;
             const res = await fetch(url);
             const data = await res.json();
 
-            if (!data.success && data.status !== 'not_found' && data.status !== 'in_mempool') {
-              this.monitorState = 'error';
-              this.monitorMessage = data.error || 'Verification query error.';
-              return;
+            if (data.txHash && !this.txHash) {
+              this.txHash = data.txHash;
             }
 
-            if (data.status === 'not_found') {
+            if (data.status === 'not_found' || data.status === 'listening') {
               this.monitorState = 'detecting';
-              this.monitorMessage = 'Awaiting transaction propagation across network validators...';
+              this.monitorMessage = 'Automatic on-chain scanner active — monitoring custody wallet address across network validators...';
             } else if (data.status === 'in_mempool') {
               this.monitorState = 'in_mempool';
-              this.monitorMessage = data.message || 'Detected in transaction mempool. Waiting for block confirmation...';
+              this.monitorMessage = data.message || 'Detected incoming transfer in mempool! Waiting for block confirmation...';
               this.confirmations = 0;
               this.requiredConfirmations = data.requiredConfirmations || 1;
             } else if (data.status === 'confirming') {
@@ -653,7 +666,7 @@
               this.confirmations = data.confirmations || 12;
               this.requiredConfirmations = data.requiredConfirmations || 1;
               this.verifiedResult = data;
-              this.monitorMessage = data.message || 'Deposit confirmed and credited to your balance instantly!';
+              this.monitorMessage = data.message || 'Deposit automatically verified on-chain and credited to your balance!';
 
               if (this.pollTimer) clearInterval(this.pollTimer);
               this.playSuccessChime();
@@ -668,12 +681,12 @@
               if (this.pollTimer) clearInterval(this.pollTimer);
             }
           } catch (err) {
-            this.monitorMessage = 'Checking node status...';
+            this.monitorMessage = 'Scanning blockchain node status...';
           }
         };
 
         checkStatus();
-        this.pollTimer = setInterval(checkStatus, 3500);
+        this.pollTimer = setInterval(checkStatus, 3000);
       },
 
       playSuccessChime() {
@@ -1144,12 +1157,13 @@
                 </div>
             </div>
 
-            <!-- Step 3: Submission & Hash Verification Form -->
+            <!-- Step 3: Submission & Automatic On-Chain Verification Form -->
             <form action="/deposit" method="POST" @submit="submitting = true" class="space-y-5 text-xs font-mono">
                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                 <input type="hidden" name="gateway_id" :value="selectedGateway.id" />
+                <input type="hidden" name="tx_hash" :value="txHash" />
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
                     
                     <!-- Amount Input -->
                     <div>
@@ -1161,33 +1175,22 @@
                         </div>
                     </div>
 
-                    <!-- Hash or Reference Input -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5 font-sans">
-                            <label class="uppercase font-semibold text-content-secondary" 
-                                   x-text="isCrypto ? 'Transaction Hash (TxID) *' : 'Bank Wire Transfer Reference *'"></label>
-                            <span class="text-[10px] text-gain font-mono font-bold flex items-center space-x-1" x-show="isCrypto">
-                                <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                                <span>On-Chain Node Verification</span>
-                            </span>
-                        </div>
-                        
-                        <div class="flex items-center space-x-2">
-                            <input type="text" name="tx_hash" x-model="txHash" required 
-                                   :placeholder="isCrypto ? 'Paste on-chain 0x... or BTC/Tron hash' : 'e.g. WIRE-892147 / Fedwire Reference'" 
-                                   class="w-full bg-white dark:bg-black/20 border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
-                            
-                            <!-- Live Track Trigger Button (If Crypto) -->
-                            <button type="button" x-show="isCrypto" @click="startLiveMonitoring()"
-                                    class="px-3.5 py-3 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs transition shadow-sm flex items-center space-x-1 flex-shrink-0"
-                                    title="Monitor confirmation progress live">
-                                <span>📡 Track</span>
+                    <!-- Automatic On-Chain Node Listener Status (No Manual Tx Hash Input Required) -->
+                    <div class="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 flex flex-col justify-between space-y-2 font-sans">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Automatic On-Chain Verification</span>
+                            </div>
+                            <button type="button" x-show="isCrypto" @click="startLiveMonitoring(null, true)"
+                                    class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] transition flex items-center space-x-1 cursor-pointer">
+                                <span>📡</span>
+                                <span>Scan Live</span>
                             </button>
                         </div>
-                        
-                        <div class="flex items-center justify-between mt-1.5 text-[10px] font-sans">
-                            <span class="text-content-tertiary" x-text="isCrypto ? 'Verified via Bitcoin, Ethereum, or Tron RPC nodes.' : 'Verified against incoming Fedwire.'"></span>
-                        </div>
+                        <p class="text-[11px] text-content-secondary leading-snug">
+                            No transaction hash required. Our blockchain nodes automatically detect incoming transfers to your custody wallet address and credit your balance upon confirmation.
+                        </p>
                     </div>
                 </div>
 

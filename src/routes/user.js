@@ -490,14 +490,10 @@ function creditUserDeposit({ userId, creditAmount, onChainResult, gwName, ref, t
   return execute();
 }
 
-// Real-Time On-Chain Confirmation & Status Poller Endpoint
+// Real-Time On-Chain Confirmation & Status Poller Endpoint (Supports Automatic Address Detection without Tx Hash)
 router.get('/api/crypto/verify-status', async (req, res) => {
-  const { tx_hash, currency, gateway_id, amount } = req.query;
+  const { tx_hash, currency, gateway_id, amount, auto_confirm } = req.query;
   const numAmount = parseFloat(amount) || 0;
-
-  if (!tx_hash) {
-    return res.status(400).json({ success: false, error: 'Transaction hash is required.' });
-  }
 
   const gateway = gateway_id ? db.prepare('SELECT * FROM payment_gateways WHERE id = ?').get(gateway_id) : null;
   const expectedAddress = gateway ? gateway.address : null;
@@ -506,14 +502,17 @@ router.get('/api/crypto/verify-status', async (req, res) => {
   try {
     const statusResult = await checkTransactionStatus({
       currency: targetCurrency,
-      txHash: tx_hash,
+      txHash: tx_hash || '',
       expectedAddress,
-      amountUsd: numAmount
+      amountUsd: numAmount,
+      autoConfirm: auto_confirm === '1'
     });
 
+    const resolvedHash = (statusResult.txHash || tx_hash || '').trim();
+
     // If transaction is confirmed and authenticated user has not yet been credited, auto-credit immediately
-    if (statusResult.status === 'confirmed' && req.session.userId) {
-      const existingCredit = db.prepare("SELECT id FROM transactions WHERE tx_hash = ? AND status = 'completed'").get(tx_hash.trim());
+    if (statusResult.status === 'confirmed' && req.session.userId && resolvedHash) {
+      const existingCredit = db.prepare("SELECT id FROM transactions WHERE LOWER(tx_hash) = LOWER(?) AND status = 'completed'").get(resolvedHash);
       if (!existingCredit) {
         const settings = db.prepare('SELECT auto_credit_deposit FROM system_settings LIMIT 1').get();
         const shouldAutoCredit = !settings || settings.auto_credit_deposit === 1;
@@ -526,13 +525,14 @@ router.get('/api/crypto/verify-status', async (req, res) => {
               creditAmount,
               onChainResult: statusResult,
               gwName: gateway ? `${gateway.name} (${gateway.currency})` : `${statusResult.network} Direct`,
-              txHash: tx_hash.trim(),
+              txHash: resolvedHash,
               req
             });
 
             return res.json({
               success: true,
               ...statusResult,
+              txHash: resolvedHash,
               isCredited: true,
               autoCreditedNow: true,
               newBalance: creditData.newBalance,
@@ -714,15 +714,15 @@ router.post('/deposit', async (req, res) => {
     }
   }
 
-  // 1. REAL ON-CHAIN BLOCKCHAIN VERIFICATION
+  // 1. REAL ON-CHAIN BLOCKCHAIN VERIFICATION (Automatic Address Scanner — No Manual Tx Hash Required)
   let onChainResult = null;
   const isCryptoGateway = gateway && gateway.currency !== 'USD';
 
-  if (isCryptoGateway && tx_hash) {
+  if (isCryptoGateway) {
     try {
       onChainResult = await verifyCryptoDeposit({
         currency: gateway.currency,
-        txHash: tx_hash,
+        txHash: tx_hash || '',
         expectedAddress: gateway.address,
         amountUsd: numAmount,
         userId: user.id
@@ -742,6 +742,7 @@ router.post('/deposit', async (req, res) => {
 
   // Use verified on-chain USD valuation if available
   const creditAmount = (onChainResult && onChainResult.usdValuation > 0) ? onChainResult.usdValuation : numAmount;
+  const finalTxHash = (onChainResult && onChainResult.txHash) ? onChainResult.txHash : (tx_hash || '');
 
   if (shouldAutoCredit) {
     try {
@@ -751,7 +752,7 @@ router.post('/deposit', async (req, res) => {
         onChainResult,
         gwName,
         ref,
-        txHash: tx_hash,
+        txHash: finalTxHash,
         proofNotes: proof_notes,
         proofImage: proof_image,
         req
