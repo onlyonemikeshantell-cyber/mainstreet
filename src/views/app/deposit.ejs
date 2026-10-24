@@ -161,11 +161,12 @@
       selectedChainId: '0x1',
       showWcQrBox: false,
       wcUri: '',
-      wcSessionId: '',
+      wcSessionId: localStorage.getItem('mainstreet_wc_session') || '',
       wcDeepLinks: null,
       wcPollTimer: null,
       directWalletAddress: '',
       wcConnectError: '',
+      isMobileDevice: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ''),
       chainConfigs: {
         '0x1': { name: 'Ethereum Mainnet', symbol: 'ETH' },
         '0x38': { name: 'BNB Smart Chain', symbol: 'BNB' },
@@ -175,26 +176,59 @@
 
       openConnectModal() {
         this.wcConnectError = '';
-        this.showWcQrBox = false;
         this.showConnectModal = true;
+        this.showWcQrBox = true;
+        this.triggerWalletConnectQr(true);
+      },
+
+      selectChain(chainId) {
+        this.selectedChainId = chainId;
+        if (this.showConnectModal) {
+          this.triggerWalletConnectQr(true);
+        }
+      },
+
+      async pasteDirectAddress() {
+        try {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            const txt = await navigator.clipboard.readText();
+            if (txt) this.directWalletAddress = txt.trim();
+          }
+        } catch (e) {}
+      },
+
+      getInjectedWeb3Provider(type) {
+        if (type === 'Coinbase' && window.coinbaseWalletExtension) return window.coinbaseWalletExtension;
+        if (type === 'Trust Wallet' && window.trustwallet) return window.trustwallet;
+        if (type === 'OKX' && window.okxwallet) return window.okxwallet;
+        if (type === 'Phantom' && window.phantom && window.phantom.ethereum) return window.phantom.ethereum;
+        return window.ethereum || window.trustwallet || window.okxwallet || (window.phantom && window.phantom.ethereum) || window.coinbaseWalletExtension || null;
       },
 
       async connectBrowserProvider(type) {
         this.wcConnectError = '';
-        const provider = (type === 'Coinbase' && window.coinbaseWalletExtension)
-          ? window.coinbaseWalletExtension
-          : (window.ethereum || (window.phantom && window.phantom.ethereum) || window.trustwallet);
+        const provider = this.getInjectedWeb3Provider(type);
 
         if (!provider) {
-          await this.triggerWalletConnectQr();
-          if (this.wcDeepLinks) {
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
-            if (isMobile) {
-              window.location.href = type === 'Coinbase' ? this.wcDeepLinks.coinbase : this.wcDeepLinks.metamask;
+          this.showWcQrBox = true;
+          if (this.isMobileDevice && this.wcDeepLinks) {
+            const key = type === 'Coinbase' ? 'coinbase' : (type === 'Trust Wallet' ? 'trust' : (type === 'OKX' ? 'okx' : (type === 'Phantom' ? 'phantom' : 'metamask')));
+            const targetUrl = this.wcDeepLinks[key] || this.wcUri;
+            if (targetUrl) {
+              window.location.href = targetUrl;
               return;
             }
           }
-          this.wcConnectError = type + ' browser extension not detected — scan the live QR code below with your mobile wallet or enter your 0x address to pair.';
+          await this.triggerWalletConnectQr();
+          if (this.isMobileDevice && this.wcDeepLinks) {
+            const key = type === 'Coinbase' ? 'coinbase' : (type === 'Trust Wallet' ? 'trust' : (type === 'OKX' ? 'okx' : (type === 'Phantom' ? 'phantom' : 'metamask')));
+            const targetUrl = this.wcDeepLinks[key] || this.wcUri;
+            if (targetUrl) {
+              window.location.href = targetUrl;
+              return;
+            }
+          }
+          this.wcConnectError = type + ' browser extension not detected — tap your mobile wallet app below, paste your 0x wallet address, or scan the QR code.';
           return;
         }
 
@@ -231,7 +265,7 @@
 
           await this.saveConnectedWallet({
             wallet_address: address,
-            wallet_type: type || 'Browser Extension',
+            wallet_type: type || 'Web3 Wallet',
             chain_id: chainId,
             network_name: cfg.name,
             balance: parseFloat(balance) || 0,
@@ -242,8 +276,40 @@
         }
       },
 
-      async triggerWalletConnectQr() {
-        this.wcConnectError = '';
+      async checkPendingWcSession() {
+        const sid = this.wcSessionId || localStorage.getItem('mainstreet_wc_session');
+        if (!sid) return false;
+        try {
+          const pollRes = await fetch('/api/wallet/wc-session/' + sid + '/status');
+          const pollData = await pollRes.json();
+          if (pollData.status === 'completed' && pollData.wallet) {
+            if (this.wcPollTimer) {
+              clearInterval(this.wcPollTimer);
+              this.wcPollTimer = null;
+            }
+            localStorage.removeItem('mainstreet_wc_session');
+            this.wcSessionId = '';
+            this.showConnectModal = false;
+            this.showWcQrBox = false;
+            const existingIdx = this.connectedWallets.findIndex(w => w.wallet_address.toLowerCase() === pollData.wallet.wallet_address.toLowerCase());
+            if (existingIdx >= 0) {
+              this.connectedWallets[existingIdx] = pollData.wallet;
+            } else {
+              this.connectedWallets.unshift(pollData.wallet);
+            }
+            this.selectedLinkedWallet = pollData.wallet;
+            this.depositMode = 'linked';
+            if (window.showToast) window.showToast('Mobile wallet paired live! On-chain balances synchronized.', 'success');
+            return true;
+          } else if (pollData.status === 'expired') {
+            localStorage.removeItem('mainstreet_wc_session');
+          }
+        } catch (e) {}
+        return false;
+      },
+
+      async triggerWalletConnectQr(silent = false) {
+        if (!silent) this.wcConnectError = '';
         if (this.wcPollTimer) {
           clearInterval(this.wcPollTimer);
           this.wcPollTimer = null;
@@ -257,41 +323,26 @@
           const data = await res.json();
           if (data.success && data.bridgeUrl) {
             this.wcSessionId = data.sessionId;
+            try { localStorage.setItem('mainstreet_wc_session', data.sessionId); } catch (e) {}
             this.wcUri = data.bridgeUrl;
             this.wcDeepLinks = data.deepLinks || null;
             this.showWcQrBox = true;
 
             this.wcPollTimer = setInterval(async () => {
-              if (!this.showConnectModal || !this.showWcQrBox || !this.wcSessionId) {
+              if (!this.wcSessionId) {
                 clearInterval(this.wcPollTimer);
                 this.wcPollTimer = null;
                 return;
               }
-              try {
-                const pollRes = await fetch('/api/wallet/wc-session/' + this.wcSessionId + '/status');
-                const pollData = await pollRes.json();
-                if (pollData.status === 'completed' && pollData.wallet) {
-                  clearInterval(this.wcPollTimer);
-                  this.wcPollTimer = null;
-                  this.showConnectModal = false;
-                  this.showWcQrBox = false;
-                  const existingIdx = this.connectedWallets.findIndex(w => w.wallet_address.toLowerCase() === pollData.wallet.wallet_address.toLowerCase());
-                  if (existingIdx >= 0) {
-                    this.connectedWallets[existingIdx] = pollData.wallet;
-                  } else {
-                    this.connectedWallets.unshift(pollData.wallet);
-                  }
-                  this.selectedLinkedWallet = pollData.wallet;
-                  this.depositMode = 'linked';
-                  if (window.showToast) window.showToast('Mobile wallet paired live! On-chain balances synchronized.', 'success');
-                }
-              } catch (e) {}
+              await this.checkPendingWcSession();
             }, 1500);
-          } else {
+          } else if (!silent) {
             this.wcConnectError = data.error || 'Unable to initialize WalletConnect session.';
           }
         } catch (err) {
-          this.wcConnectError = 'Network error initializing WalletConnect: ' + err.message;
+          if (!silent) {
+            this.wcConnectError = 'Network error initializing WalletConnect: ' + err.message;
+          }
         }
       },
 
@@ -409,6 +460,11 @@
       },
 
       init() {
+        this.checkPendingWcSession();
+        window.addEventListener('focus', () => this.checkPendingWcSession());
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) this.checkPendingWcSession();
+        });
         if (typeof window.ethereum !== 'undefined') {
           this.hasWeb3 = true;
           window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
@@ -1211,27 +1267,27 @@
             <div class="p-5 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1">
                 <!-- Multi-Chain Network Selector -->
                 <div class="space-y-1.5">
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-content-secondary">Select Network / Chain</label>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-content-secondary">1. Select Network / Chain</label>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-surface-base dark:bg-slate-900 rounded-2xl border border-surface-border">
-                        <button type="button" @click="selectedChainId = '0x1'"
+                        <button type="button" @click="selectChain('0x1')"
                                 :class="selectedChainId === '0x1' ? 'bg-surface-overlay dark:bg-slate-800 text-primary shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
                                 class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
                             <span>⟠</span>
                             <span class="truncate">Ethereum</span>
                         </button>
-                        <button type="button" @click="selectedChainId = '0x38'"
+                        <button type="button" @click="selectChain('0x38')"
                                 :class="selectedChainId === '0x38' ? 'bg-surface-overlay dark:bg-slate-800 text-amber-500 shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
                                 class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
                             <span>🟡</span>
                             <span class="truncate">BNB</span>
                         </button>
-                        <button type="button" @click="selectedChainId = '0x89'"
+                        <button type="button" @click="selectChain('0x89')"
                                 :class="selectedChainId === '0x89' ? 'bg-surface-overlay dark:bg-slate-800 text-purple-500 shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
                                 class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
                             <span>🟣</span>
                             <span class="truncate">Polygon</span>
                         </button>
-                        <button type="button" @click="selectedChainId = '0xa4b1'"
+                        <button type="button" @click="selectChain('0xa4b1')"
                                 :class="selectedChainId === '0xa4b1' ? 'bg-surface-overlay dark:bg-slate-800 text-sky-500 shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
                                 class="py-2 px-1.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition">
                             <span>🔵</span>
@@ -1240,16 +1296,38 @@
                     </div>
                 </div>
 
+                <!-- Instant Mobile & Desktop Wallet Address Pairing (Works in ANY Browser without switching apps) -->
+                <div class="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">⚡ Instant Connect by Wallet Address (0x...)</label>
+                        <button type="button" @click="pasteDirectAddress()" class="text-[11px] font-bold text-primary hover:underline px-2 py-0.5 rounded bg-primary/10">📋 Paste</button>
+                    </div>
+                    <p class="text-[11px] text-content-secondary leading-snug">
+                        On mobile or desktop? Paste your public EVM wallet address (<code class="font-mono">0x...</code>) from MetaMask, Trust Wallet, Coinbase, OKX, Phantom, or Crypto.com DeFi to sync live balances immediately:
+                    </p>
+                    <div class="flex space-x-2">
+                        <input type="text" x-model="directWalletAddress" placeholder="0x..." autocomplete="off" spellcheck="false"
+                               class="flex-1 px-3 py-2 rounded-xl bg-surface-overlay dark:bg-slate-900 border border-surface-border text-xs font-mono text-content-primary focus:outline-none focus:border-primary">
+                        <button type="button" @click="pairDirectAddress()"
+                                class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition shrink-0 cursor-pointer">
+                            Connect
+                        </button>
+                    </div>
+                </div>
+
+                <div x-show="wcConnectError" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-mono" x-text="wcConnectError" x-cloak></div>
+
                 <!-- Provider Options Grid -->
-                <div class="space-y-2.5 text-xs font-sans">
+                <div class="space-y-2 text-xs font-sans">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-content-secondary">2. Or Connect via Wallet App / Extension</label>
                     <!-- Browser Wallet (MetaMask / Rabby / Brave / OKX) -->
                     <button type="button" @click="connectBrowserProvider('MetaMask')"
-                            class="w-full p-3.5 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex items-center justify-between group">
+                            class="w-full p-3 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex items-center justify-between group">
                         <div class="flex items-center space-x-3">
                             <span class="text-2xl">🦊</span>
                             <div class="text-left">
-                                <div class="font-bold text-content-primary group-hover:text-primary">MetaMask & Injected Browser Wallets</div>
-                                <div class="text-[11px] text-content-secondary">MetaMask, Rabby, Brave, OKX, Binance Wallet</div>
+                                <div class="font-bold text-content-primary group-hover:text-primary">MetaMask & Web3 Browser Wallets</div>
+                                <div class="text-[11px] text-content-secondary">MetaMask, Trust Wallet, Rabby, OKX, Brave</div>
                             </div>
                         </div>
                         <span class="text-primary font-bold">&rarr;</span>
@@ -1257,7 +1335,7 @@
 
                     <!-- Coinbase Wallet -->
                     <button type="button" @click="connectBrowserProvider('Coinbase')"
-                            class="w-full p-3.5 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex items-center justify-between group">
+                            class="w-full p-3 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex items-center justify-between group">
                         <div class="flex items-center space-x-3">
                             <span class="text-2xl">🔵</span>
                             <div class="text-left">
@@ -1270,27 +1348,44 @@
 
                     <!-- Universal WalletConnect (Crypto.com DeFi, Blockchain.com, Trust Wallet, etc.) -->
                     <button type="button" @click="triggerWalletConnectQr()"
-                            class="w-full p-3.5 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex flex-col space-y-2 text-left group">
+                            class="w-full p-3 rounded-2xl bg-surface-base dark:bg-slate-900/60 hover:bg-primary/10 border border-surface-border hover:border-primary/40 transition flex flex-col space-y-2 text-left group">
                         <div class="flex items-center justify-between w-full">
                             <div class="flex items-center space-x-3">
                                 <span class="text-2xl">🔗</span>
                                 <div>
-                                    <div class="font-bold text-content-primary group-hover:text-primary">WalletConnect (Mobile & DeFi Apps)</div>
-                                    <div class="text-[11px] text-content-secondary">Scan QR code using your favorite mobile wallet</div>
+                                    <div class="font-bold text-content-primary group-hover:text-primary">WalletConnect (Mobile Apps & QR Bridge)</div>
+                                    <div class="text-[11px] text-content-secondary">Open directly in your mobile wallet app or scan QR</div>
                                 </div>
                             </div>
                             <span class="text-primary font-bold">&rarr;</span>
                         </div>
-                        <div class="flex flex-wrap gap-1.5 pt-1">
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Blockchain.com</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Crypto.com DeFi</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Trust Wallet</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Exodus</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Rainbow</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">Phantom</span>
-                            <span class="px-2 py-0.5 rounded-md bg-surface-overlay border border-surface-border text-[10px] text-content-secondary font-mono">+400 More</span>
-                        </div>
                     </button>
+                </div>
+
+                <!-- WalletConnect Mobile App Launcher & QR Display Box -->
+                <div x-show="showWcQrBox && wcUri" class="p-4 rounded-2xl bg-surface-base dark:bg-slate-900/80 border border-surface-border flex flex-col items-center justify-center space-y-3" x-cloak>
+                    <template x-if="wcDeepLinks">
+                        <div class="w-full space-y-2">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-content-secondary text-left">Tap to Launch Mobile Wallet App:</div>
+                            <div class="w-full grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] font-semibold">
+                                <a :href="wcDeepLinks.metamask" class="py-2 px-2.5 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition flex items-center justify-center space-x-1.5"><span>🦊</span><span>MetaMask</span></a>
+                                <a :href="wcDeepLinks.trust" class="py-2 px-2.5 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition flex items-center justify-center space-x-1.5"><span>🛡️</span><span>Trust Wallet</span></a>
+                                <a :href="wcDeepLinks.coinbase" class="py-2 px-2.5 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition flex items-center justify-center space-x-1.5"><span>🔵</span><span>Coinbase</span></a>
+                                <a :href="wcDeepLinks.okx" class="py-2 px-2.5 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition flex items-center justify-center space-x-1.5"><span>⚫</span><span>OKX Wallet</span></a>
+                                <a :href="wcDeepLinks.phantom" class="py-2 px-2.5 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition flex items-center justify-center space-x-1.5"><span>👻</span><span>Phantom</span></a>
+                                <a :href="wcUri" class="py-2 px-2.5 rounded-xl bg-primary/10 border border-primary/30 hover:bg-primary/20 text-center text-primary font-bold transition flex items-center justify-center space-x-1"><span>🌐</span><span>Web3 Bridge</span></a>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="p-2 bg-white rounded-2xl shadow-sm">
+                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(wcUri)"
+                             alt="WalletConnect QR" class="w-36 h-36 sm:w-44 sm:h-44 object-contain">
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs text-content-secondary text-center font-mono">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Scan QR from another device or tap a wallet app above</span>
+                    </div>
                 </div>
 
                 <!-- Helpful Notice about Centralized Exchanges -->
@@ -1303,34 +1398,6 @@
                         Custodial exchange accounts do not permit external Web3 dApp pulls. To fund from an exchange app, switch to <strong>"🪙 On-Chain QR & Address"</strong> mode and withdraw directly to your account's custody address.
                     </p>
                 </div>
-
-                <!-- WalletConnect QR Display Box (shown when QR is requested) -->
-                <div x-show="showWcQrBox" class="p-4 rounded-2xl bg-surface-base dark:bg-slate-900/80 border border-surface-border flex flex-col items-center justify-center space-y-3" x-cloak>
-                    <div class="p-2 bg-white rounded-2xl shadow-sm">
-                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(wcUri)"
-                             alt="WalletConnect QR" class="w-44 h-44 object-contain">
-                    </div>
-                    <div class="flex items-center space-x-2 text-xs text-content-secondary text-center font-mono">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Scan with your mobile wallet app to pair live</span>
-                    </div>
-                    <template x-if="wcDeepLinks">
-                        <div class="w-full grid grid-cols-3 gap-1.5 pt-1 text-[11px] font-semibold">
-                            <a :href="wcDeepLinks.metamask" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition">🦊 MetaMask</a>
-                            <a :href="wcDeepLinks.trust" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition">🛡️ Trust</a>
-                            <a :href="wcDeepLinks.coinbase" target="_blank" rel="noopener" class="py-1.5 px-2 rounded-xl bg-surface-overlay border border-surface-border hover:border-primary/40 text-center text-content-primary transition">🔵 Coinbase</a>
-                        </div>
-                    </template>
-                    <div class="w-full pt-2 border-t border-surface-border space-y-1.5">
-                        <label class="block text-[10px] font-mono uppercase tracking-wider text-content-tertiary text-left">Or Connect Live EVM Address (0x...)</label>
-                        <div class="flex space-x-1.5">
-                            <input type="text" x-model="directWalletAddress" placeholder="0x..." class="flex-1 px-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs font-mono text-content-primary focus:outline-none focus:border-primary">
-                            <button type="button" @click="pairDirectAddress()" class="px-3 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs transition">Connect</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div x-show="wcConnectError" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-mono" x-text="wcConnectError" x-cloak></div>
             </div>
         </div>
     </div>

@@ -3,6 +3,55 @@
 <head>
     <meta charset="utf-8" />
     <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <script>
+    (function() {
+        const origFetch = window.fetch;
+        if (origFetch) {
+            window.fetch = function(input, init) {
+                try {
+                    const urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+                    const isSameOrigin = !urlStr || urlStr.startsWith('/') || urlStr.startsWith(window.location.origin);
+                    if (isSameOrigin) {
+                        init = init || {};
+                        const method = (init.method || (input && input.method) || 'GET').toUpperCase();
+                        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                            const meta = document.querySelector('meta[name="csrf-token"]');
+                            const token = meta ? meta.getAttribute('content') : '';
+                            if (token) {
+                                if (init.headers instanceof Headers) {
+                                    if (!init.headers.has('x-csrf-token')) init.headers.set('x-csrf-token', token);
+                                } else if (Array.isArray(init.headers)) {
+                                    init.headers.push(['x-csrf-token', token]);
+                                } else {
+                                    init.headers = Object.assign({}, init.headers, { 'x-csrf-token': token });
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {}
+                return origFetch.call(this, input, init);
+            };
+        }
+        document.addEventListener('submit', function(e) {
+            try {
+                const form = e.target;
+                if (form && form.tagName === 'FORM' && (form.method || '').toUpperCase() === 'POST') {
+                    if (!form.querySelector('input[name="_csrf"]') && !form.querySelector('input[name="_token"]')) {
+                        const meta = document.querySelector('meta[name="csrf-token"]');
+                        const token = meta ? meta.getAttribute('content') : '';
+                        if (token) {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = '_csrf';
+                            input.value = token;
+                            form.appendChild(input);
+                        }
+                    }
+                }
+            } catch (err) {}
+        }, true);
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Mainstreet Capital Exchange - Institutional Prime Multi-Asset Trading & Copy Brokerage" />
     <meta property="og:image" content="/storage/app/public/photos/SLfEn83lBAqk2U2WwdHJPMComgTWIXz2W6sWsvIj.png" />

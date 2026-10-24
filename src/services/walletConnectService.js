@@ -296,6 +296,8 @@ function registerWalletConnectRoutes(router, logActivity) {
         metamask: `https://metamask.app.link/dapp/${hostAndPath}`,
         trust: `https://link.trustwallet.com/open_url?coin_id=60&url=${encodedBridge}`,
         coinbase: `https://go.cb-w.com/dapp?cb_url=${encodedBridge}`,
+        okx: `okx://wallet/dapp/url?dappUrl=${encodedBridge}`,
+        phantom: `https://phantom.app/ul/browse/${encodedBridge}?ref=${encodeURIComponent(baseUrl)}`,
         rainbow: `https://rnbwapp.com/wc?uri=${encodedBridge}`
       }
     });
@@ -361,7 +363,7 @@ function registerWalletConnectRoutes(router, logActivity) {
   router.get('/wc-bridge/:sessionId', (req, res) => {
     const row = db.prepare('SELECT * FROM wc_pairing_sessions WHERE session_id = ?').get(req.params.sessionId);
     if (!row || row.expires_at < Date.now()) {
-      return res.status(404).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Session Expired</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6"><div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center space-y-3"><div class="text-3xl">⏱️</div><h1 class="text-lg font-bold">Pairing Session Expired</h1><p class="text-xs text-slate-400">Please return to your Mainstreet Capital Exchange window and click WalletConnect to generate a fresh QR code.</p></div></body></html>`);
+      return res.status(404).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Session Expired</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6"><div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center space-y-4"><div class="text-3xl">⏱️</div><h1 class="text-lg font-bold">Pairing Session Expired</h1><p class="text-xs text-slate-400">Please return to your Mainstreet Capital Exchange window and tap Connect External Wallet again.</p><div class="pt-2 flex flex-col gap-2"><a href="/deposit" class="w-full py-2.5 rounded-xl bg-sky-500 text-white font-bold text-xs">Return to Deposit</a><a href="/wallet?tab=connected" class="w-full py-2.5 rounded-xl bg-slate-800 text-slate-200 font-bold text-xs">Return to Crypto Vault</a></div></div></body></html>`);
     }
 
     const chainMeta = CHAIN_CONFIGS[row.chain_id] || CHAIN_CONFIGS['0x1'];
@@ -379,47 +381,69 @@ function registerWalletConnectRoutes(router, logActivity) {
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
-  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
     <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
-      <div class="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xl">🔗</div>
+      <div class="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xl shrink-0">🔗</div>
       <div>
-        <h1 class="text-base font-bold text-white">Mainstreet Web3 Bridge</h1>
+        <h1 class="text-base font-bold text-white">Mainstreet Web3 Mobile Bridge</h1>
         <p class="text-xs text-slate-400">Target Network: <strong class="text-sky-400">${chainMeta.name} (${chainMeta.symbol})</strong></p>
       </div>
     </div>
 
     <div id="statusBox" class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-2">
-      <div id="statusText" class="font-medium">Checking for injected mobile Web3 wallet provider...</div>
+      <div id="statusText" class="font-medium leading-relaxed">Detecting mobile Web3 wallet provider...</div>
+      <div id="returnActions" class="hidden pt-3 space-y-2">
+        <a href="/deposit" class="block w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-center text-xs transition shadow-md">Return to Deposit Cashier &rarr;</a>
+        <a href="/wallet?tab=connected" class="block w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-center text-xs transition border border-slate-700">Open Connected Wallets Vault &rarr;</a>
+      </div>
     </div>
 
     <!-- Primary Auto-Connect Button when inside Wallet Browser (MetaMask, Trust, Coinbase, Phantom, OKX) -->
-    <button id="btnInjected" type="button" onclick="connectInjectedWallet()" class="w-full py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm shadow-lg shadow-sky-500/20 transition flex items-center justify-center space-x-2">
+    <button id="btnInjected" type="button" onclick="connectInjectedWallet(true)" class="w-full py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm shadow-lg shadow-sky-500/20 transition flex items-center justify-center space-x-2 cursor-pointer">
       <span>⚡ Approve & Pair Connected Wallet</span>
     </button>
 
-    <!-- 1-Tap Mobile Wallet Deep-Links (When scanned from standard iOS/Android Camera) -->
-    <div id="deepLinkSection" class="space-y-2.5 pt-2 border-t border-slate-800">
-      <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400">Or Open Directly in Your Mobile Wallet App</div>
-      <a href="https://metamask.app.link/dapp/${hostAndPath}" class="w-full p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
-        <span class="flex items-center space-x-2.5"><span>🦊</span><span>Open in MetaMask Mobile</span></span>
-        <span class="text-sky-400">&rarr;</span>
-      </a>
-      <a href="https://link.trustwallet.com/open_url?coin_id=60&url=${encodedBridge}" class="w-full p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
-        <span class="flex items-center space-x-2.5"><span>🛡️</span><span>Open in Trust Wallet</span></span>
-        <span class="text-sky-400">&rarr;</span>
-      </a>
-      <a href="https://go.cb-w.com/dapp?cb_url=${encodedBridge}" class="w-full p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
-        <span class="flex items-center space-x-2.5"><span>🔵</span><span>Open in Coinbase Wallet</span></span>
-        <span class="text-sky-400">&rarr;</span>
-      </a>
+    <!-- Direct On-Chain Address Pairing (Works in ANY Mobile Browser without Switching Apps) -->
+    <div id="manualPairSection" class="space-y-2 pt-3 border-t border-slate-800">
+      <div class="flex items-center justify-between">
+        <label class="block text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Instant Pair by Wallet Address (0x...)</label>
+        <button type="button" onclick="pasteFromClipboard()" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">📋 Paste</button>
+      </div>
+      <p class="text-[11px] text-slate-400">Paste your EVM address from MetaMask, Trust Wallet, Coinbase, OKX, Phantom, or Ledger to sync live balances immediately:</p>
+      <div class="flex space-x-2">
+        <input id="manualAddrInput" type="text" placeholder="0x..." autocomplete="off" spellcheck="false" class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-500">
+        <button type="button" onclick="pairManualAddress()" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition shrink-0 cursor-pointer">Connect</button>
+      </div>
     </div>
 
-    <!-- Direct On-Chain Address Pairing (For Crypto.com DeFi, Ledger, Exodus, etc.) -->
-    <div class="space-y-2 pt-3 border-t border-slate-800">
-      <label class="block text-[11px] font-mono uppercase tracking-wider text-slate-400">Or Pair by Live EVM Wallet Address (0x...)</label>
-      <div class="flex space-x-2">
-        <input id="manualAddrInput" type="text" placeholder="0x..." class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none focus:border-sky-500">
-        <button type="button" onclick="pairManualAddress()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">Pair</button>
+    <!-- 1-Tap Mobile Wallet Deep-Links (When opened from standard iOS Safari / Android Chrome) -->
+    <div id="deepLinkSection" class="space-y-2 pt-3 border-t border-slate-800">
+      <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400">Or Launch Your Mobile Wallet App</div>
+      <div class="grid grid-cols-2 gap-2">
+        <a href="https://metamask.app.link/dapp/${hostAndPath}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>🦊</span><span>MetaMask</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
+        <a href="https://link.trustwallet.com/open_url?coin_id=60&url=${encodedBridge}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>🛡️</span><span>Trust Wallet</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
+        <a href="https://go.cb-w.com/dapp?cb_url=${encodedBridge}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>🔵</span><span>Coinbase</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
+        <a href="okx://wallet/dapp/url?dappUrl=${encodedBridge}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>⚫</span><span>OKX Wallet</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
+        <a href="https://phantom.app/ul/browse/${encodedBridge}?ref=${encodeURIComponent(baseUrl)}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>👻</span><span>Phantom</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
+        <a href="https://rnbwapp.com/wc?uri=${encodedBridge}" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-between text-xs font-semibold text-white transition">
+          <span class="flex items-center space-x-2"><span>🌈</span><span>Rainbow</span></span>
+          <span class="text-sky-400">&rarr;</span>
+        </a>
       </div>
     </div>
   </div>
@@ -427,10 +451,36 @@ function registerWalletConnectRoutes(router, logActivity) {
   <script>
     const SESSION_ID = ${JSON.stringify(row.session_id)};
     const TARGET_CHAIN = ${JSON.stringify(row.chain_id || '0x1')};
+    let isPairing = false;
+
+    function getInjectedProvider() {
+      if (window.ethereum) return window.ethereum;
+      if (window.trustwallet) return window.trustwallet;
+      if (window.okxwallet) return window.okxwallet;
+      if (window.phantom && window.phantom.ethereum) return window.phantom.ethereum;
+      if (window.coinbaseWalletExtension) return window.coinbaseWalletExtension;
+      return null;
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            document.getElementById('manualAddrInput').value = text.trim();
+          }
+        }
+      } catch (e) {
+        document.getElementById('manualAddrInput').focus();
+      }
+    }
 
     async function completePairing(payload) {
+      if (isPairing) return;
+      isPairing = true;
       const statusText = document.getElementById('statusText');
       const statusBox = document.getElementById('statusBox');
+      statusBox.className = 'p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 text-xs text-sky-300 space-y-2';
       statusText.textContent = 'Syncing live on-chain balances with Mainstreet Capital Exchange...';
       try {
         const res = await fetch('/api/wallet/wc-session/' + SESSION_ID + '/complete', {
@@ -440,26 +490,39 @@ function registerWalletConnectRoutes(router, logActivity) {
         });
         const data = await res.json();
         if (data.success) {
-          statusBox.className = 'p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-1';
-          statusText.innerHTML = '<strong>✅ Wallet Paired Successfully!</strong><br>Address: <span class="font-mono">' + data.wallet.wallet_address + '</span><br>You may now return to your Mainstreet dashboard.';
+          statusBox.className = 'p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-2';
+          statusText.innerHTML = '<strong>✅ Wallet Paired Successfully!</strong><br>Address: <span class="font-mono break-all">' + data.wallet.wallet_address + '</span><br>Network: <strong>' + (data.wallet.network_name || 'Mainnet') + '</strong>';
           document.getElementById('btnInjected').style.display = 'none';
           document.getElementById('deepLinkSection').style.display = 'none';
+          document.getElementById('manualPairSection').style.display = 'none';
+          document.getElementById('returnActions').classList.remove('hidden');
         } else {
-          statusBox.className = 'p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400';
+          isPairing = false;
+          statusBox.className = 'p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400 space-y-2';
           statusText.textContent = data.error || 'Failed to pair wallet.';
         }
       } catch (err) {
+        isPairing = false;
+        statusBox.className = 'p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400 space-y-2';
         statusText.textContent = 'Network error: ' + err.message;
       }
     }
 
-    async function connectInjectedWallet() {
-      const provider = window.ethereum || (window.phantom && window.phantom.ethereum) || window.trustwallet || window.coinbaseWalletExtension;
+    async function connectInjectedWallet(isManualClick) {
+      const provider = getInjectedProvider();
       if (!provider) {
-        document.getElementById('statusText').textContent = 'No in-app wallet browser detected. Tap your wallet app below (MetaMask, Trust Wallet, Coinbase) or paste your 0x address to pair.';
+        if (isManualClick) {
+          const addrInput = document.getElementById('manualAddrInput');
+          if (addrInput && addrInput.value.trim()) {
+            return pairManualAddress();
+          }
+          document.getElementById('statusText').textContent = 'No in-app wallet browser detected in this tab. Paste your 0x wallet address below or tap your wallet app icon to open in your wallet browser.';
+          if (addrInput) addrInput.focus();
+        }
         return;
       }
       try {
+        document.getElementById('statusText').textContent = 'Requesting account approval from your Web3 wallet...';
         try {
           await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: TARGET_CHAIN }] });
         } catch (e) {}
@@ -467,30 +530,43 @@ function registerWalletConnectRoutes(router, logActivity) {
         if (!accounts || !accounts[0]) throw new Error('Wallet account access was rejected.');
         let chainId = TARGET_CHAIN;
         try { chainId = await provider.request({ method: 'eth_chainId' }); } catch (e) {}
-        const walletType = provider.isMetaMask ? 'MetaMask Mobile' : (provider.isTrust ? 'Trust Wallet' : (provider.isCoinbaseWallet ? 'Coinbase Wallet' : 'Web3 Mobile Wallet'));
+        const walletType = provider.isMetaMask ? 'MetaMask Mobile' : (provider.isTrust || provider.isTrustWallet ? 'Trust Wallet' : (provider.isCoinbaseWallet ? 'Coinbase Wallet' : (provider.isOkxWallet ? 'OKX Wallet' : (provider.isPhantom ? 'Phantom' : 'Web3 Mobile Wallet'))));
         await completePairing({ wallet_address: accounts[0], wallet_type: walletType, chain_id: chainId });
       } catch (err) {
-        document.getElementById('statusText').textContent = err.message || 'Connection cancelled.';
+        document.getElementById('statusText').textContent = err.message || 'Connection cancelled. You can also paste your 0x address below.';
       }
     }
 
     async function pairManualAddress() {
       const addr = (document.getElementById('manualAddrInput').value || '').trim();
+      const statusBox = document.getElementById('statusBox');
+      const statusText = document.getElementById('statusText');
       if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
-        alert('Please enter a valid 42-character EVM wallet address starting with 0x.');
+        statusBox.className = 'p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400 space-y-2';
+        statusText.textContent = 'Please enter a valid 42-character EVM wallet address starting with 0x.';
         return;
       }
-      await completePairing({ wallet_address: addr, wallet_type: 'WalletConnect Live', chain_id: TARGET_CHAIN });
+      await completePairing({ wallet_address: addr, wallet_type: 'WalletConnect Mobile', chain_id: TARGET_CHAIN });
     }
 
+    window.addEventListener('ethereum#initialized', () => {
+      connectInjectedWallet(false);
+    }, { once: true });
+
     window.addEventListener('DOMContentLoaded', () => {
-      const provider = window.ethereum || (window.phantom && window.phantom.ethereum) || window.trustwallet;
-      if (provider) {
-        document.getElementById('statusText').textContent = 'Web3 Wallet Browser Detected! Tap "Approve & Pair Connected Wallet" below.';
-        connectInjectedWallet();
-      } else {
-        document.getElementById('statusText').textContent = 'Select your mobile wallet app below or enter your 0x wallet address to pair live.';
-      }
+      let attempts = 0;
+      const checkTimer = setInterval(() => {
+        attempts++;
+        const provider = getInjectedProvider();
+        if (provider) {
+          clearInterval(checkTimer);
+          document.getElementById('statusText').textContent = 'Web3 Wallet Browser Detected! Tap "Approve & Pair Connected Wallet" or approve the prompt.';
+          connectInjectedWallet(false);
+        } else if (attempts >= 10) {
+          clearInterval(checkTimer);
+          document.getElementById('statusText').textContent = 'Paste your 0x wallet address below for instant pairing, or tap your mobile wallet app to open this bridge.';
+        }
+      }, 250);
     });
   </script>
 </body>
