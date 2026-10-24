@@ -2,10 +2,9 @@
 
 <section class="min-h-[92vh] flex items-center justify-center py-10 px-4 sm:px-6 bg-surface-base"
          x-data="{
-             step: 1, // 1: Input Details, 2: Upload ID, 3: Live Verification
+             step: 1, // 1: Input Details, 2: Live Verification
              step1Error: '',
              step2Error: '',
-             step3Error: '',
              isSubmitting: false,
 
              // ================= STEP 1: DETAILS =================
@@ -20,21 +19,7 @@
              countryDropdownOpen: false,
              countrySearch: '',
 
-             // ================= STEP 2: UPLOAD ID =================
-             docType: 'National ID Card',
-             docNumber: '',
-             frontData: '',
-             backData: '',
-             frontPreview: null,
-             backPreview: null,
-             frontDrag: false,
-             backDrag: false,
-             idCameraActive: false,
-             idCameraTarget: 'front', // 'front' | 'back'
-             idCameraStream: null,
-             idCameraError: '',
-
-             // ================= STEP 3: LIVE VERIFICATION =================
+             // ================= STEP 2: LIVE VERIFICATION =================
              videoData: '',
              selfiePreview: null,
              liveCameraActive: false,
@@ -96,14 +81,6 @@
                  return { label: 'Strong', width: '100%', color: 'bg-gain', textColor: 'text-gain' };
              },
 
-             setDocType(type) {
-                 this.docType = type;
-                 if (type === 'International Passport' && this.frontData && !this.backData) {
-                     this.backData = this.frontData;
-                     this.backPreview = this.frontPreview;
-                 }
-             },
-
              // Step Navigation
              goToStep2() {
                  this.step1Error = '';
@@ -123,120 +100,9 @@
                      this.step1Error = 'Passwords do not match.';
                      return;
                  }
-                 if (!this.docNumber) {
-                     this.docNumber = 'ID-' + Math.floor(10000000 + Math.random() * 90000000);
-                 }
                  this.step = 2;
                  window.scrollTo({ top: 80, behavior: 'smooth' });
-             },
-
-             goToStep3() {
-                 this.step2Error = '';
-                 if (!this.frontData) {
-                     this.step2Error = 'Please upload or capture the front of your document.';
-                     return;
-                 }
-                 // If passport and back is missing, treat back as optional by mirroring front
-                 if (this.docType === 'International Passport' && !this.backData) {
-                     this.backData = this.frontData;
-                     this.backPreview = this.frontPreview;
-                 }
-                 if (!this.backData) {
-                     this.step2Error = 'Please upload or capture the back of your document.';
-                     return;
-                 }
-                 this.stopIdCamera();
-                 this.step = 3;
-                 window.scrollTo({ top: 80, behavior: 'smooth' });
-                 setTimeout(() => this.startLivenessCamera(), 350);
-             },
-
-             // File Upload Handler
-             handleFile(event, type) {
-                 const file = event.target.files ? event.target.files[0] : null;
-                 if (!file) return;
-                 const reader = new FileReader();
-                 reader.onload = (e) => {
-                     if (type === 'front') {
-                         this.frontData = e.target.result;
-                         this.frontPreview = e.target.result;
-                         if (this.docType === 'International Passport' && !this.backData) {
-                             this.backData = e.target.result;
-                             this.backPreview = e.target.result;
-                         }
-                     } else if (type === 'back') {
-                         this.backData = e.target.result;
-                         this.backPreview = e.target.result;
-                     }
-                 };
-                 reader.readAsDataURL(file);
-             },
-
-             removeFile(type) {
-                 if (type === 'front') {
-                     this.frontData = '';
-                     this.frontPreview = null;
-                 } else if (type === 'back') {
-                     this.backData = '';
-                     this.backPreview = null;
-                 }
-             },
-
-             // ID Camera Snap
-             async startIdCamera(target = 'front') {
-                 this.idCameraError = '';
-                 this.idCameraTarget = target;
-                 this.stopIdCamera();
-                 try {
-                     const stream = await navigator.mediaDevices.getUserMedia({
-                         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-                         audio: false
-                     });
-                     this.idCameraStream = stream;
-                     this.idCameraActive = true;
-                     this.$nextTick(() => {
-                         const video = document.getElementById('idSnapVideoReg');
-                         if (video) {
-                             video.srcObject = stream;
-                             video.play();
-                         }
-                     });
-                 } catch (err) {
-                     this.idCameraActive = false;
-                     this.idCameraError = 'Camera access was not granted. Please select a photo file instead.';
-                 }
-             },
-
-             stopIdCamera() {
-                 if (this.idCameraStream) {
-                     this.idCameraStream.getTracks().forEach(t => t.stop());
-                     this.idCameraStream = null;
-                 }
-                 this.idCameraActive = false;
-             },
-
-             captureIdSnap() {
-                 const video = document.getElementById('idSnapVideoReg');
-                 if (!video) return;
-                 const canvas = document.createElement('canvas');
-                 canvas.width = video.videoWidth || 1280;
-                 canvas.height = video.videoHeight || 720;
-                 const ctx = canvas.getContext('2d');
-                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-
-                 if (this.idCameraTarget === 'front') {
-                     this.frontData = dataUrl;
-                     this.frontPreview = dataUrl;
-                     if (this.docType === 'International Passport' && !this.backData) {
-                         this.backData = dataUrl;
-                         this.backPreview = dataUrl;
-                     }
-                 } else {
-                     this.backData = dataUrl;
-                     this.backPreview = dataUrl;
-                 }
-                 this.stopIdCamera();
+                 setTimeout(() => this.startLivenessCamera(), 300);
              },
 
              // Live Liveness Camera Engine
@@ -337,12 +203,8 @@
 
                  // Synchronously populate form element inputs before submission
                  setTimeout(() => {
-                     const form = document.getElementById('regMasterForm') || document.querySelector('form[action="/register"]');
+                     const form = document.getElementById('regMasterForm');
                      if (form) {
-                         if (form.elements['doc_type']) form.elements['doc_type'].value = this.docType;
-                         if (form.elements['doc_number']) form.elements['doc_number'].value = this.docNumber;
-                         if (form.elements['front_image']) form.elements['front_image'].value = this.frontData;
-                         if (form.elements['back_image']) form.elements['back_image'].value = this.backData || this.frontData;
                          if (form.elements['video_data']) form.elements['video_data'].value = this.videoData;
                          if (form.elements['didit_verified']) form.elements['didit_verified'].value = this.liveVerified ? '1' : '0';
                          if (form.elements['didit_score']) form.elements['didit_score'].value = this.livenessScore;
@@ -401,42 +263,44 @@
 
         <!-- Sleek Modern Progress Stepper -->
         <div class="relative px-3 pt-1 pb-2">
-            <div class="absolute left-8 right-8 top-5 h-0.5 bg-surface-border -z-0">
-                <div class="h-full bg-primary transition-all duration-300" :style="'width: ' + ((step - 1) / 3 * 100) + '%'"></div>
+            <!-- Background connecting line -->
+            <div class="absolute left-8 right-8 top-5 -translate-y-1/2 h-0.5 bg-surface-border z-0">
+                <div class="h-full bg-primary transition-all duration-300" :style="'width: ' + ((step - 1) / 3 * 100) + '%'" style="width: 0%;"></div>
             </div>
 
+            <!-- Steps Container -->
             <div class="flex items-center justify-between relative z-10">
-                <!-- Step 1 -->
+                <!-- Step 1: Details -->
                 <div @click="if (step > 1) { step = 1; stopLivenessCamera(); }" 
                      class="flex flex-col items-center cursor-pointer group">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm"
-                         :class="step > 1 ? 'bg-emerald-500 text-white' : (step === 1 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
-                        <span x-show="step > 1">✓</span>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10 bg-primary text-white border border-primary ring-4 ring-primary/20"
+                         :class="step > 1 ? 'bg-emerald-500 text-white border-emerald-500 !ring-0' : (step === 1 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
+                        <span x-show="step > 1" style="display: none;">✓</span>
                         <span x-show="step <= 1">1</span>
                     </div>
                     <span class="text-[10px] font-semibold mt-1.5" :class="step >= 1 ? 'text-content-primary' : 'text-content-tertiary'">Details</span>
                 </div>
 
-                <!-- Step 2 -->
+                <!-- Step 2: Live Check -->
                 <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm"
-                         :class="step === 2 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary'">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm z-10 bg-surface-raised border border-surface-border text-content-tertiary"
+                         :class="step === 2 ? 'bg-primary text-white ring-4 ring-primary/20 border-primary' : (step > 2 ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
                         <span>2</span>
                     </div>
                     <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
                 </div>
 
-                <!-- Step 3 -->
+                <!-- Step 3: Email OTP -->
                 <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm z-10">
                         <span>3</span>
                     </div>
                     <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
                 </div>
 
-                <!-- Step 4 -->
+                <!-- Step 4: Upload ID -->
                 <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm z-10">
                         <span>4</span>
                     </div>
                     <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Upload ID</span>
@@ -468,20 +332,12 @@
             <span>⚠️</span>
             <span x-text="step2Error"></span>
         </div>
-        <div x-show="step3Error" class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2" x-cloak>
-            <span>⚠️</span>
-            <span x-text="step3Error"></span>
-        </div>
 
         <!-- Form Element -->
         <form id="regMasterForm" action="/register" method="POST" @submit="isSubmitting = true" class="space-y-5">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
             <!-- Hidden KYC Payload Fields -->
-            <input type="hidden" name="doc_type" :value="docType" />
-            <input type="hidden" name="doc_number" :value="docNumber" />
-            <input type="hidden" name="front_image" :value="frontData" />
-            <input type="hidden" name="back_image" :value="backData" />
             <input type="hidden" name="video_data" :value="videoData" />
             <input type="hidden" name="didit_verified" :value="liveVerified ? 1 : 0" />
             <input type="hidden" name="didit_score" :value="livenessScore" />
@@ -575,179 +431,7 @@
             </div>
 
             <!-- ========================================================================= -->
-            <!-- STEP 2: UPLOAD ID                                                         -->
-            <!-- ========================================================================= -->
-            <div x-show="false" class="hidden" x-cloak>
-                
-                <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
-                    <div>
-                        <h2 class="text-sm font-bold text-content-primary">Select & Upload ID</h2>
-                        <p class="text-xs text-content-secondary">Government-issued identification document</p>
-                    </div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 2 of 4</span>
-                </div>
-
-                <!-- Document Selector Cards -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <button type="button" @click="setDocType('National ID Card')"
-                            class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                            :class="docType === 'National ID Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary hover:border-surface-border'">
-                        <span class="text-xl">💳</span>
-                        <span class="text-xs font-semibold leading-tight">National ID</span>
-                    </button>
-
-                    <button type="button" @click="setDocType('International Passport')"
-                            class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                            :class="docType === 'International Passport' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary hover:border-surface-border'">
-                        <span class="text-xl">🛂</span>
-                        <span class="text-xs font-semibold leading-tight">Passport</span>
-                    </button>
-
-                    <button type="button" @click="setDocType('Driver\'s License')"
-                            class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                            :class="docType === 'Driver\'s License' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary hover:border-surface-border'">
-                        <span class="text-xl">🪪</span>
-                        <span class="text-xs font-semibold leading-tight">Driver's License</span>
-                    </button>
-
-                    <button type="button" @click="setDocType('Permanent Residence Card')"
-                            class="p-3 rounded-2xl border text-center transition flex flex-col items-center space-y-1.5 cursor-pointer"
-                            :class="docType === 'Permanent Residence Card' ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-surface-border bg-surface-overlay/40 text-content-secondary hover:text-content-primary hover:border-surface-border'">
-                        <span class="text-xl">🏛️</span>
-                        <span class="text-xs font-semibold leading-tight">Residence</span>
-                    </button>
-                </div>
-
-                <!-- Document Number Input -->
-                <div>
-                    <label class="block text-xs font-semibold text-content-secondary mb-1">ID / Document Number</label>
-                    <input type="text" x-model="docNumber" placeholder="e.g. DOC-829104"
-                           class="w-full bg-surface-overlay/80 border border-surface-border text-content-primary rounded-xl px-4 py-2.5 text-xs font-mono font-bold outline-none focus:border-primary transition" />
-                </div>
-
-                <!-- Inline Camera Snap Viewfinder (if snapping) -->
-                <div x-show="idCameraActive" class="rounded-2xl border border-primary/50 bg-black p-3 space-y-2 shadow-xl" x-cloak>
-                    <div class="flex items-center justify-between text-white text-[11px] px-1 font-mono">
-                        <span class="font-bold text-primary" x-text="'ALIGN ' + (idCameraTarget === 'front' ? 'FRONT OF ID' : 'BACK OF ID')"></span>
-                        <button type="button" @click="stopIdCamera()" class="text-slate-400 hover:text-white font-bold">&times; Close</button>
-                    </div>
-                    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
-                        <video id="idSnapVideoReg" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                        <div class="absolute inset-4 border-2 border-dashed border-primary/60 rounded-xl pointer-events-none"></div>
-                    </div>
-                    <div class="text-center pt-1">
-                        <button type="button" @click="captureIdSnap()"
-                                class="px-6 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer">
-                            <span x-text="'Capture ' + (idCameraTarget === 'front' ? 'Front Side' : 'Back Side')"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Dual Document Upload Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    
-                    <!-- Front Side Card -->
-                    <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-content-primary">1. Front of Document</span>
-                            <span x-show="frontPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
-                        </div>
-
-                        <!-- Dropzone / Preview -->
-                        <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
-                             :class="frontDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
-                             @dragover.prevent="frontDrag = true"
-                             @dragleave.prevent="frontDrag = false"
-                             @drop.prevent="frontDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'front')">
-                            
-                            <template x-if="frontPreview">
-                                <div class="relative group w-full">
-                                    <img :src="frontPreview" alt="Front Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
-                                    <button type="button" @click="removeFile('front')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
-                                </div>
-                            </template>
-
-                            <template x-if="!frontPreview">
-                                <div class="space-y-1 py-1">
-                                    <span class="text-2xl block">📄</span>
-                                    <div class="text-xs font-semibold text-content-primary">Front Photo</div>
-                                    <div class="text-[10px] text-content-tertiary">Tap to upload or snap</div>
-                                </div>
-                            </template>
-                        </div>
-
-                        <!-- Action Pills -->
-                        <div class="flex items-center space-x-2">
-                            <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
-                                <span x-text="frontPreview ? 'Change Photo' : 'Choose File'"></span>
-                                <input type="file" accept="image/*" @change="handleFile($event, 'front')" class="hidden" />
-                            </label>
-                            <button type="button" @click="startIdCamera('front')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
-                                <span>📸</span>
-                                <span>Camera</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Back Side Card -->
-                    <div class="p-3.5 rounded-2xl border border-surface-border bg-surface-overlay/30 space-y-2.5 flex flex-col justify-between">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-content-primary">2. Back of Document</span>
-                            <span x-show="backPreview" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500">Ready ✓</span>
-                        </div>
-
-                        <!-- Dropzone / Preview -->
-                        <div class="relative border-2 border-dashed rounded-xl p-3 text-center transition min-h-[110px] flex items-center justify-center bg-surface-base/40"
-                             :class="backDrag ? 'border-primary bg-primary/5' : 'border-surface-border/80'"
-                             @dragover.prevent="backDrag = true"
-                             @dragleave.prevent="backDrag = false"
-                             @drop.prevent="backDrag = false; handleFile({ target: { files: $event.dataTransfer.files } }, 'back')">
-                            
-                            <template x-if="backPreview">
-                                <div class="relative group w-full">
-                                    <img :src="backPreview" alt="Back Preview" class="h-20 mx-auto object-cover rounded-lg border border-surface-border shadow-sm" />
-                                    <button type="button" @click="removeFile('back')" class="absolute top-1 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full text-[10px] leading-none transition" title="Remove">&times;</button>
-                                </div>
-                            </template>
-
-                            <template x-if="!backPreview">
-                                <div class="space-y-1 py-1">
-                                    <span class="text-2xl block">🔄</span>
-                                    <div class="text-xs font-semibold text-content-primary">Back Photo</div>
-                                    <div class="text-[10px] text-content-tertiary" x-text="docType === 'International Passport' ? 'Optional for Passports' : 'Tap to upload or snap'"></div>
-                                </div>
-                            </template>
-                        </div>
-
-                        <!-- Action Pills -->
-                        <div class="flex items-center space-x-2">
-                            <label class="flex-1 py-1.5 px-3 rounded-xl border border-surface-border bg-surface-raised hover:border-primary text-center cursor-pointer text-xs font-medium text-content-primary transition">
-                                <span x-text="backPreview ? 'Change Photo' : 'Choose File'"></span>
-                                <input type="file" accept="image/*" @change="handleFile($event, 'back')" class="hidden" />
-                            </label>
-                            <button type="button" @click="startIdCamera('back')" class="py-1.5 px-3 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition flex items-center space-x-1 cursor-pointer">
-                                <span>📸</span>
-                                <span>Camera</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Navigation Buttons -->
-                <div class="flex items-center space-x-3 pt-2">
-                    <button type="button" @click="step = 1; stopIdCamera();"
-                            class="py-3 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
-                        &larr; Back
-                    </button>
-                    <button type="button" @click="goToStep3()" :disabled="!frontData || (!backData && docType !== 'International Passport')"
-                            class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span>Continue to Face Verification &rarr;</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- ========================================================================= -->
-            <!-- STEP 3: LIVE VERIFICATION                                                 -->
+            <!-- STEP 2: LIVE VERIFICATION                                                 -->
             <!-- ========================================================================= -->
             <div x-show="step === 2" class="space-y-4" x-cloak>
                 

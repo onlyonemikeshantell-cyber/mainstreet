@@ -356,8 +356,8 @@ router.get('/register', (req, res) => {
     const user = db.prepare('SELECT id, role, is_active, kyc_status, email_verified FROM users WHERE id = ?').get(req.session.userId);
     if (user && user.is_active !== 0) {
       if (user.role === 'admin') return res.redirect('/babyoku');
-      if (user.kyc_status === 'unverified') return res.redirect('/onboarding/kyc');
       if (user.email_verified === 0) return res.redirect('/verify-email');
+      if (user.kyc_status === 'unverified') return res.redirect('/onboarding/kyc');
       return res.redirect('/dashboard');
     }
     req.session.userId = null;
