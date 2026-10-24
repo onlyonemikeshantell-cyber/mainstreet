@@ -27,6 +27,10 @@ try {
   const sysCols = db.prepare('PRAGMA table_info(system_settings)').all().map(c => c.name);
   if (!sysCols.includes('crypto_verification_mode')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_verification_mode TEXT DEFAULT 'live_blockchain'");
   if (!sysCols.includes('crypto_webhook_secret')) db.exec("ALTER TABLE system_settings ADD COLUMN crypto_webhook_secret TEXT DEFAULT 'wh_sec_mainstreet_2026_live'");
+  if (!sysCols.includes('auto_approve_kyc')) {
+    db.exec("ALTER TABLE system_settings ADD COLUMN auto_approve_kyc INTEGER DEFAULT 1");
+    try { db.exec("UPDATE system_settings SET auto_approve_kyc = COALESCE(didit_auto_approve, 1)"); } catch(e) {}
+  }
 
   const smtpCols = db.prepare('PRAGMA table_info(smtp_settings)').all().map(c => c.name);
   if (!smtpCols.includes('resend_api_key')) db.exec("ALTER TABLE smtp_settings ADD COLUMN resend_api_key TEXT DEFAULT ''");

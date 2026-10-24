@@ -27,7 +27,6 @@
              liveCameraError: '',
              liveVerified: false,
              livenessScore: 99.4,
-             isLaunchingDidit: false,
 
              countries: [
                  { name: 'United States', code: 'US', dial: '+1', flag: '🇺🇸' },
@@ -166,88 +165,18 @@
                  reader.readAsDataURL(file);
              },
 
-             async handleCompleteAndLaunchDidit() {
+             submitRegistration() {
                  if (this.isSubmitting) return;
-                 this.isSubmitting = true;
-
-                 // Open popup synchronously during user click to bypass browser popup blockers
-                 let popup = null;
-                 try {
-                     popup = window.open('about:blank', '_blank');
-                 } catch (e) {}
-
-                 // Automatically launch verify.didit.me session
-                 try {
-                     const res = await fetch('/api/kyc/didit/session', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ email: this.email, name: this.name })
-                     });
-                     const data = await res.json();
-                     const targetUrl = (data && data.url && (data.url.startsWith('http://') || data.url.startsWith('https://')))
-                         ? data.url
-                         : `https://verify.didit.me/v3/${(data && data.sessionId) || ('didit_' + Date.now())}`;
-
-                     if (popup && !popup.closed) {
-                         popup.location.href = targetUrl;
-                     } else {
-                         window.open(targetUrl, '_blank', 'noopener,noreferrer');
-                     }
-                 } catch (e) {
-                     if (popup && !popup.closed) {
-                         popup.location.href = 'https://verify.didit.me';
-                     } else {
-                         window.open('https://verify.didit.me', '_blank', 'noopener,noreferrer');
-                     }
+                 this.step2Error = '';
+                 if (!this.videoData && !this.liveVerified) {
+                     this.step2Error = 'Please capture your face photo or upload a selfie to proceed.';
+                     return;
                  }
-
-                 // Synchronously populate form element inputs before submission
-                 setTimeout(() => {
-                     const form = document.getElementById('regMasterForm');
-                     if (form) {
-                         if (form.elements['video_data']) form.elements['video_data'].value = this.videoData;
-                         if (form.elements['didit_verified']) form.elements['didit_verified'].value = this.liveVerified ? '1' : '0';
-                         if (form.elements['didit_score']) form.elements['didit_score'].value = this.livenessScore;
-                         form.submit();
-                     }
-                 }, 250);
-             },
-
-             async launchDiditHosted() {
-                 this.isLaunchingDidit = true;
-                 let popup = null;
-                 try {
-                     popup = window.open('about:blank', '_blank');
-                 } catch (e) {}
-
-                 try {
-                     const res = await fetch('/api/kyc/didit/session', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ email: this.email, name: this.name })
-                     });
-                     const data = await res.json();
-                     const targetUrl = (data && data.url && (data.url.startsWith('http://') || data.url.startsWith('https://')))
-                         ? data.url
-                         : `https://verify.didit.me/v3/${(data && data.sessionId) || ('didit_' + Date.now())}`;
-
-                     if (popup && !popup.closed) {
-                         popup.location.href = targetUrl;
-                     } else {
-                         window.open(targetUrl, '_blank');
-                     }
-                     this.liveVerified = true;
-                     this.livenessScore = 99.4;
-                     this.selfiePreview = '/storage/kyc/didit_verified_selfie.png';
-                     this.videoData = '/storage/kyc/didit_verified_selfie.png';
-                     this.stopLivenessCamera();
-                 } catch (e) {
-                     if (popup && !popup.closed) {
-                         popup.location.href = 'https://verify.didit.me';
-                     }
-                     this.startLivenessCamera();
-                 } finally {
-                     this.isLaunchingDidit = false;
+                 this.isSubmitting = true;
+                 const form = document.getElementById('regMasterForm');
+                 if (form) {
+                     if (form.elements['video_data']) form.elements['video_data'].value = this.videoData;
+                     form.submit();
                  }
              }
          }">
@@ -337,10 +266,8 @@
         <form id="regMasterForm" action="/register" method="POST" @submit="isSubmitting = true" class="space-y-5">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
-            <!-- Hidden KYC Payload Fields -->
+            <!-- Hidden KYC Biometric Payload -->
             <input type="hidden" name="video_data" :value="videoData" />
-            <input type="hidden" name="didit_verified" :value="liveVerified ? 1 : 0" />
-            <input type="hidden" name="didit_score" :value="livenessScore" />
 
             <!-- ========================================================================= -->
             <!-- STEP 1: INPUT DETAILS                                                     -->
@@ -516,28 +443,18 @@
                     </div>
                 </div>
 
-                <!-- Alternative: Didit Hosted Session -->
-                <div class="p-3 rounded-xl bg-surface-overlay/40 border border-surface-border flex items-center justify-between text-xs">
-                    <span class="text-content-secondary">Prefer official verification app?</span>
-                    <button type="button" @click="launchDiditHosted()" :disabled="isLaunchingDidit"
-                            class="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-raised hover:border-primary text-content-primary text-[11px] font-semibold transition cursor-pointer">
-                        <span x-show="!isLaunchingDidit">Launch verify.didit.me</span>
-                        <span x-show="isLaunchingDidit">Opening...</span>
-                    </button>
-                </div>
-
                 <!-- Navigation & Final Submit Button -->
                 <div class="flex items-center space-x-3 pt-2">
                     <button type="button" @click="step = 1; stopLivenessCamera();"
                             class="py-3 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
                         &larr; Back
                     </button>
-                    <button type="button" @click="handleCompleteAndLaunchDidit()" :disabled="isSubmitting || (!videoData && !liveVerified)"
+                    <button type="button" @click="submitRegistration()" :disabled="isSubmitting || (!videoData && !liveVerified)"
                             class="flex-1 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span x-show="!isSubmitting">Complete & Email OTP &rarr;</span>
+                        <span x-show="!isSubmitting">Proceed to Step 3: Email OTP &rarr;</span>
                         <span x-show="isSubmitting" class="flex items-center space-x-2">
                             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                            <span>Launching verify.didit.me...</span>
+                            <span>Registering & sending verification code...</span>
                         </span>
                     </button>
                 </div>

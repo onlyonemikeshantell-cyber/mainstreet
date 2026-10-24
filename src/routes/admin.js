@@ -85,7 +85,7 @@ router.get('/storage/kyc/:filename', (req, res) => {
   }
 
   // Public sample assets used in UI / walkthroughs
-  if (safeFilename.startsWith('default_') || safeFilename.startsWith('didit_verified_')) {
+  if (safeFilename.startsWith('default_') || safeFilename.startsWith('verified_')) {
     return res.sendFile(filePath);
   }
 
@@ -1351,22 +1351,17 @@ router.post(['/babyoku/settings/security', '/admin/settings/security'], (req, re
   res.redirect('/babyoku');
 });
 
-// Update Didit AI KYC Protocol Configuration
-router.post(['/babyoku/settings/didit', '/admin/settings/didit'], (req, res) => {
-  const { didit_api_key, didit_app_id, didit_mode, didit_auto_approve } = req.body;
+// Update Institutional KYC Protocol Configuration
+router.post(['/babyoku/settings/kyc-policy', '/babyoku/settings/didit', '/admin/settings/kyc-policy', '/admin/settings/didit'], (req, res) => {
+  const autoApprove = (req.body.auto_approve_kyc === '1' || req.body.didit_auto_approve === '1') ? 1 : 0;
   
   db.prepare(`
     UPDATE system_settings
-    SET didit_api_key = ?, didit_app_id = ?, didit_mode = ?, didit_auto_approve = ?, updated_at = CURRENT_TIMESTAMP
+    SET auto_approve_kyc = ?, didit_auto_approve = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
-  `).run(
-    didit_api_key ? didit_api_key.trim() : null,
-    didit_app_id ? didit_app_id.trim() : null,
-    didit_mode || 'live',
-    didit_auto_approve === '1' ? 1 : 0
-  );
+  `).run(autoApprove, autoApprove);
 
-  req.session.flash = { success: 'Didit AI Protocol compliance settings updated successfully!' };
+  req.session.flash = { success: 'Institutional KYC policy settings updated successfully!' };
   res.redirect('/babyoku');
 });
 

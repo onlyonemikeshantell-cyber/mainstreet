@@ -26,8 +26,8 @@ try {
 
   // Record preliminary Step 2 live verification
   db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_score, reviewed_at)
-    VALUES (?, 'Biometric Live Check', 'BIO-TEST', '/storage/kyc/didit_verified_selfie.png', '/storage/kyc/didit_verified_selfie.png', '/storage/kyc/didit_verified_selfie.png', 'pending', 'didit', 99.4, NULL)
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
+    VALUES (?, 'Biometric Live Check', 'BIO-TEST', '/storage/kyc/default_front.jpg', '/storage/kyc/default_back.jpg', '/storage/kyc/default_video.webm', 'pending', 'native', NULL)
   `).run(userId);
   console.log('[PASS] 2. Preliminary Step 2 live check stored in kyc_documents');
 
@@ -49,8 +49,8 @@ try {
 
   // Step 4: Upload Government ID document at /onboarding/kyc
   db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_score, reviewed_at)
-    VALUES (?, 'National ID Card', 'DOC-994411', '/storage/kyc/default_front.jpg', '/storage/kyc/default_back.jpg', '/storage/kyc/didit_verified_selfie.png', 'approved', 'manual', 99.4, CURRENT_TIMESTAMP)
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
+    VALUES (?, 'National ID Card', 'DOC-994411', '/storage/kyc/default_front.jpg', '/storage/kyc/default_back.jpg', '/storage/kyc/default_video.webm', 'approved', 'native', CURRENT_TIMESTAMP)
   `).run(userId);
   db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(userId);
   console.log('[PASS] 5. Step 4 ID document uploaded and kyc_status set to verified');

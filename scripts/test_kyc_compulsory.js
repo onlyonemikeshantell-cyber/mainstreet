@@ -7,7 +7,7 @@ console.log('--- Testing Compulsory KYC Onboarding Logic ---');
 
 // Check system settings
 const settings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get();
-console.log('System settings didit_auto_approve:', settings.didit_auto_approve);
+console.log('System settings auto_approve_kyc:', settings.auto_approve_kyc ?? settings.didit_auto_approve);
 
 // Test 1: Verify database users table schema has kyc_status
 const userCols = db.prepare("PRAGMA table_info(users)").all();
@@ -15,7 +15,7 @@ const hasKycCol = userCols.some(c => c.name === 'kyc_status');
 assert(hasKycCol, 'users table must have kyc_status column');
 console.log('✓ users.kyc_status column exists');
 
-// Test 2: Verify kyc_documents table has provider, didit_score, status
+// Test 2: Verify kyc_documents table has provider, status
 const docCols = db.prepare("PRAGMA table_info(kyc_documents)").all();
 const hasProvider = docCols.some(c => c.name === 'provider');
 const hasStatus = docCols.some(c => c.name === 'status');

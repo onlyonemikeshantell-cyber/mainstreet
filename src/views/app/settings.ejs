@@ -12,135 +12,7 @@
          frontName: '',
          backName: '',
          selfieName: '',
-         showForm: <%= (user.kyc_status !== 'verified') ? 'true' : 'false' %>,
-         showBackupForm: false,
-
-         // Didit AI KYC State
-         diditModal: false,
-         diditStep: 'select', // select | doc_front | doc_back | liveness | processing | success
-         diditDocType: 'International Passport',
-         diditDocNumber: 'P' + Math.floor(10000000 + Math.random() * 90000000),
-         diditFrontImg: '',
-         diditBackImg: '',
-         diditSelfieImg: '',
-         diditProgress: 0,
-         diditStatusText: 'Processing biometric clearance...',
-         diditScore: 99.4,
-         diditCameraActive: false,
-         diditCameraStream: null,
-
-         startDidit() {
-             this.diditModal = true;
-             this.diditStep = 'select';
-             this.diditProgress = 0;
-         },
-
-         selectDocType(type) {
-             this.diditDocType = type;
-             this.diditDocNumber = (type === 'International Passport' ? 'P' : (type === 'Drivers License' ? 'DL-' : 'ID-')) + Math.floor(10000000 + Math.random() * 90000000);
-             this.diditStep = 'doc_front';
-         },
-
-         async startDiditCamera(facing = 'environment') {
-             this.stopDiditCamera();
-             try {
-                 const stream = await navigator.mediaDevices.getUserMedia({
-                     video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }
-                 });
-                 this.diditCameraStream = stream;
-                 this.diditCameraActive = true;
-                 this.$nextTick(() => {
-                     const v = document.getElementById('settingsDiditVideo');
-                     if (v) { v.srcObject = stream; v.play(); }
-                 });
-             } catch (e) {
-                 console.error('Camera access error:', e);
-                 this.diditCameraActive = false;
-                 alert('Camera access not granted or not available. Please upload your document photo.');
-             }
-         },
-
-         stopDiditCamera() {
-             if (this.diditCameraStream) {
-                 this.diditCameraStream.getTracks().forEach(t => t.stop());
-                 this.diditCameraStream = null;
-             }
-             this.diditCameraActive = false;
-         },
-
-         captureDiditFrame(type) {
-             const v = document.getElementById('settingsDiditVideo');
-             if (!v) return;
-             const canvas = document.createElement('canvas');
-             canvas.width = v.videoWidth || 1280;
-             canvas.height = v.videoHeight || 720;
-             canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
-             const img = canvas.toDataURL('image/jpeg', 0.92);
-             if (type === 'front') this.diditFrontImg = img;
-             else if (type === 'back') this.diditBackImg = img;
-             else if (type === 'selfie') this.diditSelfieImg = img;
-             this.stopDiditCamera();
-         },
-
-         async launchDiditHosted() {
-             try {
-                 const res = await fetch('/api/kyc/didit/session', {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify({ email: '<%= user.email %>' })
-                 });
-                 const data = await res.json();
-                 if (data.url && (data.url.startsWith('http://') || data.url.startsWith('https://'))) {
-                     window.location.href = data.url;
-                 } else {
-                     this.startDiditCamera('environment');
-                 }
-             } catch(e) {
-                 this.startDiditCamera('environment');
-             }
-         },
-
-         async submitDiditVerification() {
-             this.stopDiditCamera();
-             this.diditStep = 'processing';
-             this.diditProgress = 40;
-             this.diditStatusText = 'Ingesting biometric document data...';
-             
-             try {
-                 const res = await fetch('/api/kyc/didit/complete', {
-                     method: 'POST',
-                     headers: { 
-                         'Content-Type': 'application/json',
-                         'x-csrf-token': '<%= csrfToken %>'
-                     },
-                     body: JSON.stringify({
-                         _token: '<%= csrfToken %>',
-                         session_id: 'didit_sess_' + Date.now(),
-                         doc_type: this.diditDocType,
-                         doc_number: this.diditDocNumber,
-                         front_image: this.diditFrontImg || null,
-                         back_image: this.diditBackImg || null,
-                         selfie_image: this.diditSelfieImg || null,
-                         score: this.diditScore,
-                         decision: 'Approved'
-                     })
-                 });
-                 const data = await res.json();
-                 if (data.success) {
-                     this.diditProgress = 100;
-                     this.diditStep = 'success';
-                     setTimeout(() => {
-                         window.location.reload();
-                     }, 1500);
-                 } else {
-                     alert(data.error || 'Didit verification could not be finalized. Please retry or upload manual documents.');
-                     this.diditStep = 'select';
-                 }
-             } catch (err) {
-                 console.error(err);
-                 window.location.reload();
-             }
-         }
+         showForm: <%= (user.kyc_status !== 'verified') ? 'true' : 'false' %>
      }">
 
     <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-6">
@@ -210,7 +82,7 @@
         </div>
 
         <!-- ========================================================================= -->
-        <!-- TAB 1: IDENTITY VERIFICATION (DIDIT AI PRIMARY + MANUAL BACKUP)           -->
+        <!-- TAB 1: IDENTITY VERIFICATION                                              -->
         <!-- ========================================================================= -->
         <div x-show="activeTab === 'kyc'" class="space-y-6" x-cloak>
             
@@ -302,19 +174,9 @@
                                         <tr>
                                             <td class="p-3 font-bold text-content-primary"><%= d.doc_type %></td>
                                             <td class="p-3">
-                                                <% if (d.provider === 'didit') { %>
-                                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-                                                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-                                                        <span>DIDIT AI</span>
-                                                    </span>
-                                                    <% if (d.didit_score) { %>
-                                                        <div class="text-[9px] text-indigo-300 font-mono mt-0.5"><%= d.didit_score %>% Match</div>
-                                                    <% } %>
-                                                <% } else { %>
-                                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30">
-                                                        <span>Manual Backup</span>
-                                                    </span>
-                                                <% } %>
+                                                <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                                    <span>Verified ID</span>
+                                                </span>
                                             </td>
                                             <td class="p-3 font-mono opacity-80"><%= d.doc_number %></td>
                                             <td class="p-3 text-[11px] opacity-70"><%= d.submitted_at || 'Recent' %></td>
@@ -341,90 +203,33 @@
                 <!-- KYC Verification Form Area -->
                 <div x-show="showForm" class="space-y-6 pt-3 border-t border-surface-border" x-cloak>
                     
-                    <!-- 1. PRIMARY: DIDIT AI INSTANT VERIFICATION -->
-                    <div class="relative overflow-hidden rounded-3xl border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-950/40 via-surface-overlay to-surface-raised p-6 sm:p-7 shadow-xl space-y-5">
-                        <div class="absolute -right-10 -top-10 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
-
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                    <!-- Institutional KYC Identity Verification -->
+                    <div class="rounded-3xl border border-surface-border bg-surface-overlay/40 p-5 sm:p-6 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div class="flex items-center space-x-3.5">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-indigo-500/30 shrink-0">
+                                <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-2xl shadow-sm shrink-0">
                                     🪪
                                 </div>
                                 <div>
                                     <div class="flex items-center space-x-2">
-                                        <h3 class="text-sm font-bold uppercase tracking-wider text-content-primary">Didit AI Neural Identity Verification</h3>
-                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-mono">
-                                            ★ Main KYC • Instant (~60s)
+                                        <h3 class="text-sm font-bold uppercase tracking-wider text-content-primary">Institutional KYC Document Verification</h3>
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 font-mono">
+                                            Tier-1 Clearance
                                         </span>
                                     </div>
-                                    <p class="text-xs text-content-secondary mt-0.5">Automated 1-click biometric & document verification protocol (<a href="https://didit.me" target="_blank" class="text-indigo-400 hover:underline">didit.me</a>).</p>
+                                    <p class="text-xs text-content-secondary mt-0.5">Submit clear photos of your government-issued identification to unlock institutional execution, deposits, and withdrawal capabilities.</p>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Feature Badges -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10 text-xs font-mono">
-                            <div class="p-3 rounded-2xl bg-surface-base/80 border border-surface-border space-y-1">
-                                <div class="flex items-center space-x-1.5 text-indigo-400 font-bold">
-                                    <span>⚡</span>
-                                    <span>Instant AI Clearance</span>
-                                </div>
-                                <p class="text-[11px] text-content-tertiary">Real-time OCR extraction & document authenticity validation within 60s.</p>
-                            </div>
-                            <div class="p-3 rounded-2xl bg-surface-base/80 border border-surface-border space-y-1">
-                                <div class="flex items-center space-x-1.5 text-sky-400 font-bold">
-                                    <span>👤</span>
-                                    <span>3D Biometric Liveness</span>
-                                </div>
-                                <p class="text-[11px] text-content-tertiary">Anti-spoofing presentation attack detection & portrait-to-ID matching.</p>
-                            </div>
-                            <div class="p-3 rounded-2xl bg-surface-base/80 border border-surface-border space-y-1">
-                                <div class="flex items-center space-x-1.5 text-gain font-bold">
-                                    <span>🛡️</span>
-                                    <span>AML & PEP Cross-Check</span>
-                                </div>
-                                <p class="text-[11px] text-content-tertiary">Automated screening across 1,400+ international sanction watchlists.</p>
-                            </div>
-                        </div>
-
-                        <!-- Launch Didit Button -->
-                        <div class="pt-2 relative z-10 flex flex-col sm:flex-row items-center gap-4">
-                            <button type="button" @click="startDidit()"
-                                    class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 transition transform flex items-center justify-center space-x-2.5 cursor-pointer">
-                                <span>🚀</span>
-                                <span>Verify with Didit AI (Instant Clearance) &rarr;</span>
-                            </button>
-                            <span class="text-[11px] text-content-tertiary font-mono">
-                                🔒 End-to-end cryptographic attestation • Instant Tier-1 Access
-                            </span>
+                            <a href="/onboarding/kyc"
+                               class="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center justify-center space-x-2 shrink-0">
+                                <span>Complete Step 4 Verification &rarr;</span>
+                            </a>
                         </div>
                     </div>
 
-                    <!-- 2. BACKUP: MANUAL DOCUMENT UPLOAD ACCORDION -->
-                    <div class="rounded-3xl border border-surface-border bg-surface-overlay/40 overflow-hidden transition">
-                        <button type="button" @click="showBackupForm = !showBackupForm"
-                                class="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-surface-overlay/80 transition cursor-pointer">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0">
-                                    📁
-                                </div>
-                                <div>
-                                    <div class="flex items-center space-x-2">
-                                        <h4 class="text-xs font-bold uppercase tracking-wider text-content-primary">Alternative: Manual Document Upload (Backup Verification)</h4>
-                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                                            Backup Method • 1-24h Audit
-                                        </span>
-                                    </div>
-                                    <p class="text-[11px] text-content-secondary mt-0.5">Prefer human compliance review? Upload photos of your credentials for manual inspection by our compliance desk.</p>
-                                </div>
-                            </div>
-                            <div class="text-content-secondary font-bold text-xs px-2 flex items-center space-x-1">
-                                <span x-text="showBackupForm ? 'Hide Form' : 'Expand Form'"></span>
-                                <span x-text="showBackupForm ? '▲' : '▼'"></span>
-                            </div>
-                        </button>
-
-                        <div x-show="showBackupForm" class="p-5 sm:p-6 border-t border-surface-border space-y-4 bg-surface-raised/50" x-cloak>
+                    <!-- Direct Document Upload Form -->
+                    <div class="rounded-3xl border border-surface-border bg-surface-overlay/30 overflow-hidden">
+                        <div class="p-5 sm:p-6 space-y-4">
                             <form action="/settings/kyc" method="POST" @submit="submitting = true" class="space-y-4 text-xs font-mono">
                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                 <input type="hidden" name="front_image" :value="frontData" />
@@ -506,7 +311,7 @@
                                 <button type="submit" :disabled="submitting"
                                         :class="submitting ? 'opacity-70 cursor-not-allowed bg-primary' : 'bg-primary hover:bg-primary-dark shadow-md shadow-primary/20 hover:-translate-y-0.5'"
                                         class="w-full sm:w-auto py-3 px-8 rounded-xl text-white font-bold text-xs transition transform font-sans flex items-center justify-center space-x-2 cursor-pointer">
-                                    <span x-show="!submitting">Submit Backup Verification Package &rarr;</span>
+                                    <span x-show="!submitting">Submit Verification Package &rarr;</span>
                                     <span x-show="submitting" class="flex items-center space-x-1.5 font-mono">
                                         <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -517,6 +322,7 @@
                                 </button>
                             </form>
                         </div>
+                    </div>
                     </div>
 
                 </div>
@@ -637,266 +443,6 @@
 
         </div>
 
-    </div>
-
-    <!-- ========================================================================= -->
-    <!-- MODAL: DIDIT AI BIOMETRIC & DOCUMENT VERIFICATION INTERACTION             -->
-    <!-- ========================================================================= -->
-    <div x-show="diditModal" class="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto" x-cloak>
-        <div class="relative w-full max-w-xl rounded-3xl bg-surface-raised border border-indigo-500/40 shadow-2xl p-6 sm:p-7 text-xs font-mono space-y-5 my-8">
-            
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between border-b border-surface-border pb-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl font-bold">
-                        🪪
-                    </div>
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <h3 class="text-sm font-bold text-content-primary">Didit AI Verification Gateway</h3>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-300">v2.4 Neural</span>
-                        </div>
-                        <p class="text-[11px] text-content-secondary">Session ID: <span class="text-indigo-400 font-bold" x-text="diditDocNumber"></span></p>
-                    </div>
-                </div>
-                <button type="button" @click="diditModal = false; stopDiditCamera();" class="text-content-tertiary hover:text-content-primary text-2xl font-bold leading-none cursor-pointer">&times;</button>
-            </div>
-
-            <!-- STEP 1: SELECT DOCUMENT TYPE -->
-            <div x-show="diditStep === 'select'" class="space-y-4">
-                <div class="text-center space-y-1">
-                    <h4 class="text-sm font-bold text-content-primary">Select Government Identification</h4>
-                    <p class="text-content-secondary text-[11px]">Choose an official document for automated optical scan & biometric liveness.</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                    <button type="button" @click="selectDocType('International Passport')"
-                            class="p-4 rounded-2xl border border-surface-border bg-surface-overlay hover:border-indigo-500 hover:bg-indigo-500/5 transition text-center space-y-2 group cursor-pointer">
-                        <div class="text-2xl group-hover:scale-110 transition">🛂</div>
-                        <div class="font-bold text-content-primary text-xs">Passport</div>
-                        <div class="text-[10px] text-content-tertiary">All countries accepted</div>
-                    </button>
-
-                    <button type="button" @click="selectDocType('National ID Card')"
-                            class="p-4 rounded-2xl border border-surface-border bg-surface-overlay hover:border-indigo-500 hover:bg-indigo-500/5 transition text-center space-y-2 group cursor-pointer">
-                        <div class="text-2xl group-hover:scale-110 transition">🪪</div>
-                        <div class="font-bold text-content-primary text-xs">National ID</div>
-                        <div class="text-[10px] text-content-tertiary">Government issued ID</div>
-                    </button>
-
-                    <button type="button" @click="selectDocType('Drivers License')"
-                            class="p-4 rounded-2xl border border-surface-border bg-surface-overlay hover:border-indigo-500 hover:bg-indigo-500/5 transition text-center space-y-2 group cursor-pointer">
-                        <div class="text-2xl group-hover:scale-110 transition">🚗</div>
-                        <div class="font-bold text-content-primary text-xs">Driver's License</div>
-                        <div class="text-[10px] text-content-tertiary">State/Provincial permit</div>
-                    </button>
-                </div>
-
-                <div class="pt-3 border-t border-surface-border text-center">
-                    <button type="button" @click="launchDiditHosted()"
-                            class="px-5 py-2.5 rounded-xl border border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-xs transition cursor-pointer inline-flex items-center space-x-2">
-                        <span>🌐 Launch Official Didit Portal (verify.didit.me)</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- LIVE CAMERA VIEWFINDER (Shared across steps) -->
-            <div x-show="diditCameraActive" class="rounded-2xl border border-indigo-500/50 bg-black p-3 space-y-3" x-cloak>
-                <div class="flex items-center justify-between text-white text-[11px] font-mono">
-                    <span class="font-bold uppercase tracking-wider text-indigo-400" x-text="'LIVE CAMERA: ' + (diditStep === 'doc_front' ? 'FRONT ID' : (diditStep === 'doc_back' ? 'BACK ID' : 'BIOMETRIC SELFIE'))"></span>
-                    <button type="button" @click="stopDiditCamera()" class="text-slate-400 hover:text-white font-bold">&times;</button>
-                </div>
-                <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
-                    <video id="settingsDiditVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                    <div x-show="diditStep !== 'liveness'" class="absolute inset-4 border-2 border-indigo-400/70 rounded-xl pointer-events-none"></div>
-                    <div x-show="diditStep === 'liveness'" class="absolute w-36 h-48 border-2 border-cyan-400 rounded-full pointer-events-none"></div>
-                </div>
-                <div class="text-center pt-1">
-                    <button type="button" @click="captureDiditFrame(diditStep === 'doc_front' ? 'front' : (diditStep === 'doc_back' ? 'back' : 'selfie'))"
-                            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase shadow-md transition cursor-pointer">
-                        <span x-text="diditStep === 'doc_front' ? 'Capture Front ID' : (diditStep === 'doc_back' ? 'Capture Back ID' : 'Capture Live Selfie')"></span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 2: DOCUMENT FRONT SCAN -->
-            <div x-show="diditStep === 'doc_front'" class="space-y-4" x-cloak>
-                <div class="text-center space-y-1">
-                    <h4 class="text-sm font-bold text-content-primary">Scan Document Front</h4>
-                    <p class="text-content-secondary text-[11px]" x-text="'Position the front side of your ' + diditDocType + ' in good lighting.'"></p>
-                </div>
-
-                <div class="relative rounded-2xl border-2 border-dashed border-indigo-500/40 bg-surface-overlay/80 p-6 flex flex-col items-center justify-center space-y-3 min-h-[190px] overflow-hidden">
-                    <template x-if="diditFrontImg">
-                        <img :src="diditFrontImg" class="max-h-40 rounded-xl object-contain shadow-md" />
-                    </template>
-                    <template x-if="!diditFrontImg && !diditCameraActive">
-                        <div class="text-center space-y-2">
-                            <div class="text-4xl text-indigo-400">📷</div>
-                            <div class="font-bold text-content-primary text-xs">Upload or Snap Front Document Photo</div>
-                            <span class="text-[10px] text-content-tertiary block">Supports live webcam snap or JPG/PNG upload</span>
-                        </div>
-                    </template>
-                    
-                    <div class="flex items-center space-x-2 pt-2" x-show="!diditCameraActive">
-                        <button type="button" @click="startDiditCamera('environment')"
-                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
-                            <span>📸 Activate Camera</span>
-                        </button>
-                        <label class="px-4 py-2 rounded-xl bg-surface-base hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload File</span>
-                            <input type="file" accept="image/*" class="hidden" @change="
-                                const f = $event.target.files[0];
-                                if (f) {
-                                    const r = new FileReader();
-                                    r.onload = e => { diditFrontImg = e.target.result; };
-                                    r.readAsDataURL(f);
-                                }
-                            " />
-                        </label>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'select'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
-                        &larr; Back
-                    </button>
-                    <button type="button" :disabled="!diditFrontImg" @click="diditStep = 'doc_back'; stopDiditCamera();"
-                            :class="diditFrontImg ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer' : 'bg-surface-overlay text-content-tertiary cursor-not-allowed'"
-                            class="px-6 py-2.5 rounded-xl font-bold transition">
-                        Next: Back Side &rarr;
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 3: DOCUMENT BACK SCAN -->
-            <div x-show="diditStep === 'doc_back'" class="space-y-4" x-cloak>
-                <div class="text-center space-y-1">
-                    <h4 class="text-sm font-bold text-content-primary">Scan Document Back Side</h4>
-                    <p class="text-content-secondary text-[11px]" x-text="'Position the reverse side of your ' + diditDocType + ' containing barcode/MRZ.'"></p>
-                </div>
-
-                <div class="relative rounded-2xl border-2 border-dashed border-indigo-500/40 bg-surface-overlay/80 p-6 flex flex-col items-center justify-center space-y-3 min-h-[190px] overflow-hidden">
-                    <template x-if="diditBackImg">
-                        <img :src="diditBackImg" class="max-h-40 rounded-xl object-contain shadow-md" />
-                    </template>
-                    <template x-if="!diditBackImg && !diditCameraActive">
-                        <div class="text-center space-y-2">
-                            <div class="text-4xl text-indigo-400">📷</div>
-                            <div class="font-bold text-content-primary text-xs">Upload or Snap Back Document Photo</div>
-                            <span class="text-[10px] text-content-tertiary block">Ensure MRZ / barcode area is crisp & legible</span>
-                        </div>
-                    </template>
-                    
-                    <div class="flex items-center space-x-2 pt-2" x-show="!diditCameraActive">
-                        <button type="button" @click="startDiditCamera('environment')"
-                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
-                            <span>📸 Activate Camera</span>
-                        </button>
-                        <label class="px-4 py-2 rounded-xl bg-surface-base hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload File</span>
-                            <input type="file" accept="image/*" class="hidden" @change="
-                                const f = $event.target.files[0];
-                                if (f) {
-                                    const r = new FileReader();
-                                    r.onload = e => { diditBackImg = e.target.result; };
-                                    r.readAsDataURL(f);
-                                }
-                            " />
-                        </label>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'doc_front'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
-                        &larr; Back
-                    </button>
-                    <button type="button" :disabled="!diditBackImg" @click="diditStep = 'liveness'; stopDiditCamera();"
-                            :class="diditBackImg ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer' : 'bg-surface-overlay text-content-tertiary cursor-not-allowed'"
-                            class="px-6 py-2.5 rounded-xl font-bold transition">
-                        Next: 3D Face Liveness &rarr;
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 4: 3D BIOMETRIC LIVENESS SCAN -->
-            <div x-show="diditStep === 'liveness'" class="space-y-4" x-cloak>
-                <div class="text-center space-y-1">
-                    <h4 class="text-sm font-bold text-content-primary">3D Biometric Liveness Check</h4>
-                    <p class="text-content-secondary text-[11px]">Center your face inside the biometric targeting ring.</p>
-                </div>
-
-                <div class="relative rounded-2xl bg-surface-base border border-surface-border p-6 flex flex-col items-center justify-center space-y-4 min-h-[200px]">
-                    <template x-if="diditSelfieImg">
-                        <img :src="diditSelfieImg" class="max-h-40 rounded-xl object-contain shadow-md" />
-                    </template>
-                    <template x-if="!diditSelfieImg && !diditCameraActive">
-                        <div class="relative w-32 h-32 rounded-full border-4 border-indigo-500/30 flex items-center justify-center overflow-hidden shadow-inner">
-                            <div class="text-5xl">👤</div>
-                        </div>
-                    </template>
-
-                    <div class="flex items-center space-x-2" x-show="!diditCameraActive">
-                        <button type="button" @click="startDiditCamera('user')"
-                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition shadow-sm">
-                            <span>📸 Activate Selfie Camera</span>
-                        </button>
-                        <label class="px-4 py-2 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-primary font-bold text-xs cursor-pointer transition shadow-xs">
-                            <span>Upload Selfie</span>
-                            <input type="file" accept="image/*" class="hidden" @change="
-                                const f = $event.target.files[0];
-                                if (f) {
-                                    const r = new FileReader();
-                                    r.onload = e => { diditSelfieImg = e.target.result; };
-                                    r.readAsDataURL(f);
-                                }
-                            " />
-                        </label>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between pt-2">
-                    <button type="button" @click="diditStep = 'doc_back'; stopDiditCamera();" class="text-content-secondary hover:text-content-primary cursor-pointer">
-                        &larr; Back
-                    </button>
-                    <button type="button" :disabled="!diditSelfieImg" @click="submitDiditVerification()"
-                            class="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50">
-                        Submit Clearance &rarr;
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 5: NEURAL PROCESSING ANIMATION -->
-            <div x-show="diditStep === 'processing'" class="py-8 space-y-5 text-center" x-cloak>
-                <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
-                    <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
-                    <div class="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
-                    <span class="text-2xl">🧠</span>
-                </div>
-
-                <div class="space-y-1.5 max-w-sm mx-auto">
-                    <h4 class="text-sm font-bold text-content-primary">Didit AI Neural Processing</h4>
-                    <p class="text-xs text-indigo-400 font-mono transition-all" x-text="diditStatusText"></p>
-                </div>
-
-                <div class="max-w-md mx-auto w-full bg-surface-base rounded-full h-2 overflow-hidden border border-surface-border">
-                    <div class="bg-gradient-to-r from-indigo-500 via-sky-400 to-emerald-400 h-full transition-all duration-500" :style="'width: ' + diditProgress + '%'"></div>
-                </div>
-            </div>
-
-            <!-- STEP 6: VERIFIED SUCCESS -->
-            <div x-show="diditStep === 'success'" class="py-8 space-y-4 text-center" x-cloak>
-                <div class="w-16 h-16 rounded-full bg-gain/20 text-gain border border-gain/30 flex items-center justify-center text-3xl mx-auto font-bold animate-bounce">
-                    ✓
-                </div>
-                <div class="space-y-1">
-                    <h4 class="text-base font-bold text-content-primary">Didit Protocol Verification Confirmed!</h4>
-                    <p class="text-xs text-gain font-semibold">Tier-1 Institutional Clearance Granted (Confidence Score: 99.4%)</p>
-                    <p class="text-[11px] text-content-tertiary">Activating account privileges and reloading...</p>
-                </div>
-            </div>
-
-        </div>
     </div>
 
 </div>

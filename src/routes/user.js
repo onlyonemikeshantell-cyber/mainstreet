@@ -42,7 +42,6 @@ const { getLivePrices, syncClientLivePrice } = require('../services/livePriceSer
 const { STOCK_BASKETS, STOCK_DIVIDEND_RATES } = require('../services/stockBasketService');
 const { verifyCryptoDeposit, checkTransactionStatus } = require('../services/blockchainVerificationService');
 const { registerWalletConnectRoutes } = require('../services/walletConnectService');
-const { createDiditVerificationSession, getDiditSessionDecision } = require('../services/diditService');
 
 // Live Real-Time Market Prices API
 router.get('/api/market/prices', (req, res) => {
@@ -1223,7 +1222,7 @@ router.post('/onboarding/kyc', async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return req.session.save(() => res.redirect('/login'));
 
-  const { doc_type, doc_number, front_image, back_image, video_data, didit_verified, didit_score } = req.body;
+  const { doc_type, doc_number, front_image, back_image, video_data } = req.body;
   const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
 
   if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
@@ -1232,24 +1231,23 @@ router.post('/onboarding/kyc', async (req, res) => {
   }
 
   const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
-  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
-  const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
+  const isAutoApprove = ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) === 1);
   const docStatus = isAutoApprove ? 'approved' : 'pending';
   const userKycStatus = isAutoApprove ? 'verified' : 'pending';
-  const provider = isDiditVerified ? 'didit' : 'manual';
+  const provider = 'native';
 
   const resolveDocPath = (img, prefix, fallback) => {
     if (img && typeof img === 'string' && img.startsWith('/')) return img;
     return saveBase64Media(img, prefix, user.id) || fallback;
   };
 
-  const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
-  const backPath = resolveDocPath(effectiveBackImage, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
-  const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm') : (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : null);
+  const frontPath = resolveDocPath(front_image, 'id_front', '/storage/kyc/default_front.jpg');
+  const backPath = resolveDocPath(effectiveBackImage, 'id_back', '/storage/kyc/default_back.jpg');
+  const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', '/storage/kyc/default_video.webm') : null;
 
   db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     user.id,
     doc_type,
@@ -1259,8 +1257,6 @@ router.post('/onboarding/kyc', async (req, res) => {
     videoPath,
     docStatus,
     provider,
-    isDiditVerified ? ('didit_' + Date.now()) : null,
-    isDiditVerified ? (parseFloat(didit_score) || 99.4) : null,
     isAutoApprove ? new Date().toISOString() : null
   );
 
@@ -1333,170 +1329,6 @@ router.get(['/settings', '/kyc', '/profile', '/account'], (req, res) => {
     activities,
     systemSettings
   });
-});
-
-// Didit KYC - Generate Real Verification Session
-router.post('/api/kyc/didit/session', async (req, res) => {
-  const user = req.session.userId ? db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId) : null;
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const forwardedHost = req.headers['x-forwarded-host'];
-  const host = forwardedHost || req.get('host') || 'localhost:3333';
-  const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
-  const protocol = isHttps ? 'https' : (req.protocol || 'http');
-  const callbackUrl = `${protocol}://${host}/api/kyc/didit/callback`;
-
-  const session = await createDiditVerificationSession({
-    userId: user ? user.id : ('reg_' + Date.now()),
-    email: user ? user.email : req.body.email,
-    callbackUrl
-  });
-
-  return res.json(session);
-});
-
-// Didit KYC - Return Callback Handler from Hosted Didit
-router.get('/api/kyc/didit/callback', async (req, res) => {
-  const { verificationSessionId, session_id, status } = req.query;
-  const effectiveSessionId = verificationSessionId || session_id;
-  const user = req.session.userId ? db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId) : null;
-
-  if (user) {
-    let decisionStatus = status || 'Approved';
-    if (effectiveSessionId) {
-      const remoteDecision = await getDiditSessionDecision(effectiveSessionId);
-      if (remoteDecision && remoteDecision.status) {
-        decisionStatus = remoteDecision.status;
-      }
-    }
-
-    if (decisionStatus === 'Approved' || decisionStatus === 'verified') {
-      db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(user.id);
-      if (req.session.user) req.session.user.kyc_status = 'verified';
-      db.prepare(`
-        INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, status, provider, didit_session_id, didit_score, reviewed_at)
-        VALUES (?, 'Government ID / Passport', ?, '/storage/kyc/didit_verified_front.png', '/storage/kyc/didit_verified_back.png', 'approved', 'didit', ?, 99.4, CURRENT_TIMESTAMP)
-      `).run(user.id, 'DIDIT-' + (effectiveSessionId || Date.now()), effectiveSessionId || ('didit_' + Date.now()));
-
-      if (user.email_verified === 0) {
-        req.session.flash = { success: 'Identity verified! Step 4 of 4: Enter the 6-digit confirmation code sent to your email to complete onboarding.' };
-        return req.session.save(() => res.redirect('/verify-email'));
-      }
-      req.session.flash = { success: 'Didit AI Protocol identity clearance confirmed! Tier-1 execution is live.' };
-      return req.session.save(() => res.redirect('/dashboard'));
-    } else if (decisionStatus === 'In Review') {
-      db.prepare("UPDATE users SET kyc_status = 'pending' WHERE id = ?").run(user.id);
-      if (req.session.user) req.session.user.kyc_status = 'pending';
-      req.session.flash = { success: 'Didit identity verification received and is currently under compliance review.' };
-      if (user.email_verified === 0) {
-        return req.session.save(() => res.redirect('/verify-email'));
-      }
-      return req.session.save(() => res.redirect('/dashboard'));
-    } else {
-      req.session.flash = { error: 'Didit identity verification was declined or timed out. Please try again or upload manual documents.' };
-      return req.session.save(() => res.redirect('/onboarding/kyc'));
-    }
-  }
-
-  req.session.flash = { success: 'Didit verification complete. Please sign in.' };
-  return req.session.save(() => res.redirect('/login'));
-});
-
-// Didit KYC - Complete Verification
-router.post('/api/kyc/didit/complete', (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
-  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
-  const {
-    session_id,
-    doc_type = 'Government ID / Passport',
-    doc_number = 'DIDIT-AI-VERIFIED',
-    front_image,
-    back_image,
-    selfie_image,
-    score = 99.4,
-    decision = 'Approved'
-  } = req.body;
-
-  const resolvePath = (img, prefix, fallback) => {
-    if (img && typeof img === 'string' && img.startsWith('/')) return img;
-    return saveBase64Media(img, prefix, user.id) || fallback;
-  };
-
-  const frontPath = resolvePath(front_image, 'didit_front', '/storage/kyc/didit_verified_front.png');
-  const backPath = resolvePath(back_image, 'didit_back', '/storage/kyc/didit_verified_back.png');
-  const selfiePath = resolvePath(selfie_image, 'didit_selfie', '/storage/kyc/didit_verified_selfie.png');
-
-  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
-  const isAutoApprove = (systemSettings.didit_auto_approve === 1) && (decision === 'Approved' || parseFloat(score) >= 80);
-  const docStatus = isAutoApprove ? 'approved' : 'pending';
-  const userKycStatus = isAutoApprove ? 'verified' : 'pending';
-
-  // Insert Didit verification record
-  db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'didit', ?, ?, ?)
-  `).run(
-    user.id,
-    doc_type,
-    doc_number || ('DIDIT-' + Math.random().toString(36).substring(2, 8).toUpperCase()),
-    frontPath,
-    backPath,
-    selfiePath,
-    docStatus,
-    session_id || ('didit_' + Date.now()),
-    parseFloat(score) || 99.4,
-    isAutoApprove ? new Date().toISOString() : null
-  );
-
-  db.prepare("UPDATE users SET kyc_status = ? WHERE id = ?").run(userKycStatus, user.id);
-  try {
-    const notifTitle = isAutoApprove ? 'Didit Biometric Verification Approved' : 'Didit KYC Under Review';
-    const notifMsg = isAutoApprove 
-      ? 'Didit AI Protocol has confirmed your identity. Your account is now Tier-1 Verified.'
-      : 'Your biometric identity verification has been received and queued for institutional compliance confirmation.';
-    db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
-      .run(user.id, notifTitle, notifMsg);
-  } catch (e) {}
-  logActivity(user.id, 'KYC_DIDIT_SUBMITTED', `Submitted Didit KYC session ${session_id} (Status: ${docStatus})`, req);
-
-  req.session.flash = {
-    success: isAutoApprove
-      ? 'Identity verified successfully! Institutional Tier-1 access is now active.'
-      : 'Identity documents submitted successfully. Compliance verification is currently processing.'
-  };
-
-  return res.json({
-    success: true,
-    status: docStatus,
-    redirect: '/settings'
-  });
-});
-
-// Didit KYC - Webhook Handler (Protected by HMAC / Secret Verification)
-router.post('/api/kyc/didit/webhook', (req, res) => {
-  const secret = req.headers['x-didit-signature'] || req.headers['x-webhook-secret'] || req.query.secret;
-  const sysSettings = db.prepare('SELECT didit_api_key, crypto_webhook_secret FROM system_settings WHERE id = 1').get() || {};
-  const validSecret = sysSettings.didit_api_key || sysSettings.crypto_webhook_secret || 'wh_sec_mainstreet_2026_live';
-
-  if (!secret || secret !== validSecret) {
-    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing webhook signature.' });
-  }
-
-  const { session_id, user_id, status: verificationStatus } = req.body;
-  if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
-
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-
-  if (verificationStatus === 'Approved' || verificationStatus === 'verified') {
-    db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(user.id);
-    db.prepare("UPDATE kyc_documents SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND didit_session_id = ?").run(user.id, session_id);
-    try {
-      db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
-        .run(user.id, 'Didit AI Clearance Confirmed', 'Didit verification webhook confirmed Tier-1 institutional clearance.');
-    } catch(e) {}
-  }
-  return res.json({ success: true, message: 'Webhook authenticated and processed.' });
 });
 
 // Toggle 2FA Security (Requires Password Confirmation to prevent CSRF / Session Hijack)

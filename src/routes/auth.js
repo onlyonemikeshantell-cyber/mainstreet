@@ -375,7 +375,7 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
-    video_data, didit_verified, didit_score
+    video_data
   } = req.body;
 
   if (!name || !email || !password) {
@@ -393,10 +393,8 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/register'));
   }
 
-  const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
-
   // Step 2: Live Verification Enforcement during Registration
-  if (!video_data && !isDiditVerified) {
+  if (!video_data) {
     req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
     return req.session.save(() => res.redirect('/register'));
   }
@@ -435,21 +433,17 @@ router.post('/register', async (req, res) => {
       return saveBase64Media(img, prefix, newUserId) || fallback;
     };
 
-    const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm') : (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : null);
+    const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', '/storage/kyc/default_video.webm') : null;
 
     db.prepare(`
-      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-      VALUES (?, 'Biometric Live Check', ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider)
+      VALUES (?, 'Biometric Live Check', ?, ?, ?, ?, 'pending', 'native')
     `).run(
       newUserId,
       'BIO-' + Math.floor(100000 + Math.random() * 900000),
-      videoPath || '/storage/kyc/didit_verified_selfie.png',
-      videoPath || '/storage/kyc/didit_verified_selfie.png',
-      videoPath,
-      isDiditVerified ? 'didit' : 'manual',
-      isDiditVerified ? ('didit_' + Date.now()) : null,
-      isDiditVerified ? (parseFloat(didit_score) || 99.4) : null,
-      null
+      videoPath || '/storage/kyc/default_front.jpg',
+      videoPath || '/storage/kyc/default_back.jpg',
+      videoPath
     );
 
     // Initial Welcome Demo Capital ($10,000 USD)

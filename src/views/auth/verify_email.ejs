@@ -153,17 +153,7 @@
             </div>
         <% } %>
 
-        <!-- Didit Protocol Active Session Banner -->
-        <div class="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between text-xs font-sans">
-            <div class="flex items-center space-x-2.5">
-                <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-                <span class="text-content-secondary font-medium">verify.didit.me session launched</span>
-            </div>
-            <a href="https://verify.didit.me" target="_blank" rel="noopener noreferrer"
-               class="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 hover:text-white hover:bg-indigo-600 font-bold text-[11px] transition font-mono flex items-center space-x-1">
-                <span>Open Portal &nearr;</span>
-            </a>
-        </div>
+
 
         <!-- Verification Code Form -->
         <form x-ref="verifyForm" action="/verify-email" method="POST" @submit="submitting = true" class="space-y-6">

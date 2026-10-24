@@ -2497,7 +2497,7 @@
                         <span>Institutional Compliance & Verification Queue</span>
                     </div>
                     <h2 class="text-xl md:text-2xl font-extrabold font-serif text-white">Client KYC Moderation & AML Screening</h2>
-                    <p class="text-xs text-slate-400 font-mono">Inspect identity documentation, review Didit AI biometric match rates, and authorize Tier 1/2 institutional trading privileges.</p>
+                    <p class="text-xs text-slate-400 font-mono">Inspect identity documentation, review biometric selfie matches, and authorize Tier 1/2 institutional trading privileges.</p>
                 </div>
                 <div class="flex items-center space-x-2 font-mono text-xs">
                     <% if (totalStats.pendingKyc > 0) { %>
@@ -2546,21 +2546,9 @@
                                     </td>
                                     <td class="font-mono text-slate-300 font-bold"><%= k.doc_number %></td>
                                     <td>
-                                        <% if (k.provider === 'didit') { %>
-                                            <div class="space-y-0.5">
-                                                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono shadow-[0_0_10px_rgba(99,102,241,0.2)]">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-                                                    <span>DIDIT AI</span>
-                                                </span>
-                                                <% if (k.didit_score) { %>
-                                                    <div class="text-[9px] text-indigo-300 font-mono font-bold"><%= k.didit_score %>% Bio-Match</div>
-                                                <% } %>
-                                            </div>
-                                        <% } else { %>
-                                            <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30 font-mono">
-                                                <span>MANUAL</span>
-                                            </span>
-                                        <% } %>
+                                        <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 font-mono">
+                                            <span><%= (k.provider || 'native').toUpperCase() %></span>
+                                        </span>
                                     </td>
                                     <td>
                                         <div class="flex items-center space-x-2">
@@ -2638,9 +2626,7 @@
                                     <div class="text-[10px] font-mono text-slate-300 mt-1">
                                         <span class="uppercase font-bold text-sky-400"><%= k.doc_type %></span>: <%= k.doc_number || 'N/A' %>
                                     </div>
-                                    <% if (k.provider === 'didit' && k.didit_score) { %>
-                                        <div class="text-[9px] text-indigo-300 font-mono font-bold mt-0.5">Didit Bio-Match: <%= k.didit_score %>%</div>
-                                    <% } %>
+                                    <div class="text-[9px] text-slate-400 font-mono mt-0.5"><%= (k.provider || 'native').toUpperCase() %> Submission</div>
                                 </div>
 
                                 <!-- Thumbnail -->
@@ -3636,49 +3622,33 @@
                     </form>
                 </div>
 
-                <!-- CARD 5: DIDIT AI IDENTITY PROTOCOL (KYC) -->
+                <!-- CARD 5: INSTITUTIONAL KYC & COMPLIANCE POLICY -->
                 <div class="luxury-glass-panel rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
                     <div class="flex items-center space-x-3 border-b border-surface-border pb-3">
-                        <div class="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold">🪪</div>
+                        <div class="w-9 h-9 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 font-bold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
                         <div>
-                            <h3 class="text-sm font-bold font-serif text-content-primary">Didit AI KYC Protocol Configuration</h3>
-                            <p class="text-[11px] text-content-secondary">Primary automated identity verification engine (didit.me), API credentials, and auto-approval policies.</p>
+                            <h3 class="text-sm font-bold font-serif text-content-primary">Institutional KYC & Compliance Policy</h3>
+                            <p class="text-[11px] text-content-secondary">Native identity verification settings and automated clearance policies.</p>
                         </div>
                     </div>
 
-                    <form action="/babyoku/settings/didit" method="POST" class="space-y-3.5 text-xs font-mono">
+                    <form action="/babyoku/settings/kyc-policy" method="POST" class="space-y-3.5 text-xs font-mono">
                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block uppercase font-semibold text-content-secondary mb-1">Didit Application ID</label>
-                                <input type="text" name="didit_app_id" value="<%= systemSettings.didit_app_id || '' %>" placeholder="e.g. app_mainstreet_kyc_prod" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2 outline-none font-bold" />
-                            </div>
-                            <div>
-                                <label class="block uppercase font-semibold text-content-secondary mb-1">Didit API Secret Key</label>
-                                <input type="password" name="didit_api_key" value="<%= systemSettings.didit_api_key || '' %>" placeholder="didit_live_sec_..." class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2 outline-none font-bold" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block uppercase font-semibold text-content-secondary mb-1">Operating Mode</label>
-                                <select name="didit_mode" class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-2 outline-none font-bold">
-                                    <option value="live" <%= (systemSettings.didit_mode === 'live') ? 'selected' : '' %>>Live Production (didit.me)</option>
-                                    <option value="sandbox" <%= (systemSettings.didit_mode === 'sandbox') ? 'selected' : '' %>>Sandbox / Testing</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center pt-5">
+                            <div class="flex items-center pt-2">
                                 <label class="flex items-center space-x-2.5 cursor-pointer">
-                                    <input type="checkbox" name="didit_auto_approve" value="1" <%= (systemSettings.didit_auto_approve !== 0) ? 'checked' : '' %> class="text-primary rounded" />
-                                    <span class="text-content-secondary font-sans font-semibold">Auto-Approve Tier-1 Clearance on Didit AI Pass (Instant)</span>
+                                    <input type="checkbox" name="auto_approve_kyc" value="1" <%= ((systemSettings.auto_approve_kyc ?? systemSettings.didit_auto_approve) !== 0) ? 'checked' : '' %> class="text-primary rounded" />
+                                    <span class="text-content-secondary font-sans font-semibold">Auto-Approve Tier-1 Clearance on Document Submission</span>
                                 </label>
                             </div>
                         </div>
 
                         <div class="flex justify-end pt-2 border-t border-surface-border font-sans">
                             <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-bold px-5 py-2 rounded-xl text-xs shadow-md transition">
-                                Save Didit AI Settings
+                                Save KYC Policy Settings
                             </button>
                         </div>
                     </form>
@@ -5364,18 +5334,9 @@
                 <div>
                     <span class="text-content-tertiary block uppercase text-[10px]">Verification Provider</span>
                     <div class="mt-0.5">
-                        <template x-if="selectedKyc.provider === 'didit'">
-                            <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                <span>DIDIT AI (Score: </span>
-                                <span x-text="(selectedKyc.didit_score || 99.4) + '%'"></span>
-                                <span>)</span>
-                            </span>
-                        </template>
-                        <template x-if="selectedKyc.provider !== 'didit'">
-                            <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/20 text-slate-300 border border-slate-500/30">
-                                Manual Upload (Backup)
-                            </span>
-                        </template>
+                        <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 font-mono">
+                            <span x-text="(selectedKyc.provider || 'Native Biometric').toUpperCase()"></span>
+                        </span>
                     </div>
                 </div>
                 <div>
