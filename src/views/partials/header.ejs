@@ -620,18 +620,6 @@
                                     <span>Admin Desk</span>
                                 </a>
                             <% } %>
-                            <a href="/dashboard" class="hidden sm:inline-flex px-3 py-1.5 rounded-xl <%= (typeof currentPath !== 'undefined' && currentPath === '/dashboard') ? 'bg-primary text-white' : 'bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-content-primary dark:text-white border border-black/[0.06] dark:border-white/[0.08]' %> font-bold text-xs transition items-center space-x-1.5 shrink-0">
-                                <span>📊</span>
-                                <span>Dashboard</span>
-                            </a>
-                            <a href="/deposit" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-[11px] sm:text-xs shadow-sm shadow-gain/25 transition flex items-center space-x-1 group shrink-0">
-                                <span class="text-xs sm:text-sm leading-none">+</span>
-                                <span>Deposit</span>
-                            </a>
-                            <a href="/webtrade/app" class="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-sky-400 border border-primary/20 text-xs font-bold transition items-center space-x-1.5 shrink-0">
-                                <span class="w-1.5 h-1.5 rounded-full bg-primary dark:bg-sky-400 animate-pulse"></span>
-                                <span>Terminal</span>
-                            </a>
 
                             <!-- Institutional Notification Center & Live Pop-up Toast Engine -->
                             <%- include('./notifications') %>
