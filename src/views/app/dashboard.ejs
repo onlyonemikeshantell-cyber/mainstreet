@@ -508,12 +508,12 @@ function dashboardPortfolioApp() {
             };
 
             const assetIcons = {
-                'AAPL': '🍏',
-                'MSFT': '🪟',
-                'NVDA': '🟢',
-                'AMZN': '📦',
-                'BTC': '₿',
-                'ETH': 'Ξ'
+                'AAPL': 'ðŸ',
+                'MSFT': 'ðŸªŸ',
+                'NVDA': 'ðŸŸ¢',
+                'AMZN': 'ðŸ“¦',
+                'BTC': 'â‚¿',
+                'ETH': 'Îž'
             };
 
             try {
@@ -524,7 +524,7 @@ function dashboardPortfolioApp() {
                         asset_symbol: this.retirementInvestAsset,
                         asset_name: assetNames[this.retirementInvestAsset] || this.retirementInvestAsset,
                         asset_type: assetTypes[this.retirementInvestAsset] || 'stock',
-                        icon: assetIcons[this.retirementInvestAsset] || '📈',
+                        icon: assetIcons[this.retirementInvestAsset] || 'ðŸ“ˆ',
                         amount: this.retirementInvestAmount,
                         _token: token
                     })
@@ -754,7 +754,7 @@ function dashboardPortfolioApp() {
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center space-x-3.5">
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary to-sky-400 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-primary/25 shrink-0">
-                        🚀
+                        ðŸš€
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
@@ -778,7 +778,7 @@ function dashboardPortfolioApp() {
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
                 <!-- Step 1: Account Created -->
                 <div class="p-3.5 rounded-2xl bg-surface-base/80 border border-gain/30 flex items-center space-x-3">
-                    <span class="w-7 h-7 rounded-full bg-gain/20 text-gain flex items-center justify-center font-bold text-sm shrink-0">✓</span>
+                    <span class="w-7 h-7 rounded-full bg-gain/20 text-gain flex items-center justify-center font-bold text-sm shrink-0">âœ“</span>
                     <div>
                         <div class="font-bold text-content-primary text-xs font-sans">Account Provisioned</div>
                         <div class="text-[10px] text-gain font-semibold">$10,000 Demo Capital Credited</div>
@@ -814,16 +814,12 @@ function dashboardPortfolioApp() {
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="text-[11px] font-mono font-medium text-content-tertiary uppercase tracking-wider">Total Portfolio Value</span>
-                        <span class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-gain/10 border border-gain/20 text-[10px] font-mono text-gain">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
-                            <span>1s Live STP Sync</span>
-                        </span>
                     </div>
                     <div class="flex items-baseline space-x-3 mt-1">
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-numeral tracking-tight"
                             x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></h1>
                         <span class="text-sm sm:text-base text-gain font-bold font-mono">
-                            ▲ +24.8% <span class="text-content-tertiary text-xs font-normal font-sans">(+$10,937.88)</span>
+                            â–² +24.8% <span class="text-content-tertiary text-xs font-normal font-sans">(+$10,937.88)</span>
                         </span>
                     </div>
                 </div>
@@ -899,12 +895,12 @@ function dashboardPortfolioApp() {
                         <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
                         <span>Cash <strong class="text-content-primary" x-text="allocationPercents.cash + '%'"></strong></span>
                     </span>
-                    <span class="text-surface-border">•</span>
+                    <span class="text-surface-border">â€¢</span>
                     <span class="flex items-center space-x-1.5">
                         <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
                         <span>Stocks <strong class="text-content-primary" x-text="allocationPercents.stock + '%'"></strong></span>
                     </span>
-                    <span class="text-surface-border">•</span>
+                    <span class="text-surface-border">â€¢</span>
                     <span class="flex items-center space-x-1.5">
                         <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
                         <span>Crypto <strong class="text-content-primary" x-text="allocationPercents.crypto + '%'"></strong></span>
@@ -933,7 +929,7 @@ function dashboardPortfolioApp() {
                     <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
                         <!-- Minimal Search Input -->
                         <div class="relative flex-1 sm:w-56">
-                            <span class="absolute left-3 top-2 text-content-tertiary text-xs">🔍</span>
+                            <span class="absolute left-3 top-2 text-content-tertiary text-xs">ðŸ”</span>
                             <input type="text" x-model="searchQuery" placeholder="Search assets..." 
                                    class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-sans transition placeholder:text-content-tertiary" />
                         </div>
@@ -960,10 +956,10 @@ function dashboardPortfolioApp() {
                         <!-- View Switcher (List vs Cards) -->
                         <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border">
                             <button type="button" @click="viewMode = 'table'" :class="viewMode === 'table' ? 'bg-white dark:bg-neutral-800 text-primary font-bold shadow-xs' : 'text-content-tertiary hover:text-content-secondary'" class="px-2.5 py-1 rounded-lg text-xs transition" title="List View">
-                                ☰
+                                â˜°
                             </button>
                             <button type="button" @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-white dark:bg-neutral-800 text-primary font-bold shadow-xs' : 'text-content-tertiary hover:text-content-secondary'" class="px-2.5 py-1 rounded-lg text-xs transition" title="Card View">
-                                ⊞
+                                âŠž
                             </button>
                         </div>
                     </div>
@@ -1018,7 +1014,7 @@ function dashboardPortfolioApp() {
                                             <!-- 24h Change -->
                                             <td class="py-3.5 px-4 font-mono font-bold"
                                                 :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'">
-                                                <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                                <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'â–² +' : 'â–¼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
                                             </td>
 
                                             <!-- Holdings Quantity -->
@@ -1082,7 +1078,7 @@ function dashboardPortfolioApp() {
                                     </div>
                                     <span class="text-xs font-mono font-bold"
                                           :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
-                                          x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                          x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'â–² +' : 'â–¼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
                                 </div>
 
                                 <!-- Price & Value Summary -->
@@ -1117,7 +1113,7 @@ function dashboardPortfolioApp() {
                         <% }) %>
                     <% } else { %>
                         <div class="col-span-full py-12 text-center bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border p-8 space-y-3">
-                            <span class="text-4xl">💼</span>
+                            <span class="text-4xl">ðŸ’¼</span>
                             <h4 class="text-sm font-bold text-content-primary">No Assets in Custody</h4>
                             <p class="text-xs text-content-secondary max-w-sm mx-auto">Acquire fractional shares of top global equities or crypto assets directly with your available cash balance.</p>
                             <div class="pt-2">
@@ -1214,7 +1210,7 @@ function dashboardPortfolioApp() {
                         <p class="text-xs text-content-secondary mt-1">Open orders running on WebTrader prime STP execution.</p>
                     </div>
                     <a href="/webtrade/app" class="px-4 py-2 rounded-xl bg-primary text-white font-bold text-xs shadow-md transition flex items-center space-x-1">
-                        <span>⚡ Trade on WebTrader</span>
+                        <span>âš¡ Trade on WebTrader</span>
                     </a>
                 </div>
 
@@ -1273,7 +1269,7 @@ function dashboardPortfolioApp() {
                 </template>
                 <template x-if="!liveOpenTrades || liveOpenTrades.length === 0">
                     <div class="py-12 text-center space-y-3">
-                        <span class="text-4xl">📊</span>
+                        <span class="text-4xl">ðŸ“Š</span>
                         <h4 class="font-bold text-sm text-content-primary font-serif">No Active Positions Running</h4>
                         <p class="text-xs text-content-secondary max-w-sm mx-auto">You currently have no open margin trades. Launch WebTrader to place high-frequency trades across Forex, Crypto, Indices, and Commodities.</p>
                         <a href="/webtrade/app" class="inline-block px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
@@ -1307,7 +1303,7 @@ function dashboardPortfolioApp() {
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2.5">
                                         <span class="w-10 h-10 rounded-xl bg-white border border-surface-border flex items-center justify-center font-bold text-lg">
-                                            <%= sub.avatar || '👨‍💼' %>
+                                            <%= sub.avatar || 'ðŸ‘¨â€ðŸ’¼' %>
                                         </span>
                                         <div>
                                             <h4 class="font-bold text-content-primary text-sm font-sans"><%= sub.strategy_name || 'Master Strategy' %></h4>
@@ -1343,7 +1339,7 @@ function dashboardPortfolioApp() {
                     </div>
                 <% } else { %>
                     <div class="py-12 text-center space-y-3">
-                        <span class="text-4xl">👥</span>
+                        <span class="text-4xl">ðŸ‘¥</span>
                         <h4 class="font-bold text-sm text-content-primary font-serif">No Active Copy Subscriptions</h4>
                         <p class="text-xs text-content-secondary max-w-sm mx-auto">Copy trade top-performing verified traders with auditable track records and automatic risk parameters.</p>
                         <a href="/copy-trading/app" class="inline-block px-5 py-2.5 rounded-2xl bg-primary text-white font-bold text-xs shadow-md">
@@ -1365,7 +1361,7 @@ function dashboardPortfolioApp() {
                     <div class="space-y-3">
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 rounded-2xl bg-gain/15 text-gain flex items-center justify-center text-2xl icon-3d-badge shadow-md shadow-gain/20" style="--icon-glow: #10B981;">
-                                <span class="icon-floating">🛡️</span>
+                                <span class="icon-floating">ðŸ›¡ï¸</span>
                             </div>
                             <div>
                                 <div class="flex items-center space-x-2">
@@ -1415,7 +1411,7 @@ function dashboardPortfolioApp() {
                         </button>
 
                         <button type="button" @click="retirementInvestModal = true" class="px-5 py-3 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center space-x-2">
-                            <span>📈 Invest Cash</span>
+                            <span>ðŸ“ˆ Invest Cash</span>
                         </button>
 
                     </div>
@@ -1426,7 +1422,7 @@ function dashboardPortfolioApp() {
                 <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-md space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-3">
                         <div class="flex items-center space-x-2">
-                            <span class="text-base">📊</span>
+                            <span class="text-base">ðŸ“Š</span>
                             <h4 class="text-sm font-bold font-serif text-content-primary">2026 Tax-Year IRS Contribution Limit</h4>
                         </div>
                         <span class="text-xs font-mono text-content-tertiary">
@@ -1457,7 +1453,7 @@ function dashboardPortfolioApp() {
                     
                     <div class="flex items-center justify-between border-b border-surface-border pb-3">
                         <div class="flex items-center space-x-2">
-                            <span class="text-base">💼</span>
+                            <span class="text-base">ðŸ’¼</span>
                             <h4 class="text-sm font-bold font-serif text-content-primary">Retirement Holdings (<%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %>)</h4>
                         </div>
                         <span class="text-xs font-mono text-gain font-bold flex items-center space-x-1">
@@ -1490,7 +1486,7 @@ function dashboardPortfolioApp() {
                                         %>
                                         <tr class="hover:bg-surface-overlay/50 transition">
                                             <td class="py-3.5 px-3 flex items-center space-x-2.5">
-                                                <span class="text-base"><%= h.icon || '📈' %></span>
+                                                <span class="text-base"><%= h.icon || 'ðŸ“ˆ' %></span>
                                                 <div>
                                                     <strong class="text-content-primary font-sans block"><%= h.asset_name %></strong>
                                                     <span class="text-[10px] text-content-tertiary"><%= h.asset_symbol %></span>
@@ -1672,11 +1668,11 @@ function dashboardPortfolioApp() {
                     <div class="flex items-center space-x-3">
                         <input type="number" step="any" min="0.000001" x-model="swapAmount" required placeholder="0.00" class="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-base font-bold text-content-primary outline-none focus:border-primary shadow-inner" />
                         <select x-model="fromSymbol" class="bg-surface-base border border-surface-border rounded-xl px-3 py-2.5 font-bold text-content-primary outline-none focus:border-primary shrink-0 shadow-sm">
-                            <optgroup label="💵 Cash & Fiat">
+                            <optgroup label="ðŸ’µ Cash & Fiat">
                                 <option value="USD">USD (Cash Balance)</option>
                                 <option value="USDT">USDT (Tether USD)</option>
                             </optgroup>
-                            <optgroup label="🪙 Cryptocurrencies">
+                            <optgroup label="ðŸª™ Cryptocurrencies">
                                 <option value="BTC">BTC (Bitcoin)</option>
                                 <option value="ETH">ETH (Ethereum)</option>
                                 <option value="SOL">SOL (Solana)</option>
@@ -1690,7 +1686,7 @@ function dashboardPortfolioApp() {
                                 <option value="TON">TON (Toncoin)</option>
                                 <option value="PEPE">PEPE (Pepe)</option>
                             </optgroup>
-                            <optgroup label="🏛️ Global Stocks">
+                            <optgroup label="ðŸ›ï¸ Global Stocks">
                                 <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
                                     <% stockBalances.forEach(s => { %>
                                         <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
@@ -1741,7 +1737,7 @@ function dashboardPortfolioApp() {
                     <div class="flex items-center space-x-3">
                         <div class="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-base font-bold text-gain font-mono shadow-inner truncate" x-text="estimatedOutput"></div>
                         <select x-model="toSymbol" class="bg-surface-base border border-surface-border rounded-xl px-3 py-2.5 font-bold text-content-primary outline-none focus:border-primary shrink-0 shadow-sm">
-                            <optgroup label="🪙 Cryptocurrencies">
+                            <optgroup label="ðŸª™ Cryptocurrencies">
                                 <option value="BTC">BTC (Bitcoin)</option>
                                 <option value="ETH">ETH (Ethereum)</option>
                                 <option value="SOL">SOL (Solana)</option>
@@ -1755,11 +1751,11 @@ function dashboardPortfolioApp() {
                                 <option value="TON">TON (Toncoin)</option>
                                 <option value="PEPE">PEPE (Pepe)</option>
                             </optgroup>
-                            <optgroup label="💵 Cash & Fiat">
+                            <optgroup label="ðŸ’µ Cash & Fiat">
                                 <option value="USD">USD (Cash Balance)</option>
                                 <option value="USDT">USDT (Tether USD)</option>
                             </optgroup>
-                            <optgroup label="🏛️ Global Stocks">
+                            <optgroup label="ðŸ›ï¸ Global Stocks">
                                 <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
                                     <% stockBalances.forEach(s => { %>
                                         <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
@@ -1790,7 +1786,7 @@ function dashboardPortfolioApp() {
                 <div class="p-3 bg-gain/10 rounded-2xl border border-gain/30 text-[11px] text-gain font-sans space-y-1">
                     <div class="flex items-center justify-between font-mono font-bold">
                         <span>Conversion Rate:</span>
-                        <span x-text="'1 ' + fromSymbol + ' ≈ ' + (toRate ? (fromRate / toRate).toFixed(6) : 0) + ' ' + toSymbol"></span>
+                        <span x-text="'1 ' + fromSymbol + ' â‰ˆ ' + (toRate ? (fromRate / toRate).toFixed(6) : 0) + ' ' + toSymbol"></span>
                     </div>
                     <p class="text-[10px] text-content-secondary font-mono">Zero Slippage &bull; Instant Settlement into Available Portfolio</p>
                 </div>
@@ -1840,10 +1836,10 @@ function dashboardPortfolioApp() {
             <!-- Mode Selector (Dollar Amount vs Shares) -->
             <div class="flex items-center justify-between p-1 bg-surface-overlay/80 rounded-xl border border-surface-border font-mono text-xs">
                 <button type="button" @click="investMode = 'usd'" :class="investMode === 'usd' ? 'bg-surface-base text-primary font-bold shadow-sm' : 'text-content-tertiary hover:text-content-secondary'" class="flex-1 py-1.5 rounded-lg transition text-center">
-                    💵 Invest by Dollar ($)
+                    ðŸ’µ Invest by Dollar ($)
                 </button>
                 <button type="button" @click="investMode = 'shares'" :class="investMode === 'shares' ? 'bg-surface-base text-primary font-bold shadow-sm' : 'text-content-tertiary hover:text-content-secondary'" class="flex-1 py-1.5 rounded-lg transition text-center">
-                    📊 Buy by Shares (Qty)
+                    ðŸ“Š Buy by Shares (Qty)
                 </button>
             </div>
 
@@ -1914,7 +1910,7 @@ function dashboardPortfolioApp() {
             <div class="flex items-center justify-between border-b border-surface-border pb-3">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-primary/20 text-primary flex items-center justify-center text-xl font-bold shadow-md">
-                        🧺
+                        ðŸ§º
                     </div>
                     <div>
                         <h3 class="text-lg font-bold font-serif text-content-primary" x-text="baskets[selectedBasketKey]?.name"></h3>
@@ -1965,7 +1961,7 @@ function dashboardPortfolioApp() {
             <div class="flex items-center justify-between border-b border-surface-border pb-3 shrink-0">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary/20 to-indigo-500/20 text-primary flex items-center justify-center text-xl font-bold shadow-md">
-                        ✨
+                        âœ¨
                     </div>
                     <div>
                         <h3 class="text-lg font-bold font-serif text-content-primary">Discover & Add Tradable Assets</h3>
@@ -1978,7 +1974,7 @@ function dashboardPortfolioApp() {
             <!-- Search & Filter Controls -->
             <div class="flex items-center gap-3 shrink-0">
                 <div class="relative flex-1">
-                    <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">🔍</span>
+                    <span class="absolute left-3.5 top-2.5 text-content-tertiary text-sm">ðŸ”</span>
                     <input type="text" x-model="discoverSearch" placeholder="Search catalog (e.g. TSLA, NVDA, ETH, Gold)..." class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-surface-base border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-mono" />
                 </div>
                 <div class="flex items-center space-x-1.5 font-mono text-xs">
@@ -2044,7 +2040,7 @@ function dashboardPortfolioApp() {
             <div class="flex items-start justify-between border-b border-surface-border pb-4 pt-1">
                 <div class="flex items-center space-x-3.5">
                     <div class="w-12 h-12 rounded-2xl bg-loss/20 text-loss flex items-center justify-center text-2xl font-bold border border-loss/30 animate-pulse shadow-lg shadow-loss/20">
-                        ⚠️
+                        âš ï¸
                     </div>
                     <div>
                         <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase font-mono bg-loss text-white tracking-widest">Hazard Protocol</span>
@@ -2057,7 +2053,7 @@ function dashboardPortfolioApp() {
             <!-- Warning Callout Box -->
             <div class="p-4 bg-loss/10 rounded-2xl border border-loss/30 space-y-2 font-sans">
                 <div class="flex items-center space-x-2 text-loss font-bold text-xs">
-                    <span class="text-base">🚨</span>
+                    <span class="text-base">ðŸš¨</span>
                     <span>IRREVERSIBLE ACTION NOTICE</span>
                 </div>
                 <p class="text-xs text-content-secondary leading-relaxed">
@@ -2073,7 +2069,7 @@ function dashboardPortfolioApp() {
                 </div>
                 <div class="flex items-center justify-between text-content-secondary">
                     <span>Estimated Cash Proceeds:</span>
-                    <strong class="text-base font-extrabold text-gain" x-text="'≈ $' + totalEstimatedLiquidationValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'"></strong>
+                    <strong class="text-base font-extrabold text-gain" x-text="'â‰ˆ $' + totalEstimatedLiquidationValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'"></strong>
                 </div>
                 <div class="flex items-center justify-between text-content-secondary pt-1 border-t border-surface-border">
                     <span>Settlement Destination:</span>
@@ -2084,10 +2080,10 @@ function dashboardPortfolioApp() {
             <!-- Safety Lock & Countdown Indicator -->
             <div class="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/30 text-center space-y-2">
                 <div class="flex items-center justify-center space-x-2 font-mono font-bold text-xs text-amber-800">
-                    <span x-show="hazardCountdown > 0" class="animate-spin text-sm">⏳</span>
+                    <span x-show="hazardCountdown > 0" class="animate-spin text-sm">â³</span>
                     <span x-show="hazardCountdown > 0">Safety Lock Active: Confirmation unlocks in <strong class="text-loss text-sm" x-text="hazardCountdown + 's'"></strong></span>
                     <span x-show="hazardCountdown === 0" class="text-loss font-extrabold flex items-center space-x-1">
-                        <span>⚠️</span>
+                        <span>âš ï¸</span>
                         <span>Safety Lock Disengaged &bull; Ready to Confirm</span>
                     </span>
                 </div>
@@ -2105,8 +2101,8 @@ function dashboardPortfolioApp() {
                         :disabled="hazardCountdown > 0 || liquidatingAll"
                         :class="hazardCountdown > 0 || liquidatingAll ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border border-surface-border' : 'bg-loss hover:bg-loss/90 text-white shadow-lg shadow-loss/25 animate-pulse'"
                         class="w-full py-3.5 rounded-2xl font-bold text-xs transition flex items-center justify-center space-x-2">
-                    <span x-show="hazardCountdown > 0" x-text="'⚠️ Safety Lock Active (' + hazardCountdown + 's)'"></span>
-                    <span x-show="hazardCountdown === 0 && !liquidatingAll">🚨 CONFIRM LIQUIDATION (SETTLE ALL TO CASH) &rarr;</span>
+                    <span x-show="hazardCountdown > 0" x-text="'âš ï¸ Safety Lock Active (' + hazardCountdown + 's)'"></span>
+                    <span x-show="hazardCountdown === 0 && !liquidatingAll">ðŸš¨ CONFIRM LIQUIDATION (SETTLE ALL TO CASH) &rarr;</span>
                     <span x-show="liquidatingAll" x-cloak>Liquidating Portfolio...</span>
                 </button>
 
@@ -2127,7 +2123,7 @@ function dashboardPortfolioApp() {
             
             <div class="flex justify-between items-center border-b border-surface-border pb-3">
                 <div class="flex items-center space-x-2">
-                    <span class="text-xl">💰</span>
+                    <span class="text-xl">ðŸ’°</span>
                     <h3 class="font-bold text-base font-serif text-content-primary">Contribute to Retirement IRA</h3>
                 </div>
                 <button type="button" @click="retirementContributeModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
@@ -2176,7 +2172,7 @@ function dashboardPortfolioApp() {
             
             <div class="flex justify-between items-center border-b border-surface-border pb-3">
                 <div class="flex items-center space-x-2">
-                    <span class="text-xl">📈</span>
+                    <span class="text-xl">ðŸ“ˆ</span>
                     <h3 class="font-bold text-base font-serif text-content-primary">Invest Retirement Cash</h3>
                 </div>
                 <button type="button" @click="retirementInvestModal = false" class="text-content-tertiary hover:text-content-primary text-xl">&times;</button>
