@@ -885,7 +885,7 @@ function webTraderApp() {
     <div class="flex-grow grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
         
         <!-- Left: Market Watch Column (2 cols) - Aligned to Active Session -->
-        <div class="lg:col-span-2 bg-surface-raised border-r border-surface-border flex flex-col h-full overflow-y-auto max-h-[780px]">
+        <div class="lg:col-span-2 bg-surface-raised border-b lg:border-b-0 lg:border-r border-surface-border flex flex-col h-full overflow-y-auto max-h-[260px] lg:max-h-[780px]">
             
             <!-- Market Watch Header Ribbon -->
             <div class="p-3 border-b border-surface-border bg-surface-base/50 space-y-2.5">
@@ -991,7 +991,7 @@ function webTraderApp() {
             </div>
 
             <!-- Pro TradingView Interactive Chart Container with Auto-Mount -->
-            <div id="tv_chart_container" class="w-full h-full min-h-[540px] flex-grow bg-surface-raised relative">
+            <div id="tv_chart_container" class="w-full h-full min-h-[340px] sm:min-h-[540px] flex-grow bg-surface-raised relative">
                 <!-- Loading State / Fallback -->
                 <div class="absolute inset-0 flex flex-col items-center justify-center bg-surface-base/80 z-0">
                     <div class="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-2"></div>

@@ -399,6 +399,21 @@
         .dark .apple-segmented-pill {
             background: rgba(120, 120, 128, 0.24);
         }
+
+        /* Mobile Viewport & Responsive Protection */
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        @media (max-width: 639px) {
+            .iso-levitating-card {
+                animation: none !important;
+                transform: none !important;
+            }
+            .iso-levitating-card:hover {
+                transform: none !important;
+            }
+        }
     </style>
 
     <script>
@@ -533,15 +548,23 @@
 
         <!-- Apple-Style Floating Frosted Header -->
         <header x-data="{ mobileOpen: false }" class="sticky top-0 z-40 bg-white/95 dark:bg-[#161617]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.08] transition-colors duration-200 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6">
-                <div class="flex items-center justify-between h-14 gap-3">
+            <div class="max-w-7xl mx-auto px-3 sm:px-6">
+                <div class="flex items-center justify-between h-14 gap-2 sm:gap-3">
                     <!-- Left: Sidepanel Toggle & App Section Breadcrumb -->
-                    <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0 shrink-0">
+                    <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
                         <% if (user) { %>
+                            <!-- Mobile Command Sidepanel Button (Left-Aligned on Mobile/Tablet) -->
+                            <button type="button" 
+                                    @click="$store.sidepanel ? $store.sidepanel.toggle() : null" 
+                                    class="lg:hidden text-content-secondary hover:text-content-primary p-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/[0.08] dark:border-white/[0.1] transition flex items-center justify-center shrink-0 cursor-pointer" 
+                                    title="Open Navigation Menu">
+                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/></svg>
+                            </button>
+
                             <!-- Dedicated App Context Breadcrumb -->
-                            <div class="flex items-center space-x-2 text-xs font-medium whitespace-nowrap shrink-0">
-                                <a href="/" class="flex items-center space-x-2 text-content-secondary dark:text-neutral-400 hover:text-primary dark:hover:text-sky-400 transition font-semibold">
-                                    <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet" class="w-6 h-6 object-contain sm:hidden" />
+                            <div class="flex items-center space-x-1.5 sm:space-x-2 text-xs font-medium min-w-0">
+                                <a href="/" class="flex items-center space-x-1.5 sm:space-x-2 text-content-secondary dark:text-neutral-400 hover:text-primary dark:hover:text-sky-400 transition font-semibold shrink-0">
+                                    <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet" class="w-6 h-6 object-contain sm:hidden shrink-0" />
                                     <span class="hidden sm:inline">Mainstreet Capital Exchange</span>
                                 </a>
                                 <span class="text-content-tertiary opacity-40 hidden sm:inline">/</span>
@@ -564,13 +587,13 @@
                                         else if (currentPath.startsWith('/contact')) breadcrumbSection = 'Support';
                                     }
                                 %>
-                                <span class="text-content-primary dark:text-white font-medium whitespace-nowrap hidden sm:inline"><%= breadcrumbSection %></span>
+                                <span class="text-content-primary dark:text-white font-semibold truncate max-w-[110px] sm:max-w-none"><%= breadcrumbSection %></span>
                             </div>
                         <% } else { %>
                             <!-- Public Guest Logo -->
-                            <a href="/" class="shrink-0 flex items-center space-x-2.5 transition opacity-95 hover:opacity-100 group">
-                                <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-8 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition" />
-                                <span class="font-bold text-sm sm:text-base tracking-tight font-serif text-[#1d1d1f] dark:text-white hidden sm:inline-block">MainStreet <span class="text-primary font-normal">Exchange</span></span>
+                            <a href="/" class="min-w-0 flex items-center space-x-2 sm:space-x-2.5 transition opacity-95 hover:opacity-100 group">
+                                <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-7 sm:h-8 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition shrink-0" />
+                                <span class="font-bold text-xs sm:text-base tracking-tight font-serif text-[#1d1d1f] dark:text-white truncate">MainStreet <span class="text-primary font-normal">Exchange</span></span>
                             </a>
                         <% } %>
                     </div>
@@ -583,12 +606,12 @@
                         </div>
 
                         <!-- Authenticated Trader Header Actions -->
-                        <div class="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
+                        <div class="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
                             <% if (typeof isImpersonating !== 'undefined' && isImpersonating) { %>
                                 <a href="/babyoku/switch-back" 
-                                   class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
+                                   class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] sm:text-xs shadow-md shadow-amber-500/20 transition flex items-center space-x-1 shrink-0 cursor-pointer">
                                     <span>🛡️</span>
-                                    <span>Exit to Admin</span>
+                                    <span class="hidden sm:inline">Exit to Admin</span>
                                 </a>
                             <% } else if (user && user.role === 'admin') { %>
                                 <a href="/babyoku" 
@@ -597,12 +620,12 @@
                                     <span>Admin Desk</span>
                                 </a>
                             <% } %>
-                            <a href="/dashboard" class="px-3 py-1.5 rounded-xl <%= (typeof currentPath !== 'undefined' && currentPath === '/dashboard') ? 'bg-primary text-white' : 'bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-content-primary dark:text-white border border-black/[0.06] dark:border-white/[0.08]' %> font-bold text-xs transition flex items-center space-x-1.5 shrink-0">
+                            <a href="/dashboard" class="hidden sm:inline-flex px-3 py-1.5 rounded-xl <%= (typeof currentPath !== 'undefined' && currentPath === '/dashboard') ? 'bg-primary text-white' : 'bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-content-primary dark:text-white border border-black/[0.06] dark:border-white/[0.08]' %> font-bold text-xs transition items-center space-x-1.5 shrink-0">
                                 <span>📊</span>
                                 <span>Dashboard</span>
                             </a>
-                            <a href="/deposit" class="px-3.5 py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/25 transition flex items-center space-x-1.5 group shrink-0">
-                                <span class="text-sm leading-none">+</span>
+                            <a href="/deposit" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-[11px] sm:text-xs shadow-sm shadow-gain/25 transition flex items-center space-x-1 group shrink-0">
+                                <span class="text-xs sm:text-sm leading-none">+</span>
                                 <span>Deposit</span>
                             </a>
                             <a href="/webtrade/app" class="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-sky-400 border border-primary/20 text-xs font-bold transition items-center space-x-1.5 shrink-0">
@@ -615,7 +638,7 @@
 
                             <!-- User Profile & Account Dropdown -->
                             <div x-data="{ userMenuOpen: false }" class="relative shrink-0" @click.outside="userMenuOpen = false">
-                                <button type="button" @click="userMenuOpen = !userMenuOpen" class="px-2.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08] text-xs font-medium text-content-primary dark:text-white transition flex items-center space-x-2 cursor-pointer">
+                                <button type="button" @click="userMenuOpen = !userMenuOpen" class="px-2 sm:px-2.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08] text-xs font-medium text-content-primary dark:text-white transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer">
                                     <div class="w-5 h-5 rounded-lg bg-primary/20 text-primary dark:text-sky-400 flex items-center justify-center text-[10px] font-bold shrink-0">
                                         <%= user.name.charAt(0).toUpperCase() %>
                                     </div>
@@ -678,8 +701,8 @@
                                 </div>
                             </div>
 
-                            <!-- Language Auto-Translator Picker -->
-                            <div class="flex items-center pl-1 shrink-0">
+                            <!-- Language Auto-Translator Picker (Desktop/Tablet) -->
+                            <div class="hidden sm:flex items-center pl-1 shrink-0">
                                 <%- include('./translator-btn') %>
                             </div>
 
@@ -696,8 +719,8 @@
                                         localStorage.setItem('theme', 'light');
                                     }
                                 }
-                            }" class="flex items-center pl-0.5 shrink-0">
-                                <button @click="toggleTheme()" class="p-2 rounded-full text-content-secondary hover:text-content-primary hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-[0.95]" :title="isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+                            }" class="flex items-center shrink-0">
+                                <button @click="toggleTheme()" class="p-1.5 sm:p-2 rounded-full text-content-secondary hover:text-content-primary hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-[0.95]" :title="isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
                                     <svg x-show="!isDark" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                                     </svg>
@@ -782,66 +805,63 @@
                         </div>
                     <% } %>
 
-                <!-- Mobile Controls: Sidepanel & Hamburger -->
-                <div class="lg:hidden flex items-center space-x-1">
-                    <% if (typeof user !== 'undefined' && user) { %>
-                    <button type="button" 
-                            @click="$store.sidepanel ? $store.sidepanel.toggle() : null" 
-                            class="text-content-secondary hover:text-content-primary p-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/[0.08] dark:border-white/[0.1] transition flex items-center space-x-1" 
-                            title="Command Sidepanel">
-                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/></svg>
-                        <span class="text-[11px] font-semibold text-content-primary dark:text-white">Menu</span>
-                    </button>
+                    <!-- Mobile Controls for Guests (Sign In, Theme Toggle & Hamburger) -->
+                    <% if (typeof user === 'undefined' || !user) { %>
+                    <div class="lg:hidden flex items-center space-x-1.5 shrink-0">
+                        <a href="/login" class="text-xs font-semibold text-content-primary dark:text-white px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] transition">
+                            Sign In
+                        </a>
+                        <a href="/register" class="bg-primary hover:bg-primary-dark text-white font-semibold rounded-full px-3 py-1.5 text-xs transition shadow-xs">
+                            Join
+                        </a>
+                        <div x-data="{
+                            isDark: localStorage.getItem('theme') === 'dark',
+                            toggleTheme() {
+                                this.isDark = !this.isDark;
+                                if (this.isDark) {
+                                    document.documentElement.classList.add('dark');
+                                    localStorage.setItem('theme', 'dark');
+                                } else {
+                                    document.documentElement.classList.remove('dark');
+                                    localStorage.setItem('theme', 'light');
+                                }
+                            }
+                        }" class="flex items-center">
+                            <button @click="toggleTheme()" class="p-1.5 rounded-full text-content-secondary hover:text-content-primary hover:bg-black/5 dark:hover:bg-white/10 transition">
+                                <svg x-show="!isDark" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                                </svg>
+                                <svg x-show="isDark" class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" x-cloak>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <button @click="mobileOpen = !mobileOpen" class="text-content-secondary hover:text-content-primary p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        </button>
+                    </div>
                     <% } %>
-                    <button @click="mobileOpen = !mobileOpen" class="text-content-secondary hover:text-content-primary p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                    </button>
                 </div>
-            </div>
 
-            <!-- Apple Mobile Nav Drawer -->
-            <div x-show="mobileOpen" class="lg:hidden apple-glass rounded-2xl my-2 p-3 border border-black/[0.06] dark:border-white/[0.08] space-y-1" x-cloak>
-                <% if (typeof user !== 'undefined' && user) { %>
-                <button @click="mobileOpen = false; if ($store.sidepanel) $store.sidepanel.open = true" 
-                        class="w-full text-left px-3 py-2 text-xs font-bold text-primary dark:text-sky-400 flex items-center justify-between rounded-xl bg-primary/10 mb-1 border border-primary/20">
-                    <span class="flex items-center space-x-2">
-                        <span>⊞</span>
-                        <span>Open Command Sidepanel (All Features)</span>
-                    </span>
-                    <span>&rarr;</span>
-                </button>
-                <% } %>
-                <a href="/" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Home</a>
-                <a href="/markets" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Markets</a>
-                <a href="/copy-trading" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Copy Trading</a>
-                <a href="/retirement" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Retirement</a>
-                <a href="/about" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">About Us</a>
-                <a href="/contact" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Help Center</a>
-                <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between px-2 py-1">
-                    <span class="text-xs font-medium text-content-secondary">Language:</span>
-                    <%- include('./translator-btn') %>
-                </div>
-                <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-2">
-                    <% if (user) { %>
-                        <% if (typeof isImpersonating !== 'undefined' && isImpersonating) { %>
-                            <a href="/babyoku/switch-back" class="w-full text-center py-2.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-md">
-                                🛡️ Exit Session &amp; Return to Admin
-                            </a>
-                        <% } else if (user.role === 'admin') { %>
-                            <a href="/babyoku" class="w-1/2 text-center py-2 rounded-full border border-sky-400/30 bg-sky-500/10 text-xs font-bold text-sky-400 hover:bg-sky-500/20">Admin Panel</a>
-                            <a href="/logout" class="w-1/2 text-center py-2 rounded-full bg-loss/10 text-loss text-xs font-medium">Logout</a>
-                        <% } else { %>
-                            <a href="/dashboard" class="w-1/3 text-center py-2 rounded-full border border-black/[0.08] dark:border-white/[0.1] text-xs font-medium text-content-primary dark:text-white">Dashboard</a>
-                            <a href="/webtrade/app" class="w-1/3 text-center py-2 rounded-full bg-gain/10 text-gain text-xs font-medium">Terminal</a>
-                            <a href="/logout" class="w-1/3 text-center py-2 rounded-full bg-loss/10 text-loss text-xs font-semibold">Sign Out</a>
-                        <% } %>
-                    <% } else { %>
-                        <a href="/login" class="w-1/2 text-center py-2 rounded-full border border-black/[0.08] dark:border-white/[0.1] text-xs font-medium text-content-primary">Sign In</a>
-                        <a href="/register" class="w-1/2 text-center py-2 rounded-full bg-primary text-white text-xs font-medium">Open Account</a>
-                    <% } %>
+                <!-- Apple Mobile Nav Drawer -->
+                <div x-show="mobileOpen" class="lg:hidden apple-glass rounded-2xl my-2 p-3 border border-black/[0.06] dark:border-white/[0.08] space-y-1" x-cloak>
+                    <a href="/" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Home</a>
+                    <a href="/markets" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Markets</a>
+                    <a href="/copy-trading" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Copy Trading</a>
+                    <a href="/retirement" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Retirement</a>
+                    <a href="/webtrade" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">WebTrader Suite</a>
+                    <a href="/about" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">About Us</a>
+                    <a href="/contact" class="block px-3 py-2 text-sm font-normal text-content-secondary hover:text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/10">Help Center</a>
+                    <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between px-2 py-1">
+                        <span class="text-xs font-medium text-content-secondary">Language:</span>
+                        <%- include('./translator-btn') %>
+                    </div>
+                    <div class="pt-2 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-2">
+                        <a href="/login" class="w-1/2 text-center py-2.5 rounded-full border border-black/[0.08] dark:border-white/[0.1] text-xs font-semibold text-content-primary dark:text-white">Sign In</a>
+                        <a href="/register" class="w-1/2 text-center py-2.5 rounded-full bg-primary text-white text-xs font-semibold">Open Account</a>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <% if (typeof isImpersonating !== 'undefined' && isImpersonating) { %>
             <!-- Discrete Floating Admin Quick-Return Pill -->

@@ -1,25 +1,25 @@
 <div class="flex items-center justify-center mb-6">
-    <div class="inline-flex items-center p-1.5 rounded-2xl bg-surface-overlay border border-surface-border shadow-md space-x-1 sm:space-x-1.5 text-xs font-sans">
+    <div class="w-full sm:w-auto grid grid-cols-4 sm:inline-flex items-center p-1 sm:p-1.5 rounded-2xl bg-surface-overlay border border-surface-border shadow-md gap-1 sm:space-x-1.5 text-[11px] sm:text-xs font-sans">
         <a href="/deposit" 
-           class="px-3.5 sm:px-5 py-2 rounded-xl transition flex items-center space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'deposit' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
+           class="px-2 sm:px-5 py-2 rounded-xl transition flex items-center justify-center space-x-1 sm:space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'deposit' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
             <span>📥</span>
             <span class="hidden sm:inline">Deposit Capital</span>
             <span class="sm:hidden">Deposit</span>
         </a>
         <a href="/withdraw" 
-           class="px-3.5 sm:px-5 py-2 rounded-xl transition flex items-center space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'withdraw' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
+           class="px-2 sm:px-5 py-2 rounded-xl transition flex items-center justify-center space-x-1 sm:space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'withdraw' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
             <span>📤</span>
             <span class="hidden sm:inline">Withdraw Funds</span>
             <span class="sm:hidden">Withdraw</span>
         </a>
         <a href="/wallet" 
-           class="px-3.5 sm:px-5 py-2 rounded-xl transition flex items-center space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'wallet' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
+           class="px-2 sm:px-5 py-2 rounded-xl transition flex items-center justify-center space-x-1 sm:space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'wallet' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
             <span>💼</span>
             <span class="hidden sm:inline">Portfolio Wallets</span>
             <span class="sm:hidden">Wallets</span>
         </a>
         <a href="/transactions" 
-           class="px-3.5 sm:px-5 py-2 rounded-xl transition flex items-center space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'transactions' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
+           class="px-2 sm:px-5 py-2 rounded-xl transition flex items-center justify-center space-x-1 sm:space-x-1.5 <%= typeof activeCashierTab !== 'undefined' && activeCashierTab === 'transactions' ? 'bg-primary text-white font-bold shadow-md shadow-primary/25' : 'text-content-secondary hover:text-content-primary hover:bg-surface-raised font-semibold' %>">
             <span>📜</span>
             <span class="hidden sm:inline">Ledger History</span>
             <span class="sm:hidden">History</span>

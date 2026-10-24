@@ -31,7 +31,7 @@ function dashboardPortfolioApp() {
         retirementError: '',
         hideZeroBalances: true,
         searchQuery: '',
-        viewMode: 'table',
+        viewMode: (typeof window !== 'undefined' && window.innerWidth < 640) ? 'grid' : 'table',
         chartTimeframe: '30D',
         selectedStockSymbol: 'AAPL',
         investMode: 'usd', // 'usd' | 'shares'
@@ -934,6 +934,27 @@ function dashboardPortfolioApp() {
         <!-- 4. MAIN USER-FRIENDLY TABS: HOLDINGS | OPEN CFD TRADES | COPY TRADING | HISTORY-->
         <!-- ============================================================================== -->
         <div id="dashboard-tabs" class="space-y-5 scroll-mt-24">
+            <!-- Mobile-Friendly Portfolio Section Switcher Pills -->
+            <div class="flex items-center p-1 bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border shadow-xs overflow-x-auto gap-1 text-xs font-sans">
+                <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" :class="activeTab === 'holdings' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
+                    <span>💼</span>
+                    <span>Holdings</span>
+                </button>
+                <button type="button" @click="activeTab = 'baskets'; window.location.hash = 'baskets'" :class="activeTab === 'baskets' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
+                    <span>🧺</span>
+                    <span>Stock Baskets</span>
+                </button>
+                <button type="button" @click="activeTab = 'positions'; window.location.hash = 'positions'" :class="activeTab === 'positions' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
+                    <span>📊</span>
+                    <span>Active Trades</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activeTab === 'positions' ? 'bg-white/20 text-white' : 'bg-surface-overlay text-content-secondary'" x-text="liveOpenTrades ? liveOpenTrades.length : 0"></span>
+                </button>
+                <button type="button" @click="activeTab = 'copy'; window.location.hash = 'copy'" :class="activeTab === 'copy' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
+                    <span>👥</span>
+                    <span>Copy Trading</span>
+                </button>
+            </div>
+
             <!-- TAB 1: PORTFOLIO HOLDINGS -->
             <div id="holdings" x-show="activeTab === 'holdings'" class="space-y-4 scroll-mt-28 transition-all duration-300" x-cloak>
                 <div id="dividends" class="sr-only"></div>
