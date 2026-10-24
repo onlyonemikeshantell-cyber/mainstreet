@@ -1,7 +1,8 @@
 <%- include('../partials/header') %>
 
-<section class="min-h-[92vh] flex items-center justify-center py-10 px-4 sm:px-6 bg-surface-base"
-         x-data="{
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('registerComponent', () => ({
              step: 1, // 1: Details, 2: Upload ID, 3: Live Verification
              step1Error: '',
              step2Error: '',
@@ -295,7 +296,12 @@
                      form.submit();
                  }
              }
-         }">
+         }));
+});
+</script>
+
+<section class="min-h-[92vh] flex items-center justify-center py-10 px-4 sm:px-6 bg-surface-base"
+         x-data="registerComponent">
 
     <div class="max-w-xl w-full glass-card rounded-3xl p-6 sm:p-9 shadow-2xl border border-surface-border/80 space-y-6">
 

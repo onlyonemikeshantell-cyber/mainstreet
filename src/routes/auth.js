@@ -571,10 +571,10 @@ router.post('/register', async (req, res) => {
       equity: fullUser.equity
     };
 
-    logActivity(newUserId, 'REGISTER_ONBOARDING_STEP2_COMPLETED', `User completed Step 2 (Live biometric check), proceeding to Step 3 (Email OTP)`, req);
+    logActivity(newUserId, 'REGISTER_ONBOARDING_STEP3_COMPLETED', `User completed Step 2 (ID) & Step 3 (Live check), proceeding to Step 4 (Email OTP)`, req);
 
     req.session.flash = { 
-      success: `Live verification confirmed! Step 3 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail}.` 
+      success: `Identity verification documents confirmed! Step 4 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail}.` 
     };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {

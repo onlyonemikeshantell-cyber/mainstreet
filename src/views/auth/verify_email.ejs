@@ -1,106 +1,112 @@
 <%- include('../partials/header') %>
 
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('verifyEmailComponent', () => ({
+        digits: ['', '', '', '', '', ''],
+        submitting: false,
+        resending: false,
+        cooldown: 60,
+        timer: null,
+
+        init() {
+            this.$nextTick(() => {
+                const firstInput = document.getElementById('otp-0');
+                if (firstInput) firstInput.focus();
+            });
+            this.startCooldown();
+        },
+
+        startCooldown() {
+            this.cooldown = 60;
+            if (this.timer) clearInterval(this.timer);
+            this.timer = setInterval(() => {
+                if (this.cooldown > 0) {
+                    this.cooldown--;
+                } else {
+                    clearInterval(this.timer);
+                }
+            }, 1000);
+        },
+
+        get code() {
+            return this.digits.join('');
+        },
+
+        submitForm() {
+            this.submitting = true;
+            const form = this.$refs.verifyForm;
+            if (form) {
+                const codeInput = form.querySelector('input[name="code"]');
+                if (codeInput) codeInput.value = this.code;
+                form.submit();
+            }
+        },
+
+        onInput(index, event) {
+            const val = event.target.value.replace(/[^0-9]/g, '');
+            this.digits[index] = val ? val.slice(-1) : '';
+            if (val && index < 5) {
+                const nextInput = document.getElementById('otp-' + (index + 1));
+                if (nextInput) nextInput.focus();
+            }
+            if (this.code.length === 6) {
+                this.submitForm();
+            }
+        },
+
+        onKeyDown(index, event) {
+            if (event.key === 'Backspace' && !this.digits[index] && index > 0) {
+                const prevInput = document.getElementById('otp-' + (index - 1));
+                if (prevInput) {
+                    prevInput.focus();
+                    this.digits[index - 1] = '';
+                }
+            }
+        },
+
+        onPaste(event) {
+            event.preventDefault();
+            const pasteData = (event.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+            if (!pasteData) return;
+            const newDigits = ['', '', '', '', '', ''];
+            for (let i = 0; i < 6; i++) {
+                newDigits[i] = pasteData[i] || '';
+            }
+            this.digits = newDigits;
+            this.$nextTick(() => {
+                if (this.code.length === 6) {
+                    this.submitForm();
+                }
+            });
+        },
+
+        async demoQuickVerify() {
+            try {
+                const res = await fetch('/api/dev/verification-code');
+                const data = await res.json();
+                if (data.code && data.code.length === 6) {
+                    const newDigits = [];
+                    for (let i = 0; i < 6; i++) {
+                        newDigits.push(data.code[i]);
+                    }
+                    this.digits = newDigits;
+                    this.$nextTick(() => {
+                        this.submitForm();
+                    });
+                } else {
+                    alert('No pending verification code found.');
+                }
+            } catch (e) {
+                console.error('Demo verify error:', e);
+            }
+        }
+    }));
+});
+</script>
+
 <section class="min-h-[90vh] flex items-center justify-center py-12 px-4 sm:px-6 bg-surface-base"
-         x-data="{
-             digits: ['', '', '', '', '', ''],
-             submitting: false,
-             resending: false,
-             cooldown: 60,
-             timer: null,
-
-             init() {
-                 this.$nextTick(() => {
-                     const firstInput = document.getElementById('otp-0');
-                     if (firstInput) firstInput.focus();
-                 });
-                 this.startCooldown();
-             },
-
-             startCooldown() {
-                 this.cooldown = 60;
-                 if (this.timer) clearInterval(this.timer);
-                 this.timer = setInterval(() => {
-                     if (this.cooldown > 0) {
-                         this.cooldown--;
-                     } else {
-                         clearInterval(this.timer);
-                     }
-                 }, 1000);
-             },
-
-             get code() {
-                 return this.digits.join('');
-             },
-
-             submitForm() {
-                 this.submitting = true;
-                 const form = this.$refs.verifyForm;
-                 if (form) {
-                     const codeInput = form.querySelector('input[name="code"]');
-                     if (codeInput) codeInput.value = this.code;
-                     form.submit();
-                 }
-             },
-
-             onInput(index, event) {
-                 const val = event.target.value.replace(/[^0-9]/g, '');
-                 this.digits[index] = val ? val.slice(-1) : '';
-                 if (val && index < 5) {
-                     const nextInput = document.getElementById('otp-' + (index + 1));
-                     if (nextInput) nextInput.focus();
-                 }
-                 if (this.code.length === 6) {
-                     this.submitForm();
-                 }
-             },
-
-             onKeyDown(index, event) {
-                 if (event.key === 'Backspace' && !this.digits[index] && index > 0) {
-                     const prevInput = document.getElementById('otp-' + (index - 1));
-                     if (prevInput) {
-                         prevInput.focus();
-                         this.digits[index - 1] = '';
-                     }
-                 }
-             },
-
-             onPaste(event) {
-                 event.preventDefault();
-                 const pasteData = (event.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
-                 if (!pasteData) return;
-                 const newDigits = ['', '', '', '', '', ''];
-                 for (let i = 0; i < 6; i++) {
-                     newDigits[i] = pasteData[i] || '';
-                 }
-                 this.digits = newDigits;
-                 this.$nextTick(() => {
-                     if (this.code.length === 6) {
-                         this.submitForm();
-                     }
-                 });
-             },
-
-             async demoQuickVerify() {
-                 try {
-                     const res = await fetch('/api/dev/verification-code');
-                     const data = await res.json();
-                     if (data.code && data.code.length === 6) {
-                         const newDigits = [];
-                         for (let i = 0; i < 6; i++) {
-                             newDigits.push(data.code[i]);
-                         }
-                         this.digits = newDigits;
-                         this.$nextTick(() => {
-                             this.submitForm();
-                         });
-                     } else {
-                         alert('No pending verification code found.');
-                     }
-                 } catch (e) {
-                     console.error('Demo verify error:', e);
-                 }
-             }
-         }">
+         x-data="verifyEmailComponent">
 
     <div class="max-w-md w-full glass-card rounded-3xl p-6 sm:p-10 shadow-2xl border border-surface-border space-y-6">
 
@@ -153,8 +159,6 @@
             </div>
         <% } %>
 
-
-
         <!-- Verification Code Form -->
         <form x-ref="verifyForm" action="/verify-email" method="POST" @submit="submitting = true" class="space-y-6">
             <input type="hidden" name="_token" value="<%= csrfToken %>" />
@@ -182,7 +186,7 @@
             <!-- Submit Button -->
             <button type="submit" @click.prevent="submitForm()" :disabled="submitting || code.length !== 6"
                     class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                <span x-show="!submitting">Continue to Step 4: ID Verification &rarr;</span>
+                <span x-show="!submitting">Verify & Enter Dashboard &rarr;</span>
                 <span x-show="submitting" class="flex items-center space-x-2">
                     <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     <span>Authenticating code...</span>
