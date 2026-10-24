@@ -544,12 +544,18 @@ router.post('/register', async (req, res) => {
         </div>
       `;
 
-      await sendEmail({
+      console.log(`[OTP DISPATCH] Generated 6-digit verification code ${emailCode} for ${cleanEmail}`);
+      const dispatchResult = await sendEmail({
         to: cleanEmail,
-        subject: 'Step 3 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
+        subject: 'Step 4 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
         html: verifyEmailHtml,
         recipientType: 'user'
       });
+      if (dispatchResult && dispatchResult.success) {
+        console.log(`[OTP DISPATCH SUCCESS] Verification email sent to ${cleanEmail}`);
+      } else {
+        console.warn(`[OTP DISPATCH WARNING] Email transport notice for ${cleanEmail}:`, dispatchResult?.error || 'Unknown error');
+      }
     } catch (e) {
       console.warn('Email verification dispatch notice:', e.message);
     }
@@ -691,16 +697,29 @@ router.post('/verify-email', (req, res) => {
   const user = db.prepare('SELECT id, name, email, email_verified, email_verification_code, email_verification_expires, kyc_status FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return req.session.save(() => res.redirect('/login'));
 
-  const { code, d1, d2, d3, d4, d5, d6 } = req.body;
-  const combinedCode = (code || `${d1 || ''}${d2 || ''}${d3 || ''}${d4 || ''}${d5 || ''}${d6 || ''}`).trim();
+  // If already verified, forward immediately to dashboard
+  if (user.email_verified === 1) {
+    if (req.session.user) req.session.user.email_verified = 1;
+    return req.session.save(() => {
+      if (user.kyc_status === 'unverified') {
+        return res.redirect('/onboarding/kyc');
+      }
+      return res.redirect('/dashboard');
+    });
+  }
 
-  if (!combinedCode) {
-    req.session.flash = { error: 'Please enter the 6-digit confirmation code.' };
+  const { code, d1, d2, d3, d4, d5, d6 } = req.body;
+  const rawCode = Array.isArray(code) ? code[0] : (code || '');
+  const rawDigits = `${d1 || ''}${d2 || ''}${d3 || ''}${d4 || ''}${d5 || ''}${d6 || ''}`;
+  const combinedCode = (rawCode || rawDigits).toString().replace(/\D/g, '').trim();
+
+  if (!combinedCode || combinedCode.length !== 6) {
+    req.session.flash = { error: 'Please enter all 6 digits of the confirmation code.' };
     return req.session.save(() => res.redirect('/verify-email'));
   }
 
-  if (!user.email_verification_code || user.email_verification_code !== combinedCode) {
-    req.session.flash = { error: 'Invalid verification code. Please check your email or click Resend Code.' };
+  if (!user.email_verification_code || user.email_verification_code.toString().trim() !== combinedCode) {
+    req.session.flash = { error: 'Invalid verification code. Please check your email (including Spam folder) or click Resend Code.' };
     return req.session.save(() => res.redirect('/verify-email'));
   }
 
@@ -737,6 +756,7 @@ router.post('/verify-email/resend', async (req, res) => {
   const newCode = Math.floor(100000 + Math.random() * 900000).toString();
   const newExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   db.prepare("UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?").run(newCode, newExpires, user.id);
+  console.log(`[OTP RESEND] Generated fresh 6-digit code ${newCode} for ${user.email}`);
 
   try {
     const forwardedProto = req.headers['x-forwarded-proto'];
@@ -767,18 +787,23 @@ router.post('/verify-email/resend', async (req, res) => {
       </div>
     `;
 
-    await sendEmail({
+    const resendResult = await sendEmail({
       to: user.email,
       subject: 'New Email Verification Code - Mainstreet Capital Exchange',
       html: resendHtml,
       recipientType: 'user'
     });
+    if (resendResult && resendResult.success) {
+      console.log(`[OTP RESEND SUCCESS] Fresh code email dispatched to ${user.email}`);
+    } else {
+      console.warn(`[OTP RESEND WARNING] Email transport notice for ${user.email}:`, resendResult?.error || 'Unknown error');
+    }
   } catch (e) {
     console.warn('Resend verification code email dispatch notice:', e.message);
   }
 
   logActivity(user.id, 'EMAIL_VERIFICATION_RESENT', `Requested new email verification code`, req);
-  req.session.flash = { success: `A fresh 6-digit confirmation code has been sent to ${user.email}.` };
+  req.session.flash = { success: `A fresh 6-digit confirmation code has been dispatched to ${user.email}. Please check your inbox and Spam folder.` };
   return req.session.save(() => res.redirect('/verify-email'));
 });
 

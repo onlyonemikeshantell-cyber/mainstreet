@@ -97,14 +97,35 @@ const sendEmail = async (options) => {
   }
 
   const smtp = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get() || {};
-  const resendApiKey = (process.env.RESEND_API_KEY || smtp.resend_api_key || '').trim();
-  const host = (process.env.SMTP_HOST || smtp.host || 'smtp.gmail.com').trim();
-  const port = parseInt(process.env.SMTP_PORT || smtp.port) || 587;
-  const user = (process.env.SMTP_USER || smtp.user || '').trim();
-  const pass = (process.env.SMTP_PASS || smtp.pass || '').trim();
-  const fromName = process.env.SMTP_FROM_NAME || smtp.from_name || 'Mainstreet Capital Exchange Support';
-  const fromEmail = (process.env.SMTP_FROM_EMAIL || smtp.from_email || user || 'support@mainstreetcapitalx.com').trim();
-  const isActive = (process.env.SMTP_ACTIVE === 'true' || process.env.SMTP_ACTIVE === '1') || !!smtp.is_active;
+  
+  // Filter out placeholder / demo Resend API keys
+  let resendApiKey = (process.env.RESEND_API_KEY || smtp.resend_api_key || '').trim();
+  if (resendApiKey.includes('demo') || resendApiKey.includes('replace') || !resendApiKey.startsWith('re_')) {
+    resendApiKey = '';
+  }
+
+  // Helper to detect non-functional dummy host placeholders in .env
+  const isPlaceholderHost = (h) => !h || h.includes('example.com') || h === 'smtp.mainstreetcapitalx.com' || h === 'localhost';
+
+  // Prioritize active database SMTP credentials (e.g. cPanel / live server)
+  let host = (smtp.host || '').trim();
+  let port = parseInt(smtp.port) || 465;
+  let user = (smtp.user || '').trim();
+  let pass = (smtp.pass || '').trim();
+  let fromName = (smtp.from_name || 'Mainstreet Capital Exchange Support').trim();
+  let fromEmail = (smtp.from_email || user || 'support@mainstreetcapitalx.com').trim();
+  let isActive = !!smtp.is_active;
+
+  // Fallback to process.env only if DB credentials are missing or env has real custom overrides
+  if ((!host || !pass || isPlaceholderHost(host)) && process.env.SMTP_HOST && !isPlaceholderHost(process.env.SMTP_HOST)) {
+    host = process.env.SMTP_HOST.trim();
+    port = parseInt(process.env.SMTP_PORT) || 587;
+    user = (process.env.SMTP_USER || '').trim();
+    pass = (process.env.SMTP_PASS || '').trim();
+    fromName = (process.env.SMTP_FROM_NAME || fromName).trim();
+    fromEmail = (process.env.SMTP_FROM_EMAIL || fromEmail).trim();
+    isActive = (process.env.SMTP_ACTIVE === 'true' || process.env.SMTP_ACTIVE === '1');
+  }
 
   const htmlContent = html || generateEmailHtml(subject, message, to.split('@')[0]);
 
