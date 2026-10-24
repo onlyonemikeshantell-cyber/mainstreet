@@ -142,7 +142,20 @@ const requireAuth = (req, res, next) => {
     return res.redirect('/login');
   }
 
-  // 1. Mandatory KYC Gate: Unverified traders are gated into onboarding verification (Upload ID > Live Verification)
+  // 1. Mandatory Email Verification Gate (Step 3 of 4 in Onboarding Sequence)
+  const isEmailExempt = req.path === '/verify-email' || 
+                        req.path.startsWith('/verify-email') || 
+                        req.path === '/logout';
+
+  if (activeUser.role !== 'admin' && activeUser.email_verified === 0 && !isEmailExempt) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to proceed.' });
+    }
+    req.session.flash = { error: 'Step 3 of 4: Please verify your email address to proceed with onboarding.' };
+    return req.session.save(() => res.redirect('/verify-email'));
+  }
+
+  // 2. Mandatory ID Verification Gate (Step 4 of 4 in Onboarding Sequence)
   const isKycExempt = req.path === '/onboarding/kyc' || 
                       req.path.startsWith('/onboarding') || 
                       req.path === '/kyc' || 
@@ -153,26 +166,10 @@ const requireAuth = (req, res, next) => {
 
   if (activeUser.role !== 'admin' && activeUser.kyc_status === 'unverified' && !isKycExempt) {
     if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
-      return res.status(403).json({ success: false, error: 'Compulsory KYC Identity Verification required. Complete your onboarding to unlock access.' });
+      return res.status(403).json({ success: false, error: 'Compulsory ID verification required. Upload your identification document to unlock access.' });
     }
-    req.session.flash = { error: 'Regulatory compliance requires all traders to verify their identity before accessing trading and financial services.' };
-    return res.redirect('/onboarding/kyc');
-  }
-
-  // 2. Mandatory Email Verification Gate (Step 4 of 4 in Onboarding Sequence)
-  const isEmailExempt = req.path === '/verify-email' || 
-                        req.path.startsWith('/verify-email') || 
-                        req.path === '/onboarding/kyc' ||
-                        req.path.startsWith('/onboarding') ||
-                        req.path.startsWith('/api/kyc') ||
-                        req.path === '/logout';
-
-  if (activeUser.role !== 'admin' && activeUser.email_verified === 0 && !isEmailExempt) {
-    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
-      return res.status(403).json({ success: false, error: 'Email verification required. Please verify your email to access this section.' });
-    }
-    req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
-    return res.redirect('/verify-email');
+    req.session.flash = { error: 'Step 4 of 4: Please upload your government identification document to unlock live trading.' };
+    return req.session.save(() => res.redirect('/onboarding/kyc'));
   }
 
   next();

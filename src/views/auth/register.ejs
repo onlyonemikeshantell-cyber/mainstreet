@@ -407,7 +407,7 @@
 
             <div class="flex items-center justify-between relative z-10">
                 <!-- Step 1 -->
-                <div @click="if (step > 1) { step = 1; stopIdCamera(); stopLivenessCamera(); }" 
+                <div @click="if (step > 1) { step = 1; stopLivenessCamera(); }" 
                      class="flex flex-col items-center cursor-pointer group">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm"
                          :class="step > 1 ? 'bg-emerald-500 text-white' : (step === 1 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
@@ -418,25 +418,20 @@
                 </div>
 
                 <!-- Step 2 -->
-                <div @click="if (step > 2) { step = 2; stopLivenessCamera(); }"
-                     class="flex flex-col items-center transition"
-                     :class="step >= 2 ? 'cursor-pointer' : ''">
+                <div class="flex flex-col items-center">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm"
-                         :class="step > 2 ? 'bg-emerald-500 text-white' : (step === 2 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
-                        <span x-show="step > 2">✓</span>
-                        <span x-show="step <= 2">2</span>
+                         :class="step === 2 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary'">
+                        <span>2</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Upload ID</span>
+                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 2 ? 'text-content-primary' : 'text-content-tertiary'">Live Check</span>
                 </div>
 
                 <!-- Step 3 -->
                 <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition shadow-sm"
-                         :class="step > 3 ? 'bg-emerald-500 text-white' : (step === 3 ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-surface-raised border border-surface-border text-content-tertiary')">
-                        <span x-show="step > 3">✓</span>
-                        <span x-show="step <= 3">3</span>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm">
+                        <span>3</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5" :class="step >= 3 ? 'text-content-primary' : 'text-content-tertiary'">Face Check</span>
+                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
                 </div>
 
                 <!-- Step 4 -->
@@ -444,7 +439,7 @@
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold bg-surface-raised border border-surface-border text-content-tertiary shadow-sm">
                         <span>4</span>
                     </div>
-                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Email OTP</span>
+                    <span class="text-[10px] font-semibold mt-1.5 text-content-tertiary">Upload ID</span>
                 </div>
             </div>
         </div>
@@ -575,14 +570,14 @@
                 <!-- Next CTA -->
                 <button type="button" @click="goToStep2()"
                         class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer mt-2">
-                    <span>Continue to Upload ID &rarr;</span>
+                    <span>Continue to Live Verification &rarr;</span>
                 </button>
             </div>
 
             <!-- ========================================================================= -->
             <!-- STEP 2: UPLOAD ID                                                         -->
             <!-- ========================================================================= -->
-            <div x-show="step === 2" class="space-y-4" x-cloak>
+            <div x-show="false" class="hidden" x-cloak>
                 
                 <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                     <div>
@@ -754,14 +749,14 @@
             <!-- ========================================================================= -->
             <!-- STEP 3: LIVE VERIFICATION                                                 -->
             <!-- ========================================================================= -->
-            <div x-show="step === 3" class="space-y-4" x-cloak>
+            <div x-show="step === 2" class="space-y-4" x-cloak>
                 
                 <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                     <div>
                         <h2 class="text-sm font-bold text-content-primary">Face Verification</h2>
                         <p class="text-xs text-content-secondary">Quick selfie check to confirm identity match</p>
                     </div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 3 of 4</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-500 font-bold">Step 2 of 4</span>
                 </div>
 
                 <!-- Biometric Camera Box -->
@@ -849,7 +844,7 @@
 
                 <!-- Navigation & Final Submit Button -->
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="button" @click="step = 2; stopLivenessCamera();"
+                    <button type="button" @click="step = 1; stopLivenessCamera();"
                             class="py-3 px-4 rounded-xl border border-surface-border hover:bg-surface-overlay text-content-secondary hover:text-content-primary font-semibold text-xs transition cursor-pointer">
                         &larr; Back
                     </button>

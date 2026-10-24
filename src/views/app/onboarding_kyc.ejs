@@ -2,7 +2,7 @@
 
 <section class="min-h-screen py-10 px-4 sm:px-6 bg-surface-base"
          x-data="{
-             step: 2, // 2: Upload ID, 3: Live Verification
+             step: 4, // Step 4 of 4: ID Verification
              submitting: false,
              step2Error: '',
              step3Error: '',
@@ -414,14 +414,14 @@
                 <input type="hidden" name="didit_score" :value="diditScore" />
 
                 <!-- ================= STEP 2: UPLOAD ID ================= -->
-                <div x-show="step === 2" class="space-y-4">
+                <div x-show="step === 4" class="space-y-4">
                     
                     <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                         <div>
                             <h2 class="text-sm font-bold text-content-primary">Select & Upload ID</h2>
                             <p class="text-xs text-content-secondary">Government-issued identification document</p>
                         </div>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 2 of 4</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary font-bold">Step 4 of 4</span>
                     </div>
 
                     <!-- Document Type Selector -->
@@ -576,7 +576,7 @@
                 </div>
 
                 <!-- ================= STEP 3: LIVE VERIFICATION ================= -->
-                <div x-show="step === 3" class="space-y-4" x-cloak>
+                <div x-show="false" class="hidden" x-cloak>
                     
                     <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
                         <div>

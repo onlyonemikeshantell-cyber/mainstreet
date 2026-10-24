@@ -272,13 +272,13 @@ router.post(['/login', '/babyoku/login', '/admin/login'], (req, res) => {
     if (user.role === 'admin') {
       return res.redirect('/babyoku');
     }
-    if (user.kyc_status === 'unverified') {
-      req.session.flash = { error: 'Compulsory KYC Identity Verification required. Complete onboarding to access trading.' };
-      return res.redirect('/onboarding/kyc');
-    }
     if (user.email_verified === 0) {
-      req.session.flash = { error: 'Step 4 of 4: Please verify your email address to access your trading account.' };
+      req.session.flash = { error: 'Step 3 of 4: Please verify your email address to proceed with onboarding.' };
       return res.redirect('/verify-email');
+    }
+    if (user.kyc_status === 'unverified') {
+      req.session.flash = { error: 'Step 4 of 4: Please upload your identification document to complete onboarding.' };
+      return res.redirect('/onboarding/kyc');
     }
     return res.redirect('/dashboard');
   });
@@ -371,11 +371,11 @@ router.get('/register', (req, res) => {
 });
 
 // POST /register - Streamlined High-Converting Instant Onboarding with Mandatory KYC
+// Sequence: Details (Step 1) -> Live Verification (Step 2) -> Email OTP (Step 3) -> Upload ID (Step 4)
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
-    doc_type, doc_number, front_image, back_image, video_data,
-    didit_verified, didit_score
+    video_data, didit_verified, didit_score
   } = req.body;
 
   if (!name || !email || !password) {
@@ -393,18 +393,9 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/register'));
   }
 
-  const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
   const isDiditVerified = (didit_verified === '1' || didit_verified === 1 || didit_verified === 'true');
 
-  // Passport fallback if back_image omitted
-  const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
-
-  // Mandatory KYC Enforcement during Onboarding (Sequence: Details -> Upload ID -> Live Verification -> Email OTP)
-  if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
-    req.session.flash = { error: 'Please upload both front and back photos of your identification document to proceed.' };
-    return req.session.save(() => res.redirect('/register'));
-  }
-
+  // Step 2: Live Verification Enforcement during Registration
   if (!video_data && !isDiditVerified) {
     req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
     return req.session.save(() => res.redirect('/register'));
@@ -416,57 +407,49 @@ router.post('/register', async (req, res) => {
     req.session.flash = { error: 'An account with that email already exists. Please log in.' };
     return req.session.save(() => res.redirect('/login'));
   }
-  const isAutoApprove = isDiditVerified && (systemSettings.didit_auto_approve === 1);
-  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
-  const docStatus = isAutoApprove ? 'approved' : 'pending';
-  const provider = isDiditVerified ? 'didit' : 'manual';
 
   const hash = bcrypt.hashSync(password, 10);
   const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
   const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
+    // Initial KYC status is unverified until ID is uploaded at Step 4
     const result = db.prepare(`
       INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, 0, ?, ?, 1)
+      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', 'unverified', 0, ?, ?, 1)
     `).run(
       name.trim(),
       cleanEmail,
       phone ? phone.trim() : null,
       country ? country.trim() : 'United States',
       hash,
-      initialKycStatus,
       emailCode,
       codeExpires
     );
 
     const newUserId = result.lastInsertRowid;
 
-    // Process and store mandatory onboarding KYC documents
+    // Process and store preliminary live biometric verification
     const resolveDocPath = (img, prefix, fallback) => {
       if (img && typeof img === 'string' && img.startsWith('/')) return img;
       return saveBase64Media(img, prefix, newUserId) || fallback;
     };
 
-    const frontPath = resolveDocPath(front_image, 'id_front', isDiditVerified ? '/storage/kyc/didit_verified_front.png' : '/storage/kyc/default_front.jpg');
-    const backPath = resolveDocPath(effectiveBackImage, 'id_back', isDiditVerified ? '/storage/kyc/didit_verified_back.png' : '/storage/kyc/default_back.jpg');
     const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : '/storage/kyc/default_video.webm') : (isDiditVerified ? '/storage/kyc/didit_verified_selfie.png' : null);
 
     db.prepare(`
       INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, 'Biometric Live Check', ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
     `).run(
       newUserId,
-      doc_type || 'National ID Card',
-      doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
-      frontPath,
-      backPath,
+      'BIO-' + Math.floor(100000 + Math.random() * 900000),
+      videoPath || '/storage/kyc/didit_verified_selfie.png',
+      videoPath || '/storage/kyc/didit_verified_selfie.png',
       videoPath,
-      docStatus,
-      provider,
+      isDiditVerified ? 'didit' : 'manual',
       isDiditVerified ? ('didit_' + Date.now()) : null,
       isDiditVerified ? (parseFloat(didit_score) || 99.4) : null,
-      isAutoApprove ? new Date().toISOString() : null
+      null
     );
 
     // Initial Welcome Demo Capital ($10,000 USD)
@@ -508,7 +491,7 @@ router.post('/register', async (req, res) => {
       `).run(
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
-        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Didit AI KYC verification anytime to enable live withdrawals.'
+        'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 3 (Email OTP) and Step 4 (ID Document) to unlock live trading.'
       );
     } catch(e) {}
 
@@ -527,9 +510,9 @@ router.post('/register', async (req, res) => {
             <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
             <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
           </div>
-          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address</h2>
+          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address (Step 3 of 4)</h2>
           <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
-            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below to complete your institutional account onboarding:
+            Hello <strong>${name.trim()}</strong>, welcome to Mainstreet Capital Exchange. Use the 6-digit confirmation code below for Step 3 of 4:
           </p>
           <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
             <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>
@@ -551,7 +534,7 @@ router.post('/register', async (req, res) => {
 
       await sendEmail({
         to: cleanEmail,
-        subject: 'Verify Your Email Address - Mainstreet Capital Exchange',
+        subject: 'Step 3 of 4: Verify Your Email Address - Mainstreet Capital Exchange',
         html: verifyEmailHtml,
         recipientType: 'user'
       });
@@ -561,7 +544,6 @@ router.post('/register', async (req, res) => {
 
     // Set session user & auto-login
     req.session.userId = newUserId;
-    // Rotate CSRF token on privilege escalation
     req.session.csrfToken = crypto.randomBytes(24).toString('hex');
 
     const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
@@ -577,10 +559,10 @@ router.post('/register', async (req, res) => {
       equity: fullUser.equity
     };
 
-    logActivity(newUserId, 'REGISTER_ONBOARDING_COMPLETED', `User completed onboarding registration with mandatory KYC (${provider}: ${docStatus})`, req);
+    logActivity(newUserId, 'REGISTER_ONBOARDING_STEP2_COMPLETED', `User completed Step 2 (Live biometric check), proceeding to Step 3 (Email OTP)`, req);
 
     req.session.flash = { 
-      success: `Identity verified! Step 4 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail} to activate your account.` 
+      success: `Live verification confirmed! Step 3 of 4: Please enter the 6-digit confirmation code dispatched to ${cleanEmail}.` 
     };
     return req.session.save(() => res.redirect('/verify-email'));
   } catch (err) {

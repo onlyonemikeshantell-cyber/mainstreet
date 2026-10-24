@@ -2,64 +2,73 @@ const db = require('../src/db');
 const bcrypt = require('bcryptjs');
 
 console.log('==================================================');
-console.log('TESTING FULL ONBOARDING LIFECYCLE (END-TO-END)');
+console.log('TESTING REORDERED ONBOARDING LIFECYCLE (1 -> 2 -> 3 -> 4)');
+console.log('1. Details -> 2. Live Check -> 3. Email OTP -> 4. Upload ID');
 console.log('==================================================');
 
-const testEmail = 'onboard_test_' + Date.now() + '@example.com';
+const testEmail = 'reorder_test_' + Date.now() + '@example.com';
 const testPass = 'TraderSecret123!';
 
 try {
-  // 1. Simulate registration with mandatory KYC (Steps 1, 2, 3)
+  // Step 1: Input Details & Step 2: Live Check
   const hash = bcrypt.hashSync(testPass, 10);
-  const emailCode = '839201';
+  const emailCode = '654321';
   const codeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
+  // Create user at end of Step 2 (Live check submitted, awaiting Step 3 OTP)
   const userRes = db.prepare(`
     INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-    VALUES ('E2E Onboarding User', ?, '+15550192834', 'United States', ?, 'user', 10000.00, 10000.00, 'USD', 'verified', 0, ?, ?, 1)
+    VALUES ('Reordered Test User', ?, '+15550192834', 'United States', ?, 'user', 10000.00, 10000.00, 'USD', 'unverified', 0, ?, ?, 1)
   `).run(testEmail, hash, emailCode, codeExpires);
 
   const userId = userRes.lastInsertRowid;
-  console.log(`[PASS] 1. Created onboarding account id: ${userId} (${testEmail}) with initial email_verified=0`);
+  console.log(`[PASS] 1. Created account id: ${userId} (${testEmail}) after Step 2 (email_verified=0, kyc_status='unverified')`);
 
-  // 2. Simulate KYC document submission
-  const kycRes = db.prepare(`
-    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_session_id, didit_score, reviewed_at)
-    VALUES (?, 'National ID Card', 'DOC-991823', '/storage/kyc/didit_verified_front.png', '/storage/kyc/didit_verified_back.png', '/storage/kyc/didit_verified_selfie.png', 'approved', 'didit', 'didit_test_session', 99.4, CURRENT_TIMESTAMP)
+  // Record preliminary Step 2 live verification
+  db.prepare(`
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_score, reviewed_at)
+    VALUES (?, 'Biometric Live Check', 'BIO-TEST', '/storage/kyc/didit_verified_selfie.png', '/storage/kyc/didit_verified_selfie.png', '/storage/kyc/didit_verified_selfie.png', 'pending', 'didit', 99.4, NULL)
   `).run(userId);
-  console.log(`[PASS] 2. Stored KYC verification record id: ${kycRes.lastInsertRowid}`);
+  console.log('[PASS] 2. Preliminary Step 2 live check stored in kyc_documents');
 
-  // 3. Verify user status before OTP
+  // Step 3: Verify Email with OTP
   const userBeforeOtp = db.prepare('SELECT id, kyc_status, email_verified, email_verification_code FROM users WHERE id = ?').get(userId);
-  if (userBeforeOtp.email_verified !== 0) throw new Error('User should have email_verified=0 before OTP');
-  if (userBeforeOtp.kyc_status !== 'verified') throw new Error('User should have kyc_status=verified');
-  console.log('[PASS] 3. Verified user is gated at Step 4 (email_verified=0)');
-
-  // 4. Test wrong OTP rejection
-  const wrongCode = '000000';
-  if (wrongCode === userBeforeOtp.email_verification_code) throw new Error('Wrong code matched');
-  console.log('[PASS] 4. Invalid OTP correctly rejected');
-
-  // 5. Test direct 1-click email link verification
-  const matchedUser = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? AND email_verification_code = ?').get(testEmail.toLowerCase(), emailCode);
-  if (!matchedUser) throw new Error('Could not find user by email and verification code');
+  if (userBeforeOtp.email_verified !== 0) throw new Error('email_verified should be 0 before Step 3');
+  if (userBeforeOtp.kyc_status !== 'unverified') throw new Error('kyc_status should be unverified before Step 4');
   
-  db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(matchedUser.id);
-  console.log('[PASS] 5. 1-click email link verification executed');
+  // Submit correct OTP for Step 3
+  if (userBeforeOtp.email_verification_code !== emailCode) throw new Error('OTP mismatch');
+  db.prepare("UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(userId);
+  console.log('[PASS] 3. Step 3 Email OTP verified successfully');
 
-  // 6. Verify user is now fully cleared for live trading
-  const userAfterOtp = db.prepare('SELECT id, kyc_status, email_verified, email_verification_code FROM users WHERE id = ?').get(userId);
-  if (userAfterOtp.email_verified !== 1) throw new Error('User email was not marked verified');
-  if (userAfterOtp.email_verification_code !== null) throw new Error('Verification code was not cleared');
-  console.log('[PASS] 6. User fully unlocked with email_verified=1 and code cleared');
+  // Verify state after Step 3: email_verified=1, kyc_status='unverified' (redirects to Step 4 /onboarding/kyc)
+  const userAfterStep3 = db.prepare('SELECT id, kyc_status, email_verified FROM users WHERE id = ?').get(userId);
+  if (userAfterStep3.email_verified !== 1) throw new Error('Email should be verified after Step 3');
+  if (userAfterStep3.kyc_status !== 'unverified') throw new Error('KYC should still be unverified awaiting Step 4 ID upload');
+  console.log('[PASS] 4. User correctly routed to Step 4 ID upload (email_verified=1, kyc_status=unverified)');
+
+  // Step 4: Upload Government ID document at /onboarding/kyc
+  db.prepare(`
+    INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, didit_score, reviewed_at)
+    VALUES (?, 'National ID Card', 'DOC-994411', '/storage/kyc/default_front.jpg', '/storage/kyc/default_back.jpg', '/storage/kyc/didit_verified_selfie.png', 'approved', 'manual', 99.4, CURRENT_TIMESTAMP)
+  `).run(userId);
+  db.prepare("UPDATE users SET kyc_status = 'verified' WHERE id = ?").run(userId);
+  console.log('[PASS] 5. Step 4 ID document uploaded and kyc_status set to verified');
+
+  // Verify final clearance for trading dashboard
+  const userFinal = db.prepare('SELECT id, kyc_status, email_verified FROM users WHERE id = ?').get(userId);
+  if (userFinal.email_verified !== 1 || userFinal.kyc_status !== 'verified') {
+    throw new Error('User not fully cleared after Step 4');
+  }
+  console.log('[PASS] 6. All 4 onboarding steps verified: full clearance to trading dashboard unlocked');
 
   // Cleanup
   db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-  console.log('[PASS] 7. Test records cleaned up');
+  console.log('[PASS] 7. Cleaned up test data');
 
   console.log('==================================================');
-  console.log('ONBOARDING LIFECYCLE TEST PASSED 100%!');
+  console.log('REORDERED ONBOARDING LIFECYCLE PASSED 100%!');
   console.log('==================================================');
 } catch (err) {
   console.error('[FAIL] Test failed:', err);

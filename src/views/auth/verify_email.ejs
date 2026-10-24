@@ -110,11 +110,11 @@
                 <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="h-12 w-auto object-contain drop-shadow-md" />
             </div>
             <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">
-                <span>⚡ FINAL CLEARANCE: EMAIL OTP</span>
+                <span>⚡ STEP 3 OF 4: EMAIL OTP</span>
             </div>
             <h1 class="text-2xl font-extrabold text-content-primary font-serif">Verify Your Email</h1>
             <p class="text-xs text-content-secondary max-w-xs mx-auto leading-relaxed">
-                Step 4 of 4: Enter the 6-digit confirmation code dispatched to
+                Step 3 of 4: Enter the 6-digit confirmation code dispatched to
                 <strong class="text-content-primary font-mono block mt-0.5"><%= user.email %></strong>
             </p>
         </div>
@@ -127,15 +127,15 @@
             </div>
             <div class="p-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-center">
                 <div class="text-[8px] font-mono uppercase">Step 2 ✓</div>
-                <div class="text-[10px] font-semibold truncate">Upload ID</div>
-            </div>
-            <div class="p-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-center">
-                <div class="text-[8px] font-mono uppercase">Step 3 ✓</div>
                 <div class="text-[10px] font-semibold truncate">Live Check</div>
             </div>
             <div class="p-1.5 rounded-xl border bg-primary/15 border-primary text-primary font-bold shadow-sm text-center">
-                <div class="text-[8px] font-mono uppercase">Step 4 ⚡</div>
+                <div class="text-[8px] font-mono uppercase">Step 3 ⚡</div>
                 <div class="text-[10px] font-semibold truncate">Email OTP</div>
+            </div>
+            <div class="p-1.5 rounded-xl border bg-surface-raised border-surface-border text-content-tertiary text-center">
+                <div class="text-[8px] font-mono uppercase">Step 4</div>
+                <div class="text-[10px] font-semibold truncate">Upload ID</div>
             </div>
         </div>
 
@@ -192,7 +192,7 @@
             <!-- Submit Button -->
             <button type="submit" @click.prevent="submitForm()" :disabled="submitting || code.length !== 6"
                     class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 font-sans flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                <span x-show="!submitting">Complete Onboarding & Start Trading &rarr;</span>
+                <span x-show="!submitting">Continue to Step 4: ID Verification &rarr;</span>
                 <span x-show="submitting" class="flex items-center space-x-2">
                     <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     <span>Authenticating code...</span>
