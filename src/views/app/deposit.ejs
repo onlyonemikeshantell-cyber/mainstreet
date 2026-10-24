@@ -1163,55 +1163,13 @@
                 <input type="hidden" name="gateway_id" :value="selectedGateway.id" />
                 <input type="hidden" name="tx_hash" :value="txHash" />
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
-                    
-                    <!-- Amount Input -->
-                    <div>
-                        <label class="block uppercase font-semibold text-content-secondary mb-1.5 font-sans">Deposit Amount ($ USD) *</label>
-                        <input type="number" step="any" name="amount" x-model="amount" required :min="selectedGateway.min_deposit || 50" 
-                               class="w-full bg-white dark:bg-black/20 border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
-                        <div class="flex items-center justify-between text-[11px] mt-1.5 text-content-secondary font-mono">
-                            <span class="text-primary font-bold" x-text="cryptoEquivalent ? cryptoEquivalent : 'Valued in real-time USD'"></span>
-                        </div>
-                    </div>
-
-                    <!-- Automatic On-Chain Node Listener Status (No Manual Tx Hash Input Required) -->
-                    <div class="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 flex flex-col justify-between space-y-2 font-sans">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Automatic On-Chain Verification</span>
-                            </div>
-                            <button type="button" x-show="isCrypto" @click="startLiveMonitoring(null, true)"
-                                    class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] transition flex items-center space-x-1 cursor-pointer">
-                                <span>📡</span>
-                                <span>Scan Live</span>
-                            </button>
-                        </div>
-                        <p class="text-[11px] text-content-secondary leading-snug">
-                            No transaction hash required. Our blockchain nodes automatically detect incoming transfers to your custody wallet address and credit your balance upon confirmation.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Proof of Payment Upload (Optional Receipt / Screenshot) -->
-                <div class="space-y-1.5" x-data="{ proofData: '', fileName: '' }">
-                    <label class="block uppercase font-semibold text-content-secondary mb-1 font-sans text-xs">Payment Receipt / Screenshot (Optional)</label>
-                    <input type="hidden" name="proof_image" :value="proofData" />
-                    <div class="flex items-center space-x-3">
-                        <label class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border cursor-pointer font-bold text-xs text-content-primary transition flex items-center space-x-1.5 shadow-sm">
-                            <span>📎 Attach Payment Slip / Screenshot</span>
-                            <input type="file" accept="image/*" class="hidden" @change="
-                                const file = $event.target.files[0];
-                                if (file) {
-                                    fileName = file.name;
-                                    const reader = new FileReader();
-                                    reader.onload = (e) => { proofData = e.target.result; };
-                                    reader.readAsDataURL(file);
-                                }
-                            " />
-                        </label>
-                        <span class="text-xs text-content-secondary" x-text="fileName || 'No receipt attached'"></span>
+                <!-- Amount Input -->
+                <div>
+                    <label class="block uppercase font-semibold text-content-secondary mb-1.5 font-sans">Deposit Amount ($ USD) *</label>
+                    <input type="number" step="any" name="amount" x-model="amount" required :min="selectedGateway.min_deposit || 50" 
+                           class="w-full bg-white dark:bg-black/20 border border-surface-border text-content-primary rounded-xl px-4 py-3 outline-none focus:border-primary shadow-sm font-bold text-sm" />
+                    <div class="flex items-center justify-between text-[11px] mt-1.5 text-content-secondary font-mono">
+                        <span class="text-primary font-bold" x-text="cryptoEquivalent ? cryptoEquivalent : 'Valued in real-time USD'"></span>
                     </div>
                 </div>
 
