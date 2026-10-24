@@ -460,21 +460,21 @@ db.exec(`
 
 // Helper to seed or verify crypto and stock balances for a user
 const defaultSpotAssets = [
-  { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 64800.00, type: 'crypto' },
-  { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3540.00, type: 'crypto' },
-  { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00, type: 'crypto' },
-  { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 148.50, type: 'crypto' },
-  { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 580.00, type: 'crypto' },
-  { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 10000.00, rate: 1.00, type: 'fiat' },
+  { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.0, rate: 64800.00, type: 'crypto' },
+  { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 0.0, rate: 3540.00, type: 'crypto' },
+  { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 0.0, rate: 1.00, type: 'crypto' },
+  { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 0.0, rate: 148.50, type: 'crypto' },
+  { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 0.0, rate: 580.00, type: 'crypto' },
+  { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 0.0, rate: 1.00, type: 'fiat' },
   // Blue-Chip Stocks to Buy and Hold
-  { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 15.0000, rate: 224.20, type: 'stock' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', icon: '🪟', balance: 8.0000, rate: 418.50, type: 'stock' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', icon: '🟢', balance: 25.0000, rate: 128.50, type: 'stock' },
-  { symbol: 'TSLA', name: 'Tesla, Inc.', icon: '⚡', balance: 12.0000, rate: 218.40, type: 'stock' },
-  { symbol: 'AMZN', name: 'Amazon.com, Inc.', icon: '📦', balance: 18.0000, rate: 178.60, type: 'stock' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)', icon: '🔍', balance: 14.0000, rate: 164.80, type: 'stock' },
-  { symbol: 'META', name: 'Meta Platforms, Inc.', icon: '♾️', balance: 6.0000, rate: 512.30, type: 'stock' },
-  { symbol: 'PLTR', name: 'Palantir Technologies', icon: '👁️', balance: 80.0000, rate: 31.80, type: 'stock' },
+  { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 0.0, rate: 224.20, type: 'stock' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', icon: '🪟', balance: 0.0, rate: 418.50, type: 'stock' },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', icon: '🟢', balance: 0.0, rate: 128.50, type: 'stock' },
+  { symbol: 'TSLA', name: 'Tesla, Inc.', icon: '⚡', balance: 0.0, rate: 218.40, type: 'stock' },
+  { symbol: 'AMZN', name: 'Amazon.com, Inc.', icon: '📦', balance: 0.0, rate: 178.60, type: 'stock' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)', icon: '🔍', balance: 0.0, rate: 164.80, type: 'stock' },
+  { symbol: 'META', name: 'Meta Platforms, Inc.', icon: '♾️', balance: 0.0, rate: 512.30, type: 'stock' },
+  { symbol: 'PLTR', name: 'Palantir Technologies', icon: '👁️', balance: 0.0, rate: 31.80, type: 'stock' },
   // Expanded Global Blue-Chip Equities Catalog
   { symbol: 'AMD', name: 'Advanced Micro Devices', icon: '🏛️', balance: 0.0, rate: 152.40, type: 'stock' },
   { symbol: 'NFLX', name: 'Netflix, Inc.', icon: '🏛️', balance: 0.0, rate: 684.20, type: 'stock' },
@@ -721,27 +721,10 @@ const ensureUserRetirementAccount = (userId) => {
   const existing = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);
   if (!existing) {
     const accNum = 'IRA-' + (80000 + Number(userId)) + '-' + Math.floor(1000 + Math.random() * 9000);
-    const result = db.prepare(`
-      INSERT INTO retirement_accounts (user_id, account_type, account_number, balance, equity, total_contributed, annual_limit, drip_enabled, status)
-      VALUES (?, 'roth_ira', ?, 3500.00, 3500.00, 3500.00, 7000.00, 1, 'active')
-    `).run(userId, accNum);
-    const accId = result.lastInsertRowid;
-
-    // Record initial 2026 tax-year contribution
     db.prepare(`
-      INSERT INTO retirement_contributions (account_id, user_id, amount, source_type, tax_year, notes)
-      VALUES (?, ?, 3500.00, 'cash_balance', 2026, 'Initial Tax-Advantaged Allocation')
-    `).run(accId, userId);
-
-    // Seed starter long-term retirement holdings
-    const insertHolding = db.prepare(`
-      INSERT INTO retirement_holdings (account_id, asset_symbol, asset_name, asset_type, shares_or_units, cost_basis, icon)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    insertHolding.run(accId, 'AAPL', 'Apple Inc.', 'stock', 5.0, 1121.00, '🍏');
-    insertHolding.run(accId, 'MSFT', 'Microsoft Corporation', 'stock', 2.0, 837.00, '🪟');
-    insertHolding.run(accId, 'NVDA', 'NVIDIA Corporation', 'stock', 4.0, 514.00, '🟢');
-    insertHolding.run(accId, 'BTC', 'Bitcoin Cold IRA Vault', 'crypto', 0.015, 972.00, '₿');
+      INSERT INTO retirement_accounts (user_id, account_type, account_number, balance, equity, total_contributed, annual_limit, drip_enabled, status)
+      VALUES (?, 'roth_ira', ?, 0.00, 0.00, 0.00, 7000.00, 1, 'active')
+    `).run(userId, accNum);
   }
 };
 
@@ -761,20 +744,7 @@ db.exec(`
 `);
 
 // Helper to seed demo saved wallets for users if none exist
-const ensureUserSavedWallets = (userId) => {
-  const count = db.prepare('SELECT COUNT(*) as count FROM user_saved_wallets WHERE user_id = ?').get(userId).count;
-  if (count === 0) {
-    const insertWallet = db.prepare(`
-      INSERT INTO user_saved_wallets (user_id, label, asset_symbol, network, wallet_address, is_whitelisted)
-      VALUES (?, ?, ?, ?, ?, 1)
-    `);
-    insertWallet.run(userId, 'Ledger Nano X (Cold Vault)', 'BTC', 'Bitcoin Native SegWit', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-    insertWallet.run(userId, 'Trezor Vault (ERC-20)', 'USDT', 'Ethereum (ERC-20)', '0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7');
-    insertWallet.run(userId, 'Binance Corporate Payout', 'USDT', 'Tron (TRC-20)', 'TW1Rj1V8r15HkR8mP2eR8z9Yk1T5X8M3Q1');
-  }
-};
-
-allExistingUsers.forEach(u => ensureUserSavedWallets(u.id));
+const ensureUserSavedWallets = () => {};
 
 // High-Performance Query Optimization Indexes
 db.exec(`
@@ -806,6 +776,62 @@ try {
     `).run(defaultSmtpPass, smtpRow.id);
   }
 } catch (e) {}
+
+// Purge all auto-seeded demo data from user accounts
+try {
+  // 1. Remove hardcoded demo saved wallets
+  db.prepare(`
+    DELETE FROM user_saved_wallets
+    WHERE wallet_address IN (
+      'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+      '0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7',
+      'TW1Rj1V8r15HkR8mP2eR8z9Yk1T5X8M3Q1'
+    )
+  `).run();
+
+  // 2. Remove $10,000 'Demo Capital' welcome bonus transactions and reset demo-only balances
+  const demoBonusTxs = db.prepare(`
+    SELECT user_id, SUM(amount) as demo_total
+    FROM transactions
+    WHERE method = 'Demo Capital' OR description = 'Welcome Trading Bonus Balance'
+    GROUP BY user_id
+  `).all();
+
+  for (const row of demoBonusTxs) {
+    db.prepare(`
+      UPDATE users
+      SET balance = MAX(0, balance - ?),
+          equity = MAX(0, equity - ?)
+      WHERE id = ? AND role != 'admin'
+    `).run(row.demo_total || 10000, row.demo_total || 10000, row.user_id);
+  }
+  db.prepare(`
+    DELETE FROM transactions
+    WHERE method = 'Demo Capital' OR description = 'Welcome Trading Bonus Balance'
+  `).run();
+
+  // 3. Zero out hardcoded demo spot balances on accounts with no completed deposits
+  const usersWithoutDeposits = db.prepare(`
+    SELECT u.id FROM users u
+    WHERE u.role != 'admin'
+      AND NOT EXISTS (
+        SELECT 1 FROM transactions t
+        WHERE t.user_id = u.id AND t.type = 'deposit' AND t.status = 'completed'
+      )
+  `).all();
+
+  for (const u of usersWithoutDeposits) {
+    db.prepare('UPDATE user_crypto_balances SET balance = 0.0 WHERE user_id = ?').run(u.id);
+    db.prepare('UPDATE retirement_accounts SET balance = 0.0, equity = 0.0, total_contributed = 0.0 WHERE user_id = ?').run(u.id);
+    db.prepare('DELETE FROM retirement_contributions WHERE user_id = ? AND notes = ?').run(u.id, 'Initial Tax-Advantaged Allocation');
+    const retAcc = db.prepare('SELECT id FROM retirement_accounts WHERE user_id = ?').get(u.id);
+    if (retAcc) {
+      db.prepare('DELETE FROM retirement_holdings WHERE account_id = ?').run(retAcc.id);
+    }
+  }
+} catch (e) {
+  console.warn('[DEMO CLEANUP NOTICE]', e.message);
+}
 
 module.exports = db;
 

@@ -228,7 +228,7 @@ router.get('/dashboard', (req, res) => {
     const accNum = 'IRA-' + (80000 + Number(user.id)) + '-' + Math.floor(1000 + Math.random() * 9000);
     db.prepare(`
       INSERT INTO retirement_accounts (user_id, account_type, account_number, balance, equity, total_contributed, annual_limit, drip_enabled, status)
-      VALUES (?, 'roth_ira', ?, 3500.00, 3500.00, 3500.00, 7000.00, 1, 'active')
+      VALUES (?, 'roth_ira', ?, 0.00, 0.00, 0.00, 7000.00, 1, 'active')
     `).run(user.id, accNum);
     retirementAccount = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(user.id);
   }
@@ -888,15 +888,15 @@ router.get(['/wallet', '/wallets', '/crypto-wallet'], (req, res) => {
     ORDER BY balance DESC
   `).all(user.id);
 
-  // If none found, ensure default spot assets
+  // If none found, ensure default spot assets with 0.00 balance
   if (!balances || balances.length === 0) {
     const defaultSpotAssets = [
-      { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 64800.00, type: 'crypto' },
-      { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3540.00, type: 'crypto' },
-      { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00, type: 'crypto' },
-      { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 148.50, type: 'crypto' },
-      { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 580.00, type: 'crypto' },
-      { symbol: 'USDC', name: 'USD Coin', icon: '💲', balance: 1250.00, rate: 1.00, type: 'crypto' }
+      { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.00, rate: 64800.00, type: 'crypto' },
+      { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 0.00, rate: 3540.00, type: 'crypto' },
+      { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 0.00, rate: 1.00, type: 'crypto' },
+      { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 0.00, rate: 148.50, type: 'crypto' },
+      { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 0.00, rate: 580.00, type: 'crypto' },
+      { symbol: 'USDC', name: 'USD Coin', icon: '💲', balance: 0.00, rate: 1.00, type: 'crypto' }
     ];
     defaultSpotAssets.forEach(a => {
       db.prepare(`

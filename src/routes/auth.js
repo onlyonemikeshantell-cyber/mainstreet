@@ -574,7 +574,7 @@ router.post('/register', async (req, res) => {
   try {
     const result = db.prepare(`
       INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-      VALUES (?, ?, ?, ?, ?, 'user', 10000.00, 10000.00, 'USD', ?, ?, ?, ?, 1)
+      VALUES (?, ?, ?, ?, ?, 'user', 0.00, 0.00, 'USD', ?, ?, ?, ?, 1)
     `).run(
       name.trim(),
       cleanEmail,
@@ -613,25 +613,19 @@ router.post('/register', async (req, res) => {
       isAutoApprove ? new Date().toISOString() : null
     );
 
-    // Initial Welcome Demo Capital ($10,000 USD)
-    db.prepare(`
-      INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
-      VALUES (?, 'bonus', 10000.00, 'USD', 'completed', 'Demo Capital', ?, 'Welcome Trading Bonus Balance')
-    `).run(newUserId, 'MCE-WEL-' + newUserId + '-' + Date.now());
-
-    // Auto-seed default crypto & stock balance ledger
+    // Initialize empty asset ledger rows (0.00 balance)
     try {
       const defaultCryptos = [
-        { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.1250, rate: 64800.00, type: 'crypto' },
-        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 1.7500, rate: 3540.00, type: 'crypto' },
-        { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 5000.00, rate: 1.00, type: 'crypto' },
-        { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 18.5000, rate: 148.50, type: 'crypto' },
-        { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 4.2000, rate: 580.00, type: 'crypto' },
-        { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 10000.00, rate: 1.00, type: 'fiat' },
-        { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 15.0000, rate: 224.20, type: 'stock' },
-        { symbol: 'MSFT', name: 'Microsoft Corporation', icon: '🪟', balance: 8.0000, rate: 418.50, type: 'stock' },
-        { symbol: 'NVDA', name: 'NVIDIA Corporation', icon: '🟢', balance: 25.0000, rate: 128.50, type: 'stock' },
-        { symbol: 'TSLA', name: 'Tesla, Inc.', icon: '⚡', balance: 12.0000, rate: 218.40, type: 'stock' }
+        { symbol: 'BTC', name: 'Bitcoin', icon: '₿', balance: 0.00, rate: 64800.00, type: 'crypto' },
+        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', balance: 0.00, rate: 3540.00, type: 'crypto' },
+        { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 0.00, rate: 1.00, type: 'crypto' },
+        { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 0.00, rate: 148.50, type: 'crypto' },
+        { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 0.00, rate: 580.00, type: 'crypto' },
+        { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 0.00, rate: 1.00, type: 'fiat' },
+        { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 0.00, rate: 224.20, type: 'stock' },
+        { symbol: 'MSFT', name: 'Microsoft Corporation', icon: '🪟', balance: 0.00, rate: 418.50, type: 'stock' },
+        { symbol: 'NVDA', name: 'NVIDIA Corporation', icon: '🟢', balance: 0.00, rate: 128.50, type: 'stock' },
+        { symbol: 'TSLA', name: 'Tesla, Inc.', icon: '⚡', balance: 0.00, rate: 218.40, type: 'stock' }
       ];
       const insertCrypto = db.prepare(`
         INSERT OR IGNORE INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, asset_type)
@@ -641,7 +635,7 @@ router.post('/register', async (req, res) => {
         insertCrypto.run(newUserId, c.symbol, c.name, c.balance, c.icon, c.rate, c.type);
       }
     } catch (e) {
-      console.warn('Could not auto-seed crypto balances for user:', e.message);
+      console.warn('Could not initialize asset ledger for user:', e.message);
     }
 
     // Insert Welcome Notification in user notifications center
@@ -653,8 +647,8 @@ router.post('/register', async (req, res) => {
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
         isStep2EmailVerified
-          ? 'Your institutional trading account has been verified and initialized with $10,000 demo capital.'
-          : 'Your institutional trading account has been initialized with $10,000 demo capital. Complete Step 2 (Email OTP) to unlock live trading.'
+          ? 'Your institutional trading account has been verified and activated. Fund your account via the Cashier to begin live trading.'
+          : 'Your institutional trading account has been created. Complete Step 2 (Email OTP) to unlock live trading.'
       );
     } catch(e) {}
 
@@ -712,7 +706,7 @@ router.post('/register', async (req, res) => {
             <a href="${verifyUrl}" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Verify Email Immediately &rarr;</a>
           </div>
           <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 12px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 12px; color: #94A3B8;"><strong>Trader UID:</strong> #TXE-${newUserId.toString().padStart(6, '0')} | <strong>Initial Capital:</strong> $10,000.00 USD</p>
+            <p style="margin: 0; font-size: 12px; color: #94A3B8;"><strong>Trader UID:</strong> #TXE-${newUserId.toString().padStart(6, '0')} | <strong>Account Type:</strong> Live Trading Account</p>
           </div>
           <hr style="border: 0; border-top: 1px solid #1E293B; margin: 25px 0 20px;" />
           <p style="font-size: 11px; color: #64748B; line-height: 1.5; margin: 0; text-align: center;">

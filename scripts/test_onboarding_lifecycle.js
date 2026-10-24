@@ -21,10 +21,10 @@ try {
   const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
   const docStatus = isAutoApprove ? 'approved' : 'pending';
 
-  // Create user at end of Step 3 (Details + ID + Live Check submitted, awaiting Step 4 Email OTP)
+  // Create user with $0.00 balance (no demo balances on signup)
   const userRes = db.prepare(`
     INSERT INTO users (name, email, phone, country, password, role, balance, equity, currency, kyc_status, email_verified, email_verification_code, email_verification_expires, is_active)
-    VALUES ('Onboarding Test User', ?, '+15550192834', 'United States', ?, 'user', 10000.00, 10000.00, 'USD', ?, 0, ?, ?, 1)
+    VALUES ('Onboarding Test User', ?, '+15550192834', 'United States', ?, 'user', 0.00, 0.00, 'USD', ?, 0, ?, ?, 1)
   `).run(testEmail, hash, initialKycStatus, emailCode, codeExpires);
 
   const userId = userRes.lastInsertRowid;

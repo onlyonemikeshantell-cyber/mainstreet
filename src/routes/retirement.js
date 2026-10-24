@@ -87,7 +87,7 @@ router.get('/api/retirement/account', requireAuth, (req, res) => {
       const accNum = 'IRA-' + (80000 + Number(userId)) + '-' + Math.floor(1000 + Math.random() * 9000);
       db.prepare(`
         INSERT INTO retirement_accounts (user_id, account_type, account_number, balance, equity, total_contributed, annual_limit, drip_enabled, status)
-        VALUES (?, 'roth_ira', ?, 3500.00, 3500.00, 3500.00, 7000.00, 1, 'active')
+        VALUES (?, 'roth_ira', ?, 0.00, 0.00, 0.00, 7000.00, 1, 'active')
       `).run(userId, accNum);
       account = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);
     }
