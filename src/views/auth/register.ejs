@@ -237,7 +237,7 @@ function registerComponent() {
                      });
                  } catch (err) {
                      this.liveCameraActive = false;
-                     this.liveCameraError = 'Device camera unavailable. You can upload a photo of your face below.';
+                     this.liveCameraError = 'Device camera unavailable. Please allow camera permissions in your browser to complete live face verification.';
                  }
              },
 
@@ -265,24 +265,11 @@ function registerComponent() {
                  this.stopLivenessCamera();
              },
 
-             handleSelfieFile(event) {
-                 const file = event.target.files ? event.target.files[0] : null;
-                 if (!file) return;
-                 const reader = new FileReader();
-                 reader.onload = (e) => {
-                     this.videoData = e.target.result;
-                     this.selfiePreview = e.target.result;
-                     this.liveVerified = true;
-                     this.stopLivenessCamera();
-                 };
-                 reader.readAsDataURL(file);
-             },
-
              submitRegistration() {
                  if (this.isSubmitting) return;
                  this.step3Error = '';
                  if (!this.videoData && !this.liveVerified) {
-                     this.step3Error = 'Please capture your face photo or upload a selfie to proceed.';
+                     this.step3Error = 'Please capture your face photo using the camera to proceed.';
                      return;
                  }
                  this.isSubmitting = true;
@@ -733,35 +720,22 @@ if (window.Alpine) {
                             </button>
                         </template>
                         <template x-if="!liveCameraActive">
-                            <div class="flex items-center space-x-2">
-                                <button type="button" @click="startLivenessCamera()"
-                                        class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
-                                    <span>📹</span>
-                                    <span x-text="selfiePreview ? 'Retake Photo' : 'Start Camera'"></span>
-                                </button>
-                                <label class="px-4 py-2.5 rounded-xl bg-surface-raised border border-surface-border hover:border-primary text-content-primary font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
-                                    <span>📁</span>
-                                    <span>Upload Photo</span>
-                                    <input type="file" accept="image/*" @change="handleSelfieFile($event)" class="hidden" />
-                                </label>
-                            </div>
+                            <button type="button" @click="startLivenessCamera()"
+                                    class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase shadow transition cursor-pointer flex items-center space-x-1.5">
+                                <span>📹</span>
+                                <span x-text="selfiePreview ? 'Retake Photo' : 'Start Camera'"></span>
+                            </button>
                         </template>
                     </div>
                 </div>
 
-                <!-- Fallback file upload if camera fails -->
-                <div x-show="liveCameraError" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs space-y-1.5" x-cloak>
+                <!-- Camera notice if permission denied or unavailable -->
+                <div x-show="liveCameraError" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs space-y-1" x-cloak>
                     <div class="font-bold flex items-center space-x-1">
                         <span>ℹ️</span>
                         <span>Camera Notice</span>
                     </div>
                     <p class="text-[11px] leading-relaxed" x-text="liveCameraError"></p>
-                    <div class="pt-1">
-                        <label class="inline-flex items-center px-3 py-1.5 rounded-lg bg-surface-raised border border-surface-border text-xs font-medium text-content-primary cursor-pointer hover:border-primary transition">
-                            <span>📁 Upload Selfie File</span>
-                            <input type="file" accept="image/*" @change="handleSelfieFile($event)" class="hidden" />
-                        </label>
-                    </div>
                 </div>
 
                 <!-- Navigation & Final Submit Button -->
