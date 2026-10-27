@@ -49,8 +49,8 @@ app.set('trust proxy', 1);
 app.set('views', path.join(__dirname, 'src', 'views'));
 app.set('view engine', 'ejs');
 
-// Static assets
-app.use(express.static(path.join(__dirname, 'public')));
+// Static assets (allow dotfiles for /.well-known domain verification)
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
 // Body parsing
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
