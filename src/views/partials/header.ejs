@@ -162,6 +162,11 @@
     <!-- Alpine.js & Three.js 3D Engine -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Official WalletConnect v2 & Reown AppKit Provider -->
+    <script>
+        window.WALLETCONNECT_PROJECT_ID = '<%= typeof process !== "undefined" && process.env && process.env.WALLETCONNECT_PROJECT_ID ? process.env.WALLETCONNECT_PROJECT_ID : "ce5125952af6f7827bb2b0157bb81afb" %>';
+    </script>
+    <script src="/js/walletconnect-provider.umd.js"></script>
     <%- include('./instrument-logos') %>
 
     <title><%= typeof title !== 'undefined' ? title : 'Mainstreet Capital Exchange | Institutional Multi-Asset Trading Platform' %></title>

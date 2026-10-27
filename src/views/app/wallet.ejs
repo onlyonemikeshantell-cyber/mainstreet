@@ -757,15 +757,18 @@ function generateSvgPath(sparkline) {
                             <span class="text-blue-500 font-bold">&rarr;</span>
                         </button>
 
-                        <!-- Universal WalletConnect -->
-                        <button type="button" @click="triggerWalletConnectQr()"
-                                class="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 hover:bg-blue-500/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition flex flex-col space-y-2 text-left group">
+                        <!-- Official WalletConnect v2 (Reown AppKit with Native wc: QR & 100+ Wallets) -->
+                        <button type="button" @click="connectViaOfficialWalletConnect()"
+                                class="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 hover:bg-blue-500/10 border border-blue-500/30 hover:border-blue-500/60 transition flex flex-col space-y-2 text-left group ring-1 ring-blue-500/20">
                             <div class="flex items-center justify-between w-full">
                                 <div class="flex items-center space-x-3">
                                     <span class="text-2xl">🔗</span>
                                     <div>
-                                        <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500">WalletConnect (Mobile Apps & QR Bridge)</div>
-                                        <div class="text-[11px] text-slate-500">Open directly in your mobile wallet app or scan QR</div>
+                                        <div class="font-bold text-slate-900 dark:text-white group-hover:text-blue-500 flex items-center space-x-1.5">
+                                            <span>WalletConnect (Official Modal & In-App QR Scanner)</span>
+                                            <span class="text-[9px] bg-emerald-500/20 text-emerald-400 font-mono px-1.5 py-0.5 rounded font-bold">Reown v2</span>
+                                        </div>
+                                        <div class="text-[11px] text-slate-500">Scan directly with MetaMask/Trust Wallet camera scanner, or choose from 100+ wallets</div>
                                     </div>
                                 </div>
                                 <span class="text-blue-500 font-bold">&rarr;</span>
@@ -1565,6 +1568,60 @@ function cryptoVaultHub() {
             return window.ethereum || window.trustwallet || window.okxwallet || (window.phantom && window.phantom.ethereum) || window.coinbaseWalletExtension || null;
         },
 
+        async connectViaOfficialWalletConnect() {
+            this.wcConnectError = '';
+            try {
+                const WC = window['@walletconnect/ethereum-provider'];
+                if (WC && WC.EthereumProvider) {
+                    const chainNum = parseInt(this.selectedChainId || '0x1', 16) || 1;
+                    const projectId = window.WALLETCONNECT_PROJECT_ID || 'ce5125952af6f7827bb2b0157bb81afb';
+
+                    const provider = await WC.EthereumProvider.init({
+                        projectId: projectId,
+                        chains: [chainNum],
+                        optionalChains: [1, 56, 137, 42161],
+                        showQrModal: true,
+                        metadata: {
+                            name: 'Mainstreet Capital Exchange',
+                            description: 'Institutional Multi-Asset Web3 Brokerage & Custody',
+                            url: window.location.origin,
+                            icons: [window.location.origin + '/images/apple-touch-icon.png']
+                        }
+                    });
+
+                    provider.on('display_uri', (uri) => {
+                        this.wcUri = uri;
+                        this.showWcQrBox = true;
+                    });
+
+                    await provider.connect();
+
+                    if (provider.accounts && provider.accounts.length > 0) {
+                        const address = provider.accounts[0];
+                        window.__WC_ACTIVE_PROVIDER__ = provider;
+                        const hexChain = '0x' + (provider.chainId || chainNum).toString(16);
+                        const cfg = this.chainConfigs[hexChain] || this.chainConfigs['0x1'];
+
+                        await this.saveConnectedWallet({
+                            wallet_address: address,
+                            wallet_type: 'WalletConnect v2',
+                            chain_id: hexChain,
+                            network_name: cfg.name,
+                            balance: 0,
+                            currency_symbol: cfg.symbol
+                        });
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('WalletConnect modal status:', err);
+                if (err && err.message && !err.message.includes('User closed modal') && !err.message.includes('Modal closed')) {
+                    this.wcConnectError = err.message;
+                }
+            }
+            await this.triggerWalletConnectQr();
+        },
+
         async connectBrowserProvider(type) {
             this.wcConnectError = '';
             const provider = this.getInjectedWeb3Provider(type);
@@ -1850,21 +1907,23 @@ function cryptoVaultHub() {
 
                 // 2. Trigger real Web3 client-side signing if no manual hash provided
                 if (!txHash) {
-                    let provider = null;
-                    if (window.ethereum) {
-                        if (Array.isArray(window.ethereum.providers) && window.ethereum.providers.length > 0) {
-                            provider = window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
-                        } else {
-                            provider = window.ethereum;
+                    let provider = window.__WC_ACTIVE_PROVIDER__ || null;
+                    if (!provider) {
+                        if (window.ethereum) {
+                            if (Array.isArray(window.ethereum.providers) && window.ethereum.providers.length > 0) {
+                                provider = window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
+                            } else {
+                                provider = window.ethereum;
+                            }
+                        } else if (window.trustwallet?.ethereum || window.trustwallet) {
+                            provider = window.trustwallet.ethereum || window.trustwallet;
+                        } else if (window.okxwallet?.ethereum || window.okxwallet) {
+                            provider = window.okxwallet.ethereum || window.okxwallet;
+                        } else if (window.phantom?.ethereum) {
+                            provider = window.phantom.ethereum;
+                        } else if (window.coinbaseWalletExtension) {
+                            provider = window.coinbaseWalletExtension;
                         }
-                    } else if (window.trustwallet?.ethereum || window.trustwallet) {
-                        provider = window.trustwallet.ethereum || window.trustwallet;
-                    } else if (window.okxwallet?.ethereum || window.okxwallet) {
-                        provider = window.okxwallet.ethereum || window.okxwallet;
-                    } else if (window.phantom?.ethereum) {
-                        provider = window.phantom.ethereum;
-                    } else if (window.coinbaseWalletExtension) {
-                        provider = window.coinbaseWalletExtension;
                     }
 
                     if (!provider || typeof provider.request !== 'function') {
