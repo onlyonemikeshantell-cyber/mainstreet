@@ -61,6 +61,7 @@ const saveBase64Media = (base64String, prefix, userId) => {
 
 const express = require('express');
 const router = express.Router();
+const { syncToCloudVault } = require('../services/cloudPersistenceService');
 
 // ==============================================================================
 // RFC 6238 TOTP ENGINE & CRYPTOGRAPHIC UTILITIES
@@ -601,20 +602,8 @@ router.post('/register', async (req, res) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const existing = db.prepare('SELECT id, email_verified FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (existing) {
-    if (existing.email_verified === 1) {
-      req.session.flash = { error: 'An account with that email already exists. Please sign in.' };
-      return req.session.save(() => res.redirect('/login'));
-    }
-    // If an uncompleted/unverified account exists, purge stale record so registration proceeds cleanly
-    try {
-      db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(existing.id);
-      db.prepare('DELETE FROM notifications WHERE user_id = ?').run(existing.id);
-      db.prepare('DELETE FROM transactions WHERE user_id = ?').run(existing.id);
-      db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(existing.id);
-      db.prepare('DELETE FROM users WHERE id = ?').run(existing.id);
-    } catch (e) {
-      console.warn('Notice cleaning up unverified user record:', e.message);
-    }
+    req.session.flash = { error: 'An account with that email already exists. Please sign in.' };
+    return req.session.save(() => res.redirect('/login'));
   }
 
   // Check if Step 2 Email OTP was verified during the registration wizard
@@ -651,6 +640,9 @@ router.post('/register', async (req, res) => {
     );
 
     const newUserId = result.lastInsertRowid;
+
+    // Immediately persist new user account to Cloud Vault
+    syncToCloudVault(db).catch(() => {});
 
     // Process and store ID documents & live biometric verification
     const resolveDocPath = (img, prefix, fallback) => {

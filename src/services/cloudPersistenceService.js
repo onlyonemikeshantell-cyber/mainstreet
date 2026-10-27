@@ -246,14 +246,9 @@ function importDatabaseSnapshot(db, snapshot) {
     const restoreTx = db.transaction(() => {
       for (const table of TABLES_TO_SYNC) {
         const rows = snapshot.tables[table];
-        if (!Array.isArray(rows)) continue;
+        if (!Array.isArray(rows) || rows.length === 0) continue;
 
-        // Clear current table rows so deleted records stay deleted
-        db.prepare(`DELETE FROM ${table}`).run();
-
-        if (rows.length === 0) continue;
-
-        // Get valid columns in local schema for forward/backward compatibility
+        // Preserve all existing accounts & data; safely merge/upsert snapshot records without wiping tables
         const localCols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
         const sampleCols = Object.keys(rows[0]).filter(col => localCols.includes(col));
         if (sampleCols.length === 0) continue;
