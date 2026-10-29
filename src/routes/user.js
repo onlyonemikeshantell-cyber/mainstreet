@@ -249,6 +249,7 @@ router.get('/dashboard', (req, res) => {
     openTrades,
     recentTransactions,
     activeSubscriptions,
+    copySubscriptions: activeSubscriptions,
     equity,
     cryptoBalances,
     stockBalances,
@@ -260,7 +261,8 @@ router.get('/dashboard', (req, res) => {
     stockBaskets: STOCK_BASKETS,
     dividendRates: STOCK_DIVIDEND_RATES,
     estimatedAnnualDividends: +estimatedAnnualDividends.toFixed(2),
-    totalPnL: totalPnL.toFixed(2)
+    totalPnL: totalPnL.toFixed(2),
+    livePrices: getLivePrices()
   });
 });
 
