@@ -15,7 +15,36 @@
       copied: false,
       submitting: false,
       rates: window.__DEPOSIT_RATES__ || {},
-      depositMode: (window.__CONNECTED_WALLETS__ && window.__CONNECTED_WALLETS__.length > 0) ? 'linked' : 'manual',
+      depositMode: 'manual', // Default to Direct On-Chain Transfer (100% immune to browser warnings)
+
+      get mobileWalletPaymentUri() {
+        const addr = this.selectedGateway?.address || '';
+        if (!addr) return '#';
+        const cur = (this.selectedGateway?.currency || '').toUpperCase();
+        const net = (this.selectedGateway?.network || '').toUpperCase();
+        const amt = parseFloat(this.amount) || 0;
+        
+        if (cur === 'BTC') {
+          const btcPrice = this.rates['BTC']?.price || 64800;
+          const btcAmt = (amt / btcPrice).toFixed(6);
+          return `bitcoin:${addr}${amt > 0 ? '?amount=' + btcAmt : ''}`;
+        }
+        if (cur === 'ETH' || (cur === 'USDT' && net.includes('ERC-20'))) {
+          if (cur === 'USDT') {
+            const rawUnits = Math.round(amt * 1e6);
+            return `ethereum:0xdac17f958d2ee523a2206206994597c13d831ec7@1/transfer?address=${addr}&uint256=${rawUnits}`;
+          }
+          const ethPrice = this.rates['ETH']?.price || 3500;
+          const ethAmt = (amt / ethPrice).toFixed(6);
+          return `ethereum:${addr}@1${amt > 0 ? '?value=' + (ethAmt * 1e18).toString() : ''}`;
+        }
+        if (cur === 'SOL') {
+          const solPrice = this.rates['SOL']?.price || 148;
+          const solAmt = (amt / solPrice).toFixed(4);
+          return `solana:${addr}${amt > 0 ? '?amount=' + solAmt : ''}`;
+        }
+        return `ethereum:${addr}`;
+      },
 
       // Linked External Wallets (WalletConnect & Direct Access)
       connectedWallets: window.__CONNECTED_WALLETS__ || [],
@@ -919,22 +948,23 @@
             </div>
         <% } %>
 
-        <!-- Modern Segmented Mode Selector: 1-Click Linked Web3 vs. Direct Crypto QR -->
-        <div class="flex items-center justify-center p-1.5 bg-surface-overlay dark:bg-[#141517] rounded-2xl max-w-md mx-auto border border-surface-border shadow-sm">
+        <!-- Modern Segmented Mode Selector: Dedicated On-Chain QR vs. Web3 Browser Connect -->
+        <div class="flex items-center justify-center p-1.5 bg-surface-overlay dark:bg-[#141517] rounded-2xl max-w-lg mx-auto border border-surface-border shadow-sm">
+            <button type="button" @click="depositMode = 'manual'" 
+                    :class="depositMode === 'manual' ? 'bg-surface-raised dark:bg-slate-800 text-content-primary shadow-sm font-bold border border-emerald-500/30' : 'text-content-secondary hover:text-content-primary'"
+                    class="flex-1 py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition font-sans">
+                <span>🪙</span>
+                <span>Direct Transfer (QR & Address)</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold">Recommended</span>
+            </button>
             <button type="button" @click="depositMode = 'linked'" 
                     :class="depositMode === 'linked' ? 'bg-surface-raised dark:bg-slate-800 text-content-primary shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
-                    class="flex-1 py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 transition font-sans">
+                    class="flex-1 py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition font-sans">
                 <span>⚡</span>
-                <span>1-Click Linked Wallet</span>
+                <span>Web3 WalletConnect</span>
                 <template x-if="connectedWallets.length > 0">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                 </template>
-            </button>
-            <button type="button" @click="depositMode = 'manual'" 
-                    :class="depositMode === 'manual' ? 'bg-surface-raised dark:bg-slate-800 text-content-primary shadow-sm font-bold' : 'text-content-secondary hover:text-content-primary'"
-                    class="flex-1 py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 transition font-sans">
-                <span>🪙</span>
-                <span>On-Chain QR & Address</span>
             </button>
         </div>
 
@@ -1075,15 +1105,79 @@
                 </form>
             </div>
 
+            <!-- Web3 Quick Integration in Connected Wallet Tab -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-surface-overlay to-surface-overlay space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🦊</span>
+                            <h3 class="text-sm sm:text-base font-bold text-content-primary font-sans">Automated Web3 Wallet Deposit</h3>
+                        </div>
+                        <p class="text-xs text-content-secondary">Connect MetaMask, Coinbase Wallet, or Rabby to transfer directly via browser signing.</p>
+                    </div>
+
+                    <!-- Web3 Connect Button or Connected Status -->
+                    <div class="flex items-center space-x-3">
+                        <template x-if="!web3Connected">
+                            <button type="button" @click="connectWeb3()" 
+                                    class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-sans font-bold text-xs transition shadow-md flex items-center space-x-2">
+                                <span>🦊 Connect Web3 Wallet</span>
+                            </button>
+                        </template>
+                        <template x-if="web3Connected">
+                            <div class="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl text-xs font-mono">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-emerald-400 font-bold" x-text="web3Account.slice(0, 6) + '...' + web3Account.slice(-4)"></span>
+                                <span class="text-content-tertiary">|</span>
+                                <span class="text-content-secondary text-[11px]" x-text="web3Network"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 1-Click Send Button (When connected & on EVM gateway) -->
+                <div x-show="web3Connected && isEvmCompatible" class="pt-2 border-t border-surface-border/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="text-xs text-content-secondary font-mono flex items-center space-x-2">
+                        <span class="text-gain font-semibold">Direct Deposit:</span>
+                        <span>Transfers exact value directly into your trading balance</span>
+                    </div>
+                    <button type="button" @click="sendFromWeb3Wallet()" :disabled="web3Sending"
+                            :class="web3Sending ? 'opacity-70 cursor-not-allowed bg-primary/80' : 'bg-primary hover:bg-primary-dark shadow-primary/30'"
+                            class="w-full sm:w-auto px-5 py-3 rounded-xl text-white font-bold text-xs transition shadow-lg flex items-center justify-center space-x-2">
+                        <template x-if="!web3Sending">
+                            <div class="flex items-center space-x-2">
+                                <span>⚡ Send</span>
+                                <span x-text="cryptoEquivalent || ('$' + amount)"></span>
+                                <span>from Connected Wallet</span>
+                            </div>
+                        </template>
+                        <template x-if="web3Sending">
+                            <div class="flex items-center space-x-2 font-mono">
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span>Confirming in Wallet App...</span>
+                            </div>
+                        </template>
+                    </button>
+                </div>
+
+                <!-- Web3 Error Callout -->
+                <div x-show="web3Error" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-mono">
+                    <span class="font-bold">Notice:</span> <span x-text="web3Error"></span>
+                </div>
+            </div>
+
             <!-- When No Wallet Is Linked Yet -->
             <div x-show="connectedWallets.length === 0" class="p-8 rounded-3xl bg-surface-overlay border border-surface-border text-center space-y-4">
                 <div class="w-16 h-16 mx-auto rounded-3xl bg-primary/10 text-primary flex items-center justify-center text-3xl">
                     🔗
                 </div>
                 <div class="space-y-1 max-w-md mx-auto">
-                    <h3 class="font-bold text-base text-content-primary">No External Web3 Wallet Linked</h3>
+                    <h3 class="font-bold text-base text-content-primary">Pair External Web3 Wallet</h3>
                     <p class="text-xs text-content-secondary">
-                        Pair your MetaMask, Trust Wallet, Coinbase, or Phantom wallet once on the Wallet Hub to enable 1-click instant deposits without copying addresses.
+                        Pair your MetaMask, Trust Wallet, Coinbase, or Phantom wallet once on the Wallet Hub to enable 1-click instant deposits.
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -1105,70 +1199,6 @@
              MODE 2: DIRECT ON-CHAIN CRYPTO DEPOSIT (QR & ADDRESS)
              ======================================================== -->
         <div x-show="depositMode === 'manual' || monitoring" class="space-y-6">
-
-        <!-- WEB3 WALLET FAST INTEGRATION CARD (If Web3 is supported & crypto selected) -->
-        <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-surface-overlay to-surface-overlay space-y-5" x-show="isCrypto">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="space-y-1">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-lg">🦊</span>
-                        <h3 class="text-sm sm:text-base font-bold text-content-primary font-sans">Automated Web3 Wallet Deposit</h3>
-                    </div>
-                    <p class="text-xs text-content-secondary">Connect MetaMask, Coinbase Wallet, or Rabby to transfer directly without manual hash copying.</p>
-                </div>
-
-                <!-- Web3 Connect Button or Connected Status -->
-                <div class="flex items-center space-x-3">
-                    <template x-if="!web3Connected">
-                        <button type="button" @click="connectWeb3()" 
-                                class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-sans font-bold text-xs transition shadow-md flex items-center space-x-2">
-                            <span>🦊 Connect Web3 Wallet</span>
-                        </button>
-                    </template>
-                    <template x-if="web3Connected">
-                        <div class="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl text-xs font-mono">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span class="text-emerald-400 font-bold" x-text="web3Account.slice(0, 6) + '...' + web3Account.slice(-4)"></span>
-                            <span class="text-content-tertiary">|</span>
-                            <span class="text-content-secondary text-[11px]" x-text="web3Network"></span>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <!-- 1-Click Send Button (When connected & on EVM gateway) -->
-            <div x-show="isEvmCompatible" class="pt-2 border-t border-surface-border/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div class="text-xs text-content-secondary font-mono flex items-center space-x-2">
-                    <span class="text-gain font-semibold">Direct Deposit:</span>
-                    <span>Transfers exact value directly into your trading balance</span>
-                </div>
-                <button type="button" @click="sendFromWeb3Wallet()" :disabled="web3Sending"
-                        :class="web3Sending ? 'opacity-70 cursor-not-allowed bg-primary/80' : 'bg-primary hover:bg-primary-dark shadow-primary/30'"
-                        class="w-full sm:w-auto px-5 py-3 rounded-xl text-white font-bold text-xs transition shadow-lg flex items-center justify-center space-x-2">
-                    <template x-if="!web3Sending">
-                        <div class="flex items-center space-x-2">
-                            <span>⚡ Send</span>
-                            <span x-text="cryptoEquivalent || ('$' + amount)"></span>
-                            <span>from Connected Wallet</span>
-                        </div>
-                    </template>
-                    <template x-if="web3Sending">
-                        <div class="flex items-center space-x-2 font-mono">
-                            <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                            </svg>
-                            <span>Confirming in Wallet App...</span>
-                        </div>
-                    </template>
-                </button>
-            </div>
-
-            <!-- Web3 Error Callout -->
-            <div x-show="web3Error" class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-mono">
-                <span class="font-bold">Notice:</span> <span x-text="web3Error"></span>
-            </div>
-        </div>
 
         <!-- LIVE BLOCKCHAIN CONFIRMATION MONITOR (Active when monitoring is true) -->
         <div x-show="monitoring" class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-primary/30 bg-surface-overlay space-y-6">
@@ -1320,15 +1350,27 @@
                             </span>
                         </div>
                         
-                        <!-- Address Box with 1-Click Copy -->
-                        <div class="flex items-center space-x-2">
+                        <!-- Address Box with 1-Click Copy and Mobile Wallet App Launch -->
+                        <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
                             <div class="p-3.5 bg-white dark:bg-black/20 rounded-xl border border-surface-border font-bold text-content-primary select-all break-all text-xs flex-1 font-mono tracking-tight" 
                                  x-text="selectedGateway.address || 'Loading destination details...'"></div>
                             <button type="button" @click="copyAddress()"
                                     class="px-4 py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-sans font-bold text-xs transition shadow-md flex items-center space-x-1 flex-shrink-0">
-                                <span x-show="!copied">📋 Copy</span>
+                                <span x-show="!copied">📋 Copy Address</span>
                                 <span x-show="copied" class="text-emerald-200">✓ Copied!</span>
                             </button>
+                            <a :href="mobileWalletPaymentUri" x-show="isCrypto && mobileWalletPaymentUri && mobileWalletPaymentUri !== '#'"
+                               class="px-4 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-xs transition shadow-md flex items-center space-x-1 flex-shrink-0">
+                                <span>📱 Pay in Wallet App</span>
+                            </a>
+                        </div>
+
+                        <!-- Direct Transfer Security Guarantee -->
+                        <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-[11px] font-sans flex items-start space-x-2">
+                            <span class="text-emerald-400 font-bold text-sm">🛡️</span>
+                            <span class="leading-relaxed">
+                                <strong>Direct On-Chain Transfer (Immune to browser warnings):</strong> Send from any personal wallet (MetaMask, Trust, Phantom, Ledger) or exchange (Binance, Coinbase, Kraken, CashApp). Zero dApp pairing required.
+                            </span>
                         </div>
 
                         <p class="text-[11px] text-content-secondary font-sans leading-relaxed" 
