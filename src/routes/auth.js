@@ -190,7 +190,8 @@ const sendWelcomeEmail = async ({ userId, name, email, country, req }) => {
       to: email,
       subject: 'Welcome to Mainstreet Capital Exchange — Your Trading Account Is Active',
       html: welcomeHtml,
-      recipientType: 'user'
+      recipientType: 'user',
+      async: true
     });
     console.log(`[WELCOME EMAIL SENT] Dispatched welcome notification to ${email}`);
   } catch (err) {

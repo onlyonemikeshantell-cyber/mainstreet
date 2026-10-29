@@ -84,7 +84,7 @@ const sendViaWebmailHttps = async ({ host, user, pass, to, subject, html, text }
       path,
       method,
       rejectUnauthorized: false,
-      timeout: 8000,
+      timeout: 3500,
       headers: {
         'Cookie': cookieHeader(),
         'User-Agent': 'Mozilla/5.0 (Mainstreet-Mailer/2.0)'
@@ -211,6 +211,9 @@ const sendViaResend = async ({ apiKey, to, subject, html, text, fromName, fromEm
 
 // Unified Send Email Function (Resend -> SMTP -> Local/Simulated Sandbox)
 const sendEmail = async (options) => {
+  if (options && options.async) {
+    return queueEmail(options);
+  }
   // Support both sendEmail({ to, subject, ... }) and legacy sendEmail(to, subject, html)
   let to, subject, message, html, recipientType;
   if (typeof options === 'string') {
@@ -395,4 +398,19 @@ const sendEmail = async (options) => {
   return { success: true, localOnly: true };
 };
 
-module.exports = { sendEmail, generateEmailHtml, sendViaResend, sendViaWebmailHttps };
+/**
+ * Asynchronous, non-blocking email dispatch.
+ * Fires delivery in a background microtask so client requests return immediately (< 50ms).
+ */
+const queueEmail = (options) => {
+  setImmediate(async () => {
+    try {
+      await sendEmail({ ...options, async: false });
+    } catch (err) {
+      console.error('[MAILER ASYNC ERROR]:', err.message);
+    }
+  });
+  return { success: true, queued: true };
+};
+
+module.exports = { sendEmail, queueEmail, generateEmailHtml, sendViaResend, sendViaWebmailHttps };

@@ -363,30 +363,35 @@ const YAHOO_MAP = {
 
 async function syncRealMarketQuotes() {
   const yahooKeys = Object.keys(YAHOO_MAP);
-  for (const ySym of yahooKeys) {
-    try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Mainstreet Capital Exchange/2.0' },
-        signal: AbortSignal.timeout(4000)
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const meta = data.chart?.result?.[0]?.meta;
-      if (meta && meta.regularMarketPrice) {
-        const target = YAHOO_MAP[ySym];
-        if (target && assetPrices[target]) {
-          const price = meta.regularMarketPrice;
-          const prev = meta.chartPreviousClose || assetPrices[target].price;
-          const chg = prev > 0 ? +(((price - prev) / prev) * 100).toFixed(2) : 0;
+  const CHUNK_SIZE = 6;
+  
+  for (let i = 0; i < yahooKeys.length; i += CHUNK_SIZE) {
+    const chunk = yahooKeys.slice(i, i + CHUNK_SIZE);
+    await Promise.allSettled(chunk.map(async (ySym) => {
+      try {
+        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Mainstreet Capital Exchange/2.0' },
+          signal: AbortSignal.timeout(3000)
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const meta = data.chart?.result?.[0]?.meta;
+        if (meta && meta.regularMarketPrice) {
+          const target = YAHOO_MAP[ySym];
+          if (target && assetPrices[target]) {
+            const price = meta.regularMarketPrice;
+            const prev = meta.chartPreviousClose || assetPrices[target].price;
+            const chg = prev > 0 ? +(((price - prev) / prev) * 100).toFixed(2) : 0;
 
-          assetPrices[target].prevPrice = assetPrices[target].price;
-          assetPrices[target].price = +price.toFixed(2);
-          assetPrices[target].change24h = chg;
-          assetPrices[target].direction = price >= prev ? 'up' : 'down';
-          assetPrices[target].source = 'Live Real Institutional Feed';
+            assetPrices[target].prevPrice = assetPrices[target].price;
+            assetPrices[target].price = +price.toFixed(2);
+            assetPrices[target].change24h = chg;
+            assetPrices[target].direction = price >= prev ? 'up' : 'down';
+            assetPrices[target].source = 'Live Real Institutional Feed';
+          }
         }
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }));
   }
 }
 
@@ -533,17 +538,29 @@ const tickMarketPrices = () => {
 };
 
 /**
- * Throttled Database Sync & Order Matching Engine (Runs every 1,500ms)
- * Decoupled from micro-ticks to ensure zero database lock contention.
+ * Throttled Database Sync & Order Matching Engine (Runs every 5,000ms)
+ * Decoupled from micro-ticks and wrapped in transactions to eliminate database lock contention.
  */
 const persistMarketAndCheckOrders = () => {
-  // 1. Sync to database balances so trader net worth reflects real market values
+  // 1. Sync to database balances using an atomic transaction so trader net worth reflects real market values
   try {
     const updateStmt = db.prepare('UPDATE user_crypto_balances SET rate_usd = ? WHERE asset_symbol = ?');
-    Object.keys(assetPrices).forEach(sym => {
-      updateStmt.run(assetPrices[sym].price, sym);
+    const updateAllRates = db.transaction((keys) => {
+      for (const sym of keys) {
+        updateStmt.run(assetPrices[sym].price, sym);
+      }
     });
+    updateAllRates(Object.keys(assetPrices));
   } catch(e) {}
+
+  // Fast guard check: if no active trades exist, skip heavy order matching loops entirely
+  let hasActiveTrades = false;
+  try {
+    hasActiveTrades = !!db.prepare("SELECT 1 FROM trades WHERE status IN ('PENDING', 'OPEN') LIMIT 1").get();
+  } catch(e) {
+    hasActiveTrades = true;
+  }
+  if (!hasActiveTrades) return;
 
   // 2. Auto-Trigger Pending Limit Orders
   try {
@@ -678,8 +695,8 @@ const persistMarketAndCheckOrders = () => {
 // Global Standard 1-Second (1,000ms) Live Market Tick Heartbeat
 setInterval(tickMarketPrices, 1000);
 
-// Throttled Database & Order Check: 2,000ms
-setInterval(persistMarketAndCheckOrders, 2000);
+// Throttled Database & Order Check: 5,000ms
+setInterval(persistMarketAndCheckOrders, 5000);
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };
