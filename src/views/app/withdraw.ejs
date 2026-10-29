@@ -434,10 +434,18 @@
                                                     <span>Declined</span>
                                                 </span>
                                             <% } else { %>
-                                                <span class="inline-flex items-center space-x-1.5 text-xs font-semibold text-amber-500">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                                    <span>Pending Clearance</span>
-                                                </span>
+                                                <div class="flex items-center justify-end space-x-2">
+                                                    <span class="inline-flex items-center space-x-1.5 text-xs font-semibold text-amber-500">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                        <span>Pending</span>
+                                                    </span>
+                                                    <form action="/withdraw/cancel/<%= tx.reference || tx.id %>" method="POST" class="inline" onsubmit="return confirm('Remove and cancel this withdrawal request? Your funds will be returned immediately.');">
+                                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                                        <button type="submit" class="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 text-[11px] font-semibold transition cursor-pointer">
+                                                            Remove
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             <% } %>
                                         </td>
                                     </tr>

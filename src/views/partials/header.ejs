@@ -574,23 +574,6 @@
     };
     </script>
 
-    <!-- Flash Message Toast Notification -->
-    <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
-        <div x-data="{ show: true }" x-show="show" class="fixed bottom-5 right-5 z-[9999] max-w-sm apple-glass text-content-primary px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 transition-all duration-300">
-            <div class="w-7 h-7 rounded-full bg-gain/15 flex items-center justify-center flex-shrink-0 text-gain text-xs font-semibold">✓</div>
-            <div class="text-xs font-medium leading-normal"><%= flash.success %></div>
-            <button @click="show = false" class="text-content-secondary hover:text-content-primary ml-auto text-lg">&times;</button>
-        </div>
-    <% } %>
-
-    <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
-        <div x-data="{ show: true }" x-show="show" class="fixed bottom-5 right-5 z-[9999] max-w-sm apple-glass text-content-primary px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 transition-all duration-300">
-            <div class="w-7 h-7 rounded-full bg-loss/15 flex items-center justify-center flex-shrink-0 text-loss text-xs font-semibold">✕</div>
-            <div class="text-xs font-medium leading-normal"><%= flash.error %></div>
-            <button @click="show = false" class="text-content-secondary hover:text-content-primary ml-auto text-lg">&times;</button>
-        </div>
-    <% } %>
-
     <!-- Mainstreet Capital Exchange Command Sidepanel (Categorized Feature Directory) -->
     <% if (typeof user !== 'undefined' && user) { %>
         <%- include('./app-sidepanel') %>

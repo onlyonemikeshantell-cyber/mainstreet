@@ -879,10 +879,43 @@ router.post('/withdraw', (req, res) => {
 
     const { ref, user } = executeWithdrawal();
     logActivity(user.id, 'WITHDRAW_REQUEST', `Requested withdrawal ref ${ref} for $${numAmount}`, req);
-    req.session.flash = { success: `Withdrawal request #${ref} submitted for institutional clearance.` };
+    req.session.flash = { success: `Withdrawal request #${ref} submitted successfully.` };
     return res.redirect('/withdraw');
   } catch (err) {
     req.session.flash = { error: err.message || 'Error processing withdrawal request.' };
+    return res.redirect('/withdraw');
+  }
+});
+
+// 5.4. Cancel / Remove Pending Withdrawal Request
+router.post(['/withdraw/cancel/:refOrId', '/api/withdrawal/cancel/:refOrId'], (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/auth/login');
+
+  const refOrId = req.params.refOrId;
+  const tx = db.prepare(`
+    SELECT * FROM transactions 
+    WHERE user_id = ? AND type = 'withdrawal' AND status = 'pending' AND (reference = ? OR id = ?)
+  `).get(userId, refOrId, refOrId);
+
+  if (!tx) {
+    req.session.flash = { error: 'Pending withdrawal request not found or already processed.' };
+    return res.redirect('/withdraw');
+  }
+
+  try {
+    const cancelTx = db.transaction(() => {
+      db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
+        .run(tx.amount, tx.amount, userId);
+      db.prepare('DELETE FROM transactions WHERE id = ?').run(tx.id);
+    });
+    cancelTx();
+
+    logActivity(userId, 'WITHDRAW_CANCEL', `Removed withdrawal request #${tx.reference || tx.id} and refunded $${tx.amount}`, req);
+    req.session.flash = { success: `Withdrawal request #${tx.reference || tx.id} has been removed. $${Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})} has been refunded to your available balance.` };
+    return res.redirect('/withdraw');
+  } catch (err) {
+    req.session.flash = { error: 'Failed to remove withdrawal request: ' + err.message };
     return res.redirect('/withdraw');
   }
 });
