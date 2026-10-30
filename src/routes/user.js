@@ -198,6 +198,11 @@ const logActivity = (userId, action, details, req) => {
   }
 };
 
+// Instant Swap Redirect to Dashboard Swap Modal
+router.get(['/swap', '/convert'], requireAuth, (req, res) => {
+  return res.redirect('/dashboard#swap');
+});
+
 // 1. Trader Dashboard
 router.get('/dashboard', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
@@ -1764,16 +1769,14 @@ router.post('/api/user/swap', requireAuth, (req, res) => {
 
   const getAssetRate = (sym) => {
     if (sym === 'USD' || sym === 'USDT') return 1.0;
+    const cleanSym = (sym || '').replace('/USDT', '').replace('/USD', '').trim();
+    if (livePrices[cleanSym] && livePrices[cleanSym].price) return Number(livePrices[cleanSym].price);
     if (livePrices[sym] && livePrices[sym].price) return Number(livePrices[sym].price);
-    if (livePrices[sym + '/USD'] && livePrices[sym + '/USD'].price) return Number(livePrices[sym + '/USD'].price);
-    if (livePrices[sym + '/USDT'] && livePrices[sym + '/USDT'].price) return Number(livePrices[sym + '/USDT'].price);
+    if (livePrices[cleanSym + '/USD'] && livePrices[cleanSym + '/USD'].price) return Number(livePrices[cleanSym + '/USD'].price);
+    if (livePrices[cleanSym + '/USDT'] && livePrices[cleanSym + '/USDT'].price) return Number(livePrices[cleanSym + '/USDT'].price);
     
-    // Check market_settings
-    const mkt = db.prepare('SELECT current_price FROM market_settings WHERE symbol = ? OR symbol LIKE ?').get(sym, sym + '/%');
-    if (mkt && mkt.current_price) return Number(mkt.current_price);
-
     // Fallback to user_crypto_balances
-    const ucb = db.prepare('SELECT rate_usd FROM user_crypto_balances WHERE asset_symbol = ?').get(sym);
+    const ucb = db.prepare('SELECT rate_usd FROM user_crypto_balances WHERE user_id = ? AND (asset_symbol = ? OR asset_symbol = ?)').get(userId, cleanSym, sym);
     if (ucb && ucb.rate_usd) return Number(ucb.rate_usd);
 
     return 1.0;
@@ -1834,10 +1837,16 @@ router.post('/api/user/swap', requireAuth, (req, res) => {
 
   // 5. Execute DB updates atomically
   const executeSwapTransaction = db.transaction(() => {
+    // Recalculate open trades PnL
+    const openTrades = db.prepare("SELECT profit_loss FROM trades WHERE user_id = ? AND status = 'OPEN'").all(userId);
+    let openTradesPnL = 0;
+    openTrades.forEach(t => openTradesPnL += Number(t.profit_loss || 0));
+
     // A. Deduct Source Asset
     if (fromSym === 'USD') {
       const newCash = Number(user.balance) - swapAmount;
-      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newCash, newCash, userId);
+      const newEquity = +(newCash + openTradesPnL).toFixed(2);
+      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newCash, newEquity, userId);
       // Synchronize USD in user_crypto_balances if row exists
       db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(newCash, userId);
     } else {
@@ -1848,7 +1857,8 @@ router.post('/api/user/swap', requireAuth, (req, res) => {
     // B. Credit Destination Asset
     if (toSym === 'USD') {
       const newCash = Number(user.balance) + toAmount;
-      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newCash, newCash, userId);
+      const newEquity = +(newCash + openTradesPnL).toFixed(2);
+      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newCash, newEquity, userId);
       // Synchronize USD in user_crypto_balances
       const usdRow = db.prepare("SELECT id FROM user_crypto_balances WHERE user_id = ? AND asset_symbol = 'USD'").get(userId);
       if (usdRow) {

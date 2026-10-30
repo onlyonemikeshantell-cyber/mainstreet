@@ -280,18 +280,24 @@ function dashboardPortfolioApp() {
 
         get fromAvailableBalance() {
             if (this.fromSymbol === 'USD') return this.cashBalance;
-            const match = this.userBalances.find(b => b.asset_symbol === this.fromSymbol);
+            const clean = (this.fromSymbol || '').replace('/USDT', '').replace('/USD', '').trim();
+            const match = this.userBalances.find(b => {
+                const bSym = (b.asset_symbol || '').replace('/USDT', '').replace('/USD', '').trim();
+                return bSym === clean || b.asset_symbol === this.fromSymbol;
+            });
             return match ? Number(match.balance || 0) : 0;
         },
 
         get fromRate() {
             if (this.fromSymbol === 'USD' || this.fromSymbol === 'USDT') return 1.0;
-            return this.rates[this.fromSymbol]?.price || 1.0;
+            const clean = (this.fromSymbol || '').replace('/USDT', '').replace('/USD', '').trim();
+            return this.rates[clean]?.price || this.rates[this.fromSymbol]?.price || 1.0;
         },
 
         get toRate() {
             if (this.toSymbol === 'USD' || this.toSymbol === 'USDT') return 1.0;
-            return this.rates[this.toSymbol]?.price || 1.0;
+            const clean = (this.toSymbol || '').replace('/USDT', '').replace('/USD', '').trim();
+            return this.rates[clean]?.price || this.rates[this.toSymbol]?.price || 1.0;
         },
 
         get estimatedOutput() {
@@ -911,7 +917,11 @@ function dashboardPortfolioApp() {
                 const token = metaTag ? metaTag.getAttribute('content') : '';
                 const res = await fetch('/api/user/swap', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Accept': 'application/json',
+                        'X-CSRF-Token': token
+                    },
                     body: JSON.stringify({
                         from_symbol: this.fromSymbol,
                         to_symbol: this.toSymbol,
@@ -2173,22 +2183,18 @@ function dashboardPortfolioApp() {
                                 <option value="USDT">USDT (Tether USD)</option>
                             </optgroup>
                             <optgroup label="🏛️ Global Stocks">
-                                <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
-                                    <% stockBalances.forEach(s => { %>
-                                        <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
-                                    <% }) %>
-                                <% } else { %>
-                                    <option value="AAPL">AAPL (Apple Inc)</option>
-                                    <option value="MSFT">MSFT (Microsoft)</option>
-                                    <option value="NVDA">NVDA (NVIDIA)</option>
-                                    <option value="TSLA">TSLA (Tesla)</option>
-                                    <option value="AMZN">AMZN (Amazon)</option>
-                                    <option value="GOOGL">GOOGL (Alphabet Google)</option>
-                                    <option value="META">META (Meta Platforms)</option>
-                                    <option value="PLTR">PLTR (Palantir)</option>
-                                    <option value="AMD">AMD (Advanced Micro Devices)</option>
-                                    <option value="NFLX">NFLX (Netflix)</option>
-                                <% } %>
+                                <option value="AAPL">AAPL (Apple Inc)</option>
+                                <option value="MSFT">MSFT (Microsoft)</option>
+                                <option value="NVDA">NVDA (NVIDIA)</option>
+                                <option value="TSLA">TSLA (Tesla)</option>
+                                <option value="AMZN">AMZN (Amazon)</option>
+                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                <option value="META">META (Meta Platforms)</option>
+                                <option value="PLTR">PLTR (Palantir)</option>
+                                <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                <option value="NFLX">NFLX (Netflix)</option>
+                                <option value="COIN">COIN (Coinbase Global)</option>
+                                <option value="MSTR">MSTR (MicroStrategy)</option>
                             </optgroup>
                         </select>
                     </div>
