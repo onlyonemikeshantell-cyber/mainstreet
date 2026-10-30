@@ -383,13 +383,15 @@ function dashboardPortfolioApp() {
             this.subaccountTransferSubmitting = true;
             this.subaccountTransferError = '';
             this.subaccountTransferMsg = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             try {
                 const res = await fetch('/api/retirement/transfer', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         direction: this.subaccountTransferDirection,
-                        amount: Number(this.subaccountTransferAmount)
+                        amount: Number(this.subaccountTransferAmount),
+                        _token: token
                     })
                 });
                 const data = await res.json();
