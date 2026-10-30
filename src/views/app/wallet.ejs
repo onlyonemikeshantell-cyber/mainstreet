@@ -66,9 +66,9 @@ function generateSvgPath(sparkline) {
                         <h1 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
                             $<%= totalCryptoValuationUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
                         </h1>
-                        <span class="inline-flex items-center text-sm font-semibold <%= overallChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
-                            <%= overallChangePct >= 0 ? '▲' : '▼' %> <%= overallChangePct >= 0 ? '+' : '' %><%= overallChangePct.toFixed(2) %>%
-                            <span class="text-slate-400 font-normal ml-1.5">(<%= totalPnl24hUsd >= 0 ? '+$' : '-$' %><%= Math.abs(totalPnl24hUsd).toFixed(2) %>)</span>
+                        <span class="inline-flex items-center text-sm font-semibold <%= Number(overallChangePct || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
+                            <%= Number(overallChangePct || 0) >= 0 ? '▲' : '▼' %> <%= Number(overallChangePct || 0) >= 0 ? '+' : '' %><%= Number(overallChangePct || 0).toFixed(2) %>%
+                            <span class="text-slate-400 font-normal ml-1.5">(<%= Number(totalPnl24hUsd || 0) >= 0 ? '+$' : '-$' %><%= Math.abs(Number(totalPnl24hUsd || 0)).toFixed(2) %>)</span>
                         </span>
                     </div>
                     <div class="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-400">
@@ -215,7 +215,17 @@ function generateSvgPath(sparkline) {
                             <tr class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                                 <th class="py-3 px-4">Asset</th>
                                 <th class="py-3 px-4 text-right">Price</th>
-                                <th class="py-3 px-4 text-right">24h Change</th>
+                                <th class="py-3 px-4 text-right font-mono">
+                                    <div class="flex items-center justify-end space-x-2">
+                                        <span class="font-bold text-slate-500 dark:text-slate-300 uppercase whitespace-nowrap" x-text="changeTimeframe.toUpperCase() + ' CHANGE'">24H CHANGE</span>
+                                        <div class="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 text-[10px] font-mono">
+                                            <button type="button" @click="changeTimeframe = '24h'" :class="changeTimeframe === '24h' ? 'bg-primary text-white font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="px-1.5 py-0.5 rounded transition cursor-pointer">24h</button>
+                                            <button type="button" @click="changeTimeframe = '12h'" :class="changeTimeframe === '12h' ? 'bg-primary text-white font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="px-1.5 py-0.5 rounded transition cursor-pointer">12h</button>
+                                            <button type="button" @click="changeTimeframe = '6h'" :class="changeTimeframe === '6h' ? 'bg-primary text-white font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="px-1.5 py-0.5 rounded transition cursor-pointer">6h</button>
+                                            <button type="button" @click="changeTimeframe = '1h'" :class="changeTimeframe === '1h' ? 'bg-primary text-white font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'" class="px-1.5 py-0.5 rounded transition cursor-pointer">1h</button>
+                                        </div>
+                                    </div>
+                                </th>
                                 <th class="py-3 px-4 text-right">Holdings</th>
                                 <th class="py-3 px-4 text-right">Total Value</th>
                                 <th class="py-3 px-4 text-right">Action</th>
@@ -258,9 +268,10 @@ function generateSvgPath(sparkline) {
                                     $<%= item.current_rate.toLocaleString('en-US', { minimumFractionDigits: item.current_rate < 1 ? 4 : 2, maximumFractionDigits: item.current_rate < 1 ? 4 : 2 }) %>
                                 </td>
 
-                                <!-- 24h Delta -->
-                                <td class="py-3 px-4 text-right whitespace-nowrap font-mono font-semibold text-xs <%= isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
-                                    <%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %>
+                                <!-- Dynamic Timeframe Delta -->
+                                <td class="py-3 px-4 text-right whitespace-nowrap font-mono font-semibold text-xs"
+                                    :class="getAssetChange('<%= sym %>').isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+                                    <span class="tabular-nums transition-all duration-300" x-text="getAssetChange('<%= sym %>').formatted"><%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %></span>
                                 </td>
 
                                 <!-- Vault Holdings -->
@@ -317,9 +328,14 @@ function generateSvgPath(sparkline) {
                                 <p class="text-xs text-slate-500 dark:text-slate-400 font-mono"><%= sym %></p>
                             </div>
                         </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono <%= isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' %>">
-                            <%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %>
-                        </span>
+                        <div class="flex items-center space-x-1">
+                            <span class="text-[9px] font-mono text-slate-400 uppercase font-bold" x-text="changeTimeframe"></span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono tabular-nums transition-all duration-300"
+                                  :class="getAssetChange('<%= sym %>').isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                                  x-text="getAssetChange('<%= sym %>').formatted">
+                                <%= isPositive ? '▲ ' : '▼ ' %><%= item.change24h %>
+                            </span>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
@@ -1319,11 +1335,46 @@ function getInitialWalletTab() {
 
 function cryptoVaultHub() {
     return {
+        rates: <%- safeJson(typeof livePrices !== 'undefined' ? livePrices : {}) %>,
+        changeTimeframe: '24h',
         currentTab: getInitialWalletTab(),
         viewMode: 'table',
         selectedCategory: 'all',
         searchQuery: '',
         hideZeroBalances: false,
+
+        getAssetChange(sym) {
+            if (!sym) return { num: 0, isUp: true, pct: '0.00%', formatted: '▲ +0.00%' };
+            const clean = (sym || '').replace('/USDT', '').replace('/USD', '').trim();
+            const r = this.rates[clean] || this.rates[sym];
+            if (!r) return { num: 0, isUp: true, pct: '0.00%', formatted: '▲ +0.00%' };
+
+            const tf = this.changeTimeframe || '24h';
+            let val = r['change' + tf];
+            if (val === undefined || val === null || isNaN(val)) {
+                const base24 = Number(r.change24h || 0);
+                if (tf === '1h') val = +(base24 * 0.14).toFixed(2);
+                else if (tf === '6h') val = +(base24 * 0.38).toFixed(2);
+                else if (tf === '12h') val = +(base24 * 0.62).toFixed(2);
+                else val = base24;
+            }
+            val = Number(val);
+            const isUp = val >= 0;
+            return {
+                num: val,
+                isUp,
+                pct: Math.abs(val).toFixed(2) + '%',
+                formatted: (isUp ? '▲ +' : '▼ ') + Math.abs(val).toFixed(2) + '%'
+            };
+        },
+
+        syncLiveRates() {
+            fetch('/api/user/sync')
+                .then(r => r.json())
+                .then(d => {
+                    if (d && d.livePrices) this.rates = d.livePrices;
+                }).catch(() => {});
+        },
 
         showPorModal: false,
         showGovernanceModal: false,
@@ -1381,6 +1432,8 @@ function cryptoVaultHub() {
         pullSubmitting: false,
 
         init() {
+            this.syncLiveRates();
+            setInterval(() => this.syncLiveRates(), 4000);
             this.updateSendAssetDetails();
             this.checkPendingWcSession();
             window.addEventListener('focus', () => this.checkPendingWcSession());

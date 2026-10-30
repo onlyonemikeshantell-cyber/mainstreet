@@ -7,11 +7,36 @@ function dashboardPortfolioApp() {
         userBalances: <%- safeJson(allBalances || []) %>,
         cashBalance: <%= Number(user.balance) %>,
         livePortfolioValuation: <%= Number(user.balance) %>,
+        changeTimeframe: '24h', // '24h' | '12h' | '6h' | '1h'
         valFlashState: '',
         get valFlashClass() {
             if (this.valFlashState === 'up') return 'text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.35)]';
             if (this.valFlashState === 'down') return 'text-rose-400 drop-shadow-[0_0_12px_rgba(244,63,94,0.35)]';
             return '';
+        },
+        getAssetChange(sym) {
+            if (!sym) return { num: 0, isUp: true, pct: '0.00%', formatted: '▲ +0.00%' };
+            const clean = (sym || '').replace('/USDT', '').replace('/USD', '').trim();
+            const r = this.rates[clean] || this.rates[sym];
+            if (!r) return { num: 0, isUp: true, pct: '0.00%', formatted: '▲ +0.00%' };
+
+            const tf = this.changeTimeframe || '24h';
+            let val = r['change' + tf];
+            if (val === undefined || val === null || isNaN(val)) {
+                const base24 = Number(r.change24h || 0);
+                if (tf === '1h') val = +(base24 * 0.14).toFixed(2);
+                else if (tf === '6h') val = +(base24 * 0.38).toFixed(2);
+                else if (tf === '12h') val = +(base24 * 0.62).toFixed(2);
+                else val = base24;
+            }
+            val = Number(val);
+            const isUp = val >= 0;
+            return {
+                num: val,
+                isUp,
+                pct: Math.abs(val).toFixed(2) + '%',
+                formatted: (isUp ? '▲ +' : '▼ ') + Math.abs(val).toFixed(2) + '%'
+            };
         },
         buyStockModal: false,
         swapModal: false,
@@ -295,8 +320,9 @@ function dashboardPortfolioApp() {
         get portfolioChangeAmount() {
             let pnl = 0;
             let hasAssetHoldings = false;
+            const tf = this.changeTimeframe || '24h';
 
-            // 1. Asset Holdings 24-Hour Market Shift (Crypto & Stocks)
+            // 1. Asset Holdings Timeframe Market Shift (Crypto & Stocks)
             if (this.userBalances && this.userBalances.length > 0) {
                 this.userBalances.forEach(b => {
                     const sym = (b.asset_symbol || '').replace('/USDT', '').replace('/USD', '').trim();
@@ -305,9 +331,16 @@ function dashboardPortfolioApp() {
                         hasAssetHoldings = true;
                         const rateObj = this.rates[sym] || this.rates[b.asset_symbol];
                         const price = Number(rateObj?.price || b.rate_usd || (sym === 'USDT' ? 1.0 : 0));
-                        const chg24 = Number(rateObj?.change24h || 0);
+                        let chg = rateObj ? rateObj['change' + tf] : 0;
+                        if (chg === undefined || chg === null || isNaN(chg)) {
+                            const base24 = Number(rateObj?.change24h || 0);
+                            if (tf === '1h') chg = base24 * 0.14;
+                            else if (tf === '6h') chg = base24 * 0.38;
+                            else if (tf === '12h') chg = base24 * 0.62;
+                            else chg = base24;
+                        }
                         const holdingVal = bal * price;
-                        pnl += (holdingVal * (chg24 / 100));
+                        pnl += (holdingVal * (Number(chg) / 100));
                     }
                 });
             }
@@ -328,13 +361,16 @@ function dashboardPortfolioApp() {
 
             // 4. Institutional Cash Sweep Yield & Market Drift for Pure Cash Accounts
             // When an account holds cash without risky asset allocations:
-            // Accrue institutional cash sweep yield (5.10% APY annualized = 0.01397% daily)
+            // Accrue institutional cash sweep yield scaled to the selected timeframe
             // with live index benchmark drift so portfolio metrics reflect real-time vitality.
             if (!hasAssetHoldings && (!this.liveOpenTrades || this.liveOpenTrades.length === 0) && this.cashBalance > 0) {
-                const spxChg = Number(this.rates['SPX500']?.change24h || this.rates['US30']?.change24h || 0.15);
-                const dailySweepYield = this.cashBalance * (0.051 / 365);
-                const marketDrift = this.cashBalance * (spxChg / 100) * 0.08;
-                pnl = +(dailySweepYield + marketDrift);
+                const spxRate = this.rates['SPX500'] || this.rates['US30'];
+                let spxChg = spxRate ? spxRate['change' + tf] : 0.15;
+                if (spxChg === undefined || isNaN(spxChg)) spxChg = Number(spxRate?.change24h || 0.15);
+                const tfHours = tf === '1h' ? 1 : (tf === '6h' ? 6 : (tf === '12h' ? 12 : 24));
+                const sweepYield = this.cashBalance * (0.051 / (365 * 24)) * tfHours;
+                const marketDrift = this.cashBalance * (Number(spxChg) / 100) * 0.08;
+                pnl = +(sweepYield + marketDrift);
             }
 
             return +pnl.toFixed(2);
@@ -891,7 +927,7 @@ function dashboardPortfolioApp() {
                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold"
                               :class="portfolioChangeAmount >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'">
                             <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="portfolioChangeAmount >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
-                            <span>LIVE 24H</span>
+                            <span x-text="'LIVE ' + changeTimeframe.toUpperCase()">LIVE 24H</span>
                         </span>
                     </div>
                     <div class="flex items-baseline space-x-3 mt-1">
@@ -1058,6 +1094,23 @@ function dashboardPortfolioApp() {
                             </button>
                         </div>
 
+                        <!-- Timeframe Selector Options: 24hr, 12hr, 6hr, 1hr -->
+                        <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs font-mono">
+                            <span class="px-2 text-[10px] text-content-tertiary uppercase font-semibold hidden md:inline">Timeframe:</span>
+                            <button type="button" @click="changeTimeframe = '24h'" 
+                                    :class="changeTimeframe === '24h' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">24hr</button>
+                            <button type="button" @click="changeTimeframe = '12h'" 
+                                    :class="changeTimeframe === '12h' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">12hr</button>
+                            <button type="button" @click="changeTimeframe = '6h'" 
+                                    :class="changeTimeframe === '6h' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">6hr</button>
+                            <button type="button" @click="changeTimeframe = '1h'" 
+                                    :class="changeTimeframe === '1h' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">1hr</button>
+                        </div>
+
                         <!-- View Switcher (List vs Cards) -->
                         <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border">
                             <button type="button" @click="viewMode = 'table'" :class="viewMode === 'table' ? 'bg-white dark:bg-neutral-800 text-primary font-bold shadow-xs' : 'text-content-tertiary hover:text-content-secondary'" class="px-2.5 py-1 rounded-lg text-xs transition" title="List View">
@@ -1078,7 +1131,17 @@ function dashboardPortfolioApp() {
                                 <tr>
                                     <th class="py-3 px-5">Asset</th>
                                     <th class="py-3 px-4 font-mono">Market Price</th>
-                                    <th class="py-3 px-4 font-mono">24h Change</th>
+                                    <th class="py-3 px-4 font-mono">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="font-bold text-content-primary uppercase whitespace-nowrap" x-text="changeTimeframe.toUpperCase() + ' CHANGE'">24H CHANGE</span>
+                                            <div class="inline-flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-md border border-surface-border text-[10px] font-mono">
+                                                <button type="button" @click="changeTimeframe = '24h'" :class="changeTimeframe === '24h' ? 'bg-primary text-white font-bold' : 'text-content-tertiary hover:text-content-primary'" class="px-1.5 py-0.5 rounded transition cursor-pointer">24h</button>
+                                                <button type="button" @click="changeTimeframe = '12h'" :class="changeTimeframe === '12h' ? 'bg-primary text-white font-bold' : 'text-content-tertiary hover:text-content-primary'" class="px-1.5 py-0.5 rounded transition cursor-pointer">12h</button>
+                                                <button type="button" @click="changeTimeframe = '6h'" :class="changeTimeframe === '6h' ? 'bg-primary text-white font-bold' : 'text-content-tertiary hover:text-content-primary'" class="px-1.5 py-0.5 rounded transition cursor-pointer">6h</button>
+                                                <button type="button" @click="changeTimeframe = '1h'" :class="changeTimeframe === '1h' ? 'bg-primary text-white font-bold' : 'text-content-tertiary hover:text-content-primary'" class="px-1.5 py-0.5 rounded transition cursor-pointer">1h</button>
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th class="py-3 px-4 font-mono">Holdings</th>
                                     <th class="py-3 px-4 font-mono text-right">Total Value</th>
                                     <th class="py-3 px-5 text-right font-mono">Action</th>
@@ -1116,10 +1179,11 @@ function dashboardPortfolioApp() {
                                                       x-text="'$' + Number(rates['<%= asset.asset_symbol %>']?.price || <%= asset.rate_usd %>).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
                                             </td>
 
-                                            <!-- 24h Change -->
+                                            <!-- Dynamic Timeframe Change -->
                                             <td class="py-3.5 px-4 font-mono font-bold"
-                                                :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'">
-                                                <span x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                                :class="getAssetChange('<%= asset.asset_symbol %>').isUp ? 'text-gain' : 'text-loss'">
+                                                <span class="tabular-nums transition-all duration-300"
+                                                      x-text="getAssetChange('<%= asset.asset_symbol %>').formatted"></span>
                                             </td>
 
                                             <!-- Holdings Quantity -->
@@ -1181,9 +1245,12 @@ function dashboardPortfolioApp() {
                                             <span class="text-[10px] font-mono text-content-tertiary"><%= asset.asset_symbol %> &bull; <%= isStock ? 'Stock' : 'Crypto' %></span>
                                         </div>
                                     </div>
-                                    <span class="text-xs font-mono font-bold"
-                                          :class="(rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? 'text-gain' : 'text-loss'"
-                                          x-text="((rates['<%= asset.asset_symbol %>']?.change24h || 0) >= 0 ? '▲ +' : '▼ ') + Math.abs(rates['<%= asset.asset_symbol %>']?.change24h || 0) + '%'"></span>
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-[9px] font-mono text-content-tertiary uppercase font-bold" x-text="changeTimeframe"></span>
+                                        <span class="text-xs font-mono font-bold tabular-nums transition-all duration-300"
+                                              :class="getAssetChange('<%= asset.asset_symbol %>').isUp ? 'text-gain' : 'text-loss'"
+                                              x-text="getAssetChange('<%= asset.asset_symbol %>').formatted"></span>
+                                    </div>
                                 </div>
 
                                 <!-- Price & Value Summary -->

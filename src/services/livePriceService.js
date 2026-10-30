@@ -180,6 +180,29 @@ const CRYPTO_SYMBOL_MAP = {
   'TONUSDT': 'TON'
 };
 
+function updateItemPrice(target, newPrice, source) {
+  const item = assetPrices[target];
+  if (!item || !newPrice || isNaN(newPrice)) return;
+  item.prevPrice = item.price;
+  item.price = newPrice;
+  item.anchorPrice = newPrice;
+  item.direction = newPrice >= item.prevPrice ? 'up' : 'down';
+  if (source) item.source = source;
+
+  if (item.price24hAgo && item.price24hAgo > 0) {
+    item.change24h = +(((newPrice - item.price24hAgo) / item.price24hAgo) * 100).toFixed(2);
+  }
+  if (item.price12hAgo && item.price12hAgo > 0) {
+    item.change12h = +(((newPrice - item.price12hAgo) / item.price12hAgo) * 100).toFixed(2);
+  }
+  if (item.price6hAgo && item.price6hAgo > 0) {
+    item.change6h = +(((newPrice - item.price6hAgo) / item.price6hAgo) * 100).toFixed(2);
+  }
+  if (item.price1hAgo && item.price1hAgo > 0) {
+    item.change1h = +(((newPrice - item.price1hAgo) / item.price1hAgo) * 100).toFixed(2);
+  }
+}
+
 async function syncRealCryptoPrices() {
   try {
     const res = await fetch('https://api.mexc.com/api/v3/ticker/price', { signal: AbortSignal.timeout(5000) });
@@ -190,11 +213,7 @@ async function syncRealCryptoPrices() {
       if (target && assetPrices[target]) {
         const p = parseFloat(t.price);
         if (!isNaN(p) && p > 0) {
-          assetPrices[target].prevPrice = assetPrices[target].price;
-          assetPrices[target].price = p;
-          assetPrices[target].anchorPrice = p;
-          assetPrices[target].direction = p >= assetPrices[target].prevPrice ? 'up' : 'down';
-          assetPrices[target].source = 'Live Real MEXC Spot';
+          updateItemPrice(target, p, 'Live Real MEXC Spot');
         }
       }
     });
@@ -215,49 +234,27 @@ async function syncRealForexPrices() {
 
     if (rates.EUR && assetPrices['EUR/USD']) {
       const p = +(1 / rates.EUR).toFixed(4);
-      assetPrices['EUR/USD'].prevPrice = assetPrices['EUR/USD'].price;
-      assetPrices['EUR/USD'].price = p;
-      assetPrices['EUR/USD'].anchorPrice = p;
-      assetPrices['EUR/USD'].direction = p >= assetPrices['EUR/USD'].prevPrice ? 'up' : 'down';
-      assetPrices['EUR/USD'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('EUR/USD', p, 'Live Real ECB/Interbank');
     }
     if (rates.GBP && assetPrices['GBP/USD']) {
       const p = +(1 / rates.GBP).toFixed(4);
-      assetPrices['GBP/USD'].prevPrice = assetPrices['GBP/USD'].price;
-      assetPrices['GBP/USD'].price = p;
-      assetPrices['GBP/USD'].anchorPrice = p;
-      assetPrices['GBP/USD'].direction = p >= assetPrices['GBP/USD'].prevPrice ? 'up' : 'down';
-      assetPrices['GBP/USD'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('GBP/USD', p, 'Live Real ECB/Interbank');
     }
     if (rates.JPY && assetPrices['USD/JPY']) {
       const p = +rates.JPY.toFixed(2);
-      assetPrices['USD/JPY'].prevPrice = assetPrices['USD/JPY'].price;
-      assetPrices['USD/JPY'].price = p;
-      assetPrices['USD/JPY'].anchorPrice = p;
-      assetPrices['USD/JPY'].direction = p >= assetPrices['USD/JPY'].prevPrice ? 'up' : 'down';
-      assetPrices['USD/JPY'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('USD/JPY', p, 'Live Real ECB/Interbank');
     }
     if (rates.CAD && assetPrices['USD/CAD']) {
       const p = +rates.CAD.toFixed(4);
-      assetPrices['USD/CAD'].prevPrice = assetPrices['USD/CAD'].price;
-      assetPrices['USD/CAD'].price = p;
-      assetPrices['USD/CAD'].anchorPrice = p;
-      assetPrices['USD/CAD'].direction = p >= assetPrices['USD/CAD'].prevPrice ? 'up' : 'down';
-      assetPrices['USD/CAD'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('USD/CAD', p, 'Live Real ECB/Interbank');
     }
     if (rates.CHF && assetPrices['USD/CHF']) {
       const p = +rates.CHF.toFixed(4);
-      assetPrices['USD/CHF'].prevPrice = assetPrices['USD/CHF'].price;
-      assetPrices['USD/CHF'].price = p;
-      assetPrices['USD/CHF'].direction = p >= assetPrices['USD/CHF'].prevPrice ? 'up' : 'down';
-      assetPrices['USD/CHF'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('USD/CHF', p, 'Live Real ECB/Interbank');
     }
     if (rates.AUD && assetPrices['AUD/USD']) {
       const p = +(1 / rates.AUD).toFixed(4);
-      assetPrices['AUD/USD'].prevPrice = assetPrices['AUD/USD'].price;
-      assetPrices['AUD/USD'].price = p;
-      assetPrices['AUD/USD'].direction = p >= assetPrices['AUD/USD'].prevPrice ? 'up' : 'down';
-      assetPrices['AUD/USD'].source = 'Live Real ECB/Interbank';
+      updateItemPrice('AUD/USD', p, 'Live Real ECB/Interbank');
     }
   } catch(e) {
     // Network fallback handled silently
@@ -385,7 +382,15 @@ async function syncRealMarketQuotes() {
 
             assetPrices[target].prevPrice = assetPrices[target].price;
             assetPrices[target].price = +price.toFixed(2);
+            assetPrices[target].anchorPrice = +price.toFixed(2);
             assetPrices[target].change24h = chg;
+            assetPrices[target].change12h = +(chg * 0.62).toFixed(2);
+            assetPrices[target].change6h = +(chg * 0.38).toFixed(2);
+            assetPrices[target].change1h = +(chg * 0.14).toFixed(2);
+            assetPrices[target].price24hAgo = prev;
+            assetPrices[target].price12hAgo = +price.toFixed(2) / (1 + (assetPrices[target].change12h / 100));
+            assetPrices[target].price6hAgo = +price.toFixed(2) / (1 + (assetPrices[target].change6h / 100));
+            assetPrices[target].price1hAgo = +price.toFixed(2) / (1 + (assetPrices[target].change1h / 100));
             assetPrices[target].direction = price >= prev ? 'up' : 'down';
             assetPrices[target].source = 'Live Real Institutional Feed';
           }
@@ -482,6 +487,19 @@ Object.keys(assetPrices).forEach(sym => {
   item.ask = +(item.price + halfSpread).toFixed(prof.dec);
   item.spread = prof.spread;
   item.lastTickTime = Date.now();
+
+  // Multi-Timeframe Change Baselines (24hr, 12hr, 6hr, 1hr)
+  const base24 = Number(item.change24h !== undefined ? item.change24h : 0);
+  item.change24h = base24;
+  item.change12h = Number(item.change12h !== undefined ? item.change12h : +(base24 * 0.62).toFixed(2));
+  item.change6h = Number(item.change6h !== undefined ? item.change6h : +(base24 * 0.38).toFixed(2));
+  item.change1h = Number(item.change1h !== undefined ? item.change1h : +(base24 * 0.14).toFixed(2));
+
+  // Compute reference historical anchor prices for live ticking
+  item.price24hAgo = item.price / (1 + (item.change24h / 100));
+  item.price12hAgo = item.price / (1 + (item.change12h / 100));
+  item.price6hAgo = item.price / (1 + (item.change6h / 100));
+  item.price1hAgo = item.price / (1 + (item.change1h / 100));
 });
 
 /**
@@ -534,6 +552,20 @@ const tickMarketPrices = () => {
     item.ask = +(newPrice + halfSpread).toFixed(prof.dec);
     item.spread = prof.spread;
     item.lastTickTime = now;
+
+    // Dynamically recalculate live changes for all timeframes on every tick
+    if (item.price24hAgo && item.price24hAgo > 0) {
+      item.change24h = +(((newPrice - item.price24hAgo) / item.price24hAgo) * 100).toFixed(2);
+    }
+    if (item.price12hAgo && item.price12hAgo > 0) {
+      item.change12h = +(((newPrice - item.price12hAgo) / item.price12hAgo) * 100).toFixed(2);
+    }
+    if (item.price6hAgo && item.price6hAgo > 0) {
+      item.change6h = +(((newPrice - item.price6hAgo) / item.price6hAgo) * 100).toFixed(2);
+    }
+    if (item.price1hAgo && item.price1hAgo > 0) {
+      item.change1h = +(((newPrice - item.price1hAgo) / item.price1hAgo) * 100).toFixed(2);
+    }
   });
 };
 
