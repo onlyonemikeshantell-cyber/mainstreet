@@ -1017,264 +1017,119 @@ function dashboardPortfolioApp() {
         <!-- ============================================================================== -->
         <!-- ============================================================================== -->
         <!-- ============================================================================== -->
-        <!-- MASTER INSTITUTIONAL COCKPIT: DUAL-VAULT HERO & SUBACCOUNT CONTROLLER          -->
         <!-- ============================================================================== -->
-        <div class="glass-card rounded-3xl p-6 sm:p-7 border shadow-sm space-y-6 transition-all duration-300"
-             :class="selectedAccountMode === 'retirement' ? 'border-amber-500/35 bg-gradient-to-br from-surface-raised via-amber-500/[0.02] to-surface-raised' : 'border-surface-border bg-surface-raised'">
+        <!-- MASTER PORTFOLIO HERO COCKPIT                                                 -->
+        <!-- ============================================================================== -->
+        <div class="glass-card rounded-3xl p-6 sm:p-7 border border-surface-border bg-surface-raised shadow-sm space-y-6">
             
-            <!-- 1. Crown Navigation: Apple-Style Integrated Segmented Vault Controller -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-surface-border/60">
-                <div class="flex items-center space-x-2.5">
-                    <!-- Segmented Control Container -->
-                    <div class="inline-flex items-center p-1 bg-surface-overlay/80 dark:bg-black/40 rounded-2xl border border-surface-border text-xs font-sans">
-                        <!-- Primary Brokerage Subaccount Tab Button -->
-                        <button type="button" 
-                                @click="setAccountMode('standard')" 
-                                class="px-3.5 sm:px-4 py-2 rounded-xl transition-all duration-200 flex items-center space-x-2 cursor-pointer font-medium"
-                                :class="selectedAccountMode !== 'retirement' ? 'bg-white dark:bg-[#2c2c2e] text-content-primary dark:text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'">
-                            <span class="text-sm">💼</span>
-                            <span class="truncate">Primary Brokerage</span>
-                            <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/10 text-content-tertiary">#<%= 10000 + user.id %></span>
-                        </button>
-
-                        <!-- Retirement IRA Custodial Subaccount Tab Button -->
-                        <button type="button" 
-                                @click="setAccountMode('retirement')" 
-                                class="px-3.5 sm:px-4 py-2 rounded-xl transition-all duration-200 flex items-center space-x-2 cursor-pointer font-medium"
-                                :class="selectedAccountMode === 'retirement' ? 'bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-500/30' : 'text-amber-600 dark:text-amber-400 hover:text-amber-500'">
-                            <span class="text-sm">🛡️</span>
-                            <span class="truncate">Retirement IRA</span>
-                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded font-black uppercase"
-                                  :class="selectedAccountMode === 'retirement' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/15 text-amber-500'">Tax-Free</span>
-                        </button>
+            <!-- Top Row: Balance Headline & Core Action Buttons -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[11px] font-mono font-medium text-content-tertiary uppercase tracking-wider">Total Portfolio Value</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold"
+                              :class="portfolioChangeAmount >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'">
+                            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="portfolioChangeAmount >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                            <span x-text="'LIVE ' + changeTimeframe.toUpperCase()">LIVE 24H</span>
+                        </span>
+                    </div>
+                    <div class="flex items-baseline space-x-3 mt-1">
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-numeral tracking-tight transition-colors duration-300"
+                            :class="valFlashClass"
+                            x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></h1>
+                        <span class="text-sm sm:text-base font-bold font-mono transition-colors duration-300"
+                              :class="portfolioChangeAmount >= 0 ? 'text-gain' : 'text-loss'">
+                            <span x-html="portfolioChangeAmount >= 0 ? '&#9650;' : '&#9660;'"></span>
+                            <span x-text="(portfolioChangeAmount >= 0 ? '+' : '') + portfolioChangePct + '%'"></span>
+                            <span class="text-content-tertiary text-xs font-normal font-sans"
+                                  x-text="'(' + (portfolioChangeAmount >= 0 ? '+$' : '-$') + Math.abs(portfolioChangeAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')'"></span>
+                        </span>
                     </div>
                 </div>
 
-                <!-- Right Action: Internal Subaccount Transfer & Telemetry -->
-                <div class="flex items-center space-x-2.5 self-start sm:self-auto">
-                    <button type="button" 
-                            @click="subaccountTransferModal = true"
-                            class="px-3.5 py-2 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer shadow-xs active:scale-95"
-                            title="Instant internal transfer between Primary Cash and Retirement IRA">
-                        <span>⇄</span>
-                        <span>Internal Transfer</span>
+                <!-- Focused Primary Action Buttons -->
+                <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
+                    <a href="/deposit" class="px-5 py-2.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/20 transition flex items-center space-x-1.5">
+                        <span class="text-sm font-bold leading-none">+</span>
+                        <span>Deposit</span>
+                    </a>
+                    <a href="/webtrade/app" class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm shadow-primary/20 transition flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                        <span>Trade</span>
+                    </a>
+                    <button type="button" @click="swapModal = true" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer">
+                        <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        <span>Swap</span>
                     </button>
+                    <a href="/withdraw" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition">
+                        Withdraw
+                    </a>
                 </div>
             </div>
 
-            <!-- 2. MODE A: PRIMARY BROKERAGE COCKPIT -->
-            <div x-show="selectedAccountMode !== 'retirement'" class="space-y-6">
-                <!-- Top Row: Balance Headline & Core Action Buttons -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <!-- Performance Chart -->
+            <div class="pt-2 space-y-2">
+                <div class="flex items-center justify-between text-xs font-mono text-content-tertiary">
+                    <span>Performance</span>
+                    <div class="flex items-center space-x-1 p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs">
+                        <button type="button" @click="chartTimeframe = '7D'" :class="chartTimeframe === '7D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">7D</button>
+                        <button type="button" @click="chartTimeframe = '30D'" :class="chartTimeframe === '30D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">30D</button>
+                        <button type="button" @click="chartTimeframe = '90D'" :class="chartTimeframe === '90D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">90D</button>
+                        <button type="button" @click="chartTimeframe = '1Y'" :class="chartTimeframe === '1Y' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">1Y</button>
+                    </div>
+                </div>
+
+                <div class="w-full relative h-[150px] overflow-hidden rounded-2xl bg-surface-overlay/20 border border-surface-border/40 p-1.5">
+                    <svg viewBox="0 0 800 200" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="equityGradientSimple" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25" />
+                                <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
+                            </linearGradient>
+                        </defs>
+                        <path :d="chartSvgArea" fill="url(#equityGradientSimple)" class="transition-all duration-500" />
+                        <path :d="chartSvgPath" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-500" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Clean Unified Summary Row -->
+            <div class="pt-4 border-t border-surface-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
+                <div class="flex items-center space-x-6 sm:space-x-8">
                     <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-[11px] font-mono font-medium text-content-tertiary uppercase tracking-wider">Total Portfolio Value</span>
-                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold"
-                                  :class="portfolioChangeAmount >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'">
-                                <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="portfolioChangeAmount >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
-                                <span x-text="'LIVE ' + changeTimeframe.toUpperCase()">LIVE 24H</span>
-                            </span>
-                        </div>
-                        <div class="flex items-baseline space-x-3 mt-1">
-                            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-numeral tracking-tight transition-colors duration-300"
-                                :class="valFlashClass"
-                                x-text="'$' + livePortfolioValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></h1>
-                            <span class="text-sm sm:text-base font-bold font-mono transition-colors duration-300"
-                                  :class="portfolioChangeAmount >= 0 ? 'text-gain' : 'text-loss'">
-                                <span x-html="portfolioChangeAmount >= 0 ? '&#9650;' : '&#9660;'"></span>
-                                <span x-text="(portfolioChangeAmount >= 0 ? '+' : '') + portfolioChangePct + '%'"></span>
-                                <span class="text-content-tertiary text-xs font-normal font-sans"
-                                      x-text="'(' + (portfolioChangeAmount >= 0 ? '+$' : '-$') + Math.abs(portfolioChangeAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')'"></span>
-                            </span>
-                        </div>
+                        <span class="text-content-tertiary text-[11px] block">Cash Balance</span>
+                        <strong class="text-emerald-600 dark:text-emerald-400 font-bold text-sm" x-text="'$' + cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
                     </div>
-
-                    <!-- Focused Primary Action Buttons -->
-                    <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
-                        <a href="/deposit" class="px-5 py-2.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/20 transition flex items-center space-x-1.5">
-                            <span class="text-sm font-bold leading-none">+</span>
-                            <span>Deposit</span>
-                        </a>
-                        <a href="/webtrade/app" class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm shadow-primary/20 transition flex items-center space-x-1.5">
-                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-                            <span>Trade</span>
-                        </a>
-                        <button type="button" @click="swapModal = true" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer">
-                            <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                            <span>Swap</span>
-                        </button>
-                        <a href="/withdraw" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition">
-                            Withdraw
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Performance Chart -->
-                <div class="pt-2 space-y-2">
-                    <div class="flex items-center justify-between text-xs font-mono text-content-tertiary">
-                        <span>Performance</span>
-                        <div class="flex items-center space-x-1 p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs">
-                            <button type="button" @click="chartTimeframe = '7D'" :class="chartTimeframe === '7D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">7D</button>
-                            <button type="button" @click="chartTimeframe = '30D'" :class="chartTimeframe === '30D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">30D</button>
-                            <button type="button" @click="chartTimeframe = '90D'" :class="chartTimeframe === '90D' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">90D</button>
-                            <button type="button" @click="chartTimeframe = '1Y'" :class="chartTimeframe === '1Y' ? 'bg-primary text-white shadow-xs font-bold' : 'text-content-secondary hover:text-content-primary'" class="px-2.5 py-1 rounded-lg transition cursor-pointer">1Y</button>
-                        </div>
-                    </div>
-
-                    <div class="w-full relative h-[150px] overflow-hidden rounded-2xl bg-surface-overlay/20 border border-surface-border/40 p-1.5">
-                        <svg viewBox="0 0 800 200" class="w-full h-full overflow-visible" preserveAspectRatio="none">
-                            <defs>
-                                <linearGradient id="equityGradientSimple" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25" />
-                                    <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
-                                </linearGradient>
-                            </defs>
-                            <path :d="chartSvgArea" fill="url(#equityGradientSimple)" class="transition-all duration-500" />
-                            <path :d="chartSvgPath" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-500" />
-                        </svg>
-                    </div>
-                </div>
-
-                <!-- Clean Unified Summary Row -->
-                <div class="pt-4 border-t border-surface-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
-                    <div class="flex items-center space-x-6 sm:space-x-8">
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">Cash Balance</span>
-                            <strong class="text-emerald-600 dark:text-emerald-400 font-bold text-sm" x-text="'$' + cashBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
-                        </div>
-                        <div class="w-px h-6 bg-surface-border"></div>
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">Invested</span>
-                            <strong class="text-content-primary font-bold text-sm" x-text="'$' + Math.max(0, livePortfolioValuation - cashBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
-                        </div>
-                        <div class="w-px h-6 bg-surface-border"></div>
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">Holdings</span>
-                            <strong class="text-content-primary font-bold text-sm"><%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets</strong>
-                        </div>
-                    </div>
-
-                    <!-- Minimalist Allocation Legend -->
-                    <div class="flex items-center space-x-3 text-xs text-content-secondary">
-                        <span class="flex items-center space-x-1.5">
-                            <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
-                            <span>Cash <strong class="text-content-primary" x-text="allocationPercents.cash + '%'"></strong></span>
-                        </span>
-                        <span class="text-surface-border">•</span>
-                        <span class="flex items-center space-x-1.5">
-                            <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-                            <span>Stocks <strong class="text-content-primary" x-text="allocationPercents.stock + '%'"></strong></span>
-                        </span>
-                        <span class="text-surface-border">•</span>
-                        <span class="flex items-center space-x-1.5">
-                            <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                            <span>Crypto <strong class="text-content-primary" x-text="allocationPercents.crypto + '%'"></strong></span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. MODE B: RETIREMENT CUSTODIAL IRA COCKPIT -->
-            <div x-show="selectedAccountMode === 'retirement'" class="space-y-6" x-cloak>
-                <!-- Top Row: Balance Headline & Core Action Buttons -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="w-px h-6 bg-surface-border"></div>
                     <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-[11px] font-mono font-bold text-amber-500 uppercase tracking-wider">Retirement Subaccount Valuation</span>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                                <span>TAX-ADVANTAGED ROTH IRA</span>
-                            </span>
-                        </div>
-                        <div class="flex items-baseline space-x-3 mt-1">
-                            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-content-primary font-numeral tracking-tight"
-                                x-text="'$' + retirementTotalEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">
-                                $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.equity).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %>
-                            </h1>
-                            <span class="text-sm sm:text-base font-bold font-mono"
-                                  :class="retirementUnrealizedPnL >= 0 ? 'text-gain' : 'text-loss'">
-                                <span x-html="retirementUnrealizedPnL >= 0 ? '&#9650;' : '&#9660;'"></span>
-                                <span x-text="(retirementUnrealizedPnL >= 0 ? '+' : '') + retirementPnLPct + '%'"></span>
-                                <span class="text-content-tertiary text-xs font-normal font-sans"
-                                      x-text="'(' + (retirementUnrealizedPnL >= 0 ? '+$' : '-$') + Math.abs(retirementUnrealizedPnL).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')'"></span>
-                            </span>
-                        </div>
-                        <p class="text-xs text-content-secondary font-mono mt-1">
-                            Subaccount: <strong class="text-content-primary">#<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_number : 'IRA-80001' %></strong> &bull; Segregated Custodial Vault &bull; IRS Form 5498 Compliant
-                        </p>
+                        <span class="text-content-tertiary text-[11px] block">Invested</span>
+                        <strong class="text-content-primary font-bold text-sm" x-text="'$' + Math.max(0, livePortfolioValuation - cashBalance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></strong>
                     </div>
-
-                    <!-- Focused Retirement Actions -->
-                    <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
-                        <button type="button" @click="subaccountTransferDirection = 'primary_to_retirement'; subaccountTransferModal = true" class="px-5 py-2.5 rounded-xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-sm shadow-gain/20 transition flex items-center space-x-1.5 cursor-pointer">
-                            <span class="text-sm font-bold leading-none">+</span>
-                            <span>Contribute</span>
-                        </button>
-                        <button type="button" @click="retirementInvestModal = true" class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm shadow-primary/20 transition flex items-center space-x-1.5 cursor-pointer">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                            <span>Invest Cash</span>
-                        </button>
-                        <button type="button" @click="subaccountTransferDirection = 'retirement_to_primary'; subaccountTransferModal = true" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer">
-                            <span>⇄ Internal Transfer</span>
-                        </button>
-                        <a href="/api/retirement/statement" target="_blank" class="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition">
-                            📜 Form 5498
-                        </a>
+                    <div class="w-px h-6 bg-surface-border"></div>
+                    <div>
+                        <span class="text-content-tertiary text-[11px] block">Holdings</span>
+                        <strong class="text-content-primary font-bold text-sm"><%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets</strong>
                     </div>
                 </div>
 
-                <!-- 2026 Annual Contribution Capacity Bar -->
-                <div class="p-4 rounded-2xl bg-surface-overlay/50 border border-surface-border space-y-2">
-                    <div class="flex items-center justify-between text-xs font-mono">
-                        <span class="text-content-secondary">2026 Tax-Year IRS Annual Contribution Limit</span>
-                        <span class="font-bold text-content-primary">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed).toLocaleString() : '0' %> / $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit).toLocaleString() : '7,000' %> Limit</span>
-                    </div>
-                    <% 
-                        const limitVal = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit) : 7000;
-                        const contribVal = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed) : 3500;
-                        const pctVal = Math.min(100, Math.round((contribVal / limitVal) * 100));
-                        const remVal = Math.max(0, limitVal - contribVal);
-                    %>
-                    <div class="h-2.5 w-full bg-surface-base rounded-full overflow-hidden border border-surface-border p-0.5">
-                        <div class="h-full bg-gradient-to-r from-amber-500 to-gain rounded-full transition-all duration-700" style="width: <%= pctVal %>%;"></div>
-                    </div>
-                    <div class="flex justify-between text-[11px] font-mono text-content-tertiary">
-                        <span><%= pctVal %>% Contributed</span>
-                        <span class="text-gain font-semibold">$<%= remVal.toLocaleString() %> available tax capacity</span>
-                    </div>
-                </div>
-
-                <!-- Unified Summary Row -->
-                <div class="pt-4 border-t border-surface-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
-                    <div class="flex items-center space-x-6 sm:space-x-8">
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">Unallocated IRA Cash</span>
-                            <strong class="text-amber-500 font-bold text-sm" x-text="'$' + (retirementAccountData ? Number(retirementAccountData.balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00')">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></strong>
-                        </div>
-                        <div class="w-px h-6 bg-surface-border"></div>
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">Invested IRA Holdings</span>
-                            <strong class="text-content-primary font-bold text-sm" x-text="'$' + retirementHoldingsVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$0.00</strong>
-                        </div>
-                        <div class="w-px h-6 bg-surface-border"></div>
-                        <div>
-                            <span class="text-content-tertiary text-[11px] block">IRA Positions</span>
-                            <strong class="text-content-primary font-bold text-sm"><%= (typeof retirementHoldings !== 'undefined' && retirementHoldings ? retirementHoldings.length : 0) %> Assets</strong>
-                        </div>
-                    </div>
-
-                    <!-- DRIP Badge -->
-                    <div class="flex items-center space-x-3 text-xs">
-                        <span class="text-content-secondary">Automated DRIP:</span>
-                        <button type="button" @click="toggleRetirementDrip()" class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition flex items-center space-x-1 cursor-pointer"
-                                :class="retirementDripEnabled ? 'bg-gain/15 text-gain border border-gain/20' : 'bg-surface-overlay text-content-secondary border border-surface-border'">
-                            <span class="w-1.5 h-1.5 rounded-full" :class="retirementDripEnabled ? 'bg-gain animate-pulse' : 'bg-slate-400'"></span>
-                            <span x-text="retirementDripEnabled ? 'Active (Reinvesting)' : 'Disabled'"></span>
-                        </button>
-                    </div>
+                <!-- Minimalist Allocation Legend -->
+                <div class="flex items-center space-x-3 text-xs text-content-secondary">
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
+                        <span>Cash <strong class="text-content-primary" x-text="allocationPercents.cash + '%'"></strong></span>
+                    </span>
+                    <span class="text-surface-border">•</span>
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                        <span>Stocks <strong class="text-content-primary" x-text="allocationPercents.stock + '%'"></strong></span>
+                    </span>
+                    <span class="text-surface-border">•</span>
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                        <span>Crypto <strong class="text-content-primary" x-text="allocationPercents.crypto + '%'"></strong></span>
+                    </span>
                 </div>
             </div>
-
         </div>
 
         <!-- ============================================================================== -->
@@ -1283,34 +1138,34 @@ function dashboardPortfolioApp() {
         <div id="dashboard-tabs" class="space-y-5 scroll-mt-24">
             <!-- Mobile-Friendly Portfolio Section Switcher Pills -->
             <div class="flex items-center p-1 bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border shadow-xs overflow-x-auto gap-1 text-xs font-sans">
-                <!-- PRIMARY MODE TABS -->
-                <button type="button" x-show="selectedAccountMode !== 'retirement'" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" 
+                <!-- Tab 1: Spot Holdings -->
+                <button type="button" @click="activeTab = 'holdings'; window.location.hash = 'holdings'" 
                         :class="activeTab === 'holdings' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>💼</span>
-                    <span>Spot Holdings</span>
+                    <span>Holdings</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activeTab === 'holdings' ? 'bg-white/20 text-white' : 'bg-surface-overlay text-content-secondary'" x-text="ownedAssetsCount"></span>
                 </button>
 
-                <!-- RETIREMENT MODE TAB -->
-                <button type="button" x-show="selectedAccountMode === 'retirement'" @click="activeTab = 'retirement'; window.location.hash = 'retirement'" 
+                <!-- Tab 2: Retirement IRA Subaccount -->
+                <button type="button" @click="activeTab = 'retirement'; window.location.hash = 'retirement'" 
                         :class="activeTab === 'retirement' ? 'bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-500/30' : 'text-amber-600 dark:text-amber-400 hover:text-amber-500'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>🛡️</span>
-                    <span>IRA Custodial Holdings</span>
-                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="activeTab === 'retirement' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/15 text-amber-500'"><%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %></span>
+                    <span>Retirement IRA</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold" :class="activeTab === 'retirement' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/15 text-amber-500'"><%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %></span>
                 </button>
 
-                <!-- BASKETS (Available in both modes) -->
+                <!-- Tab 3: Stock Baskets -->
                 <button type="button" @click="activeTab = 'baskets'; window.location.hash = 'baskets'" 
-                        :class="activeTab === 'baskets' ? (selectedAccountMode === 'retirement' ? 'bg-amber-500 text-slate-950 font-black shadow-xs' : 'bg-primary text-white font-bold shadow-xs') : 'text-content-secondary hover:text-content-primary'" 
+                        :class="activeTab === 'baskets' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>🧺</span>
-                    <span x-text="selectedAccountMode === 'retirement' ? 'Retirement Baskets' : 'Stock Baskets'">Stock Baskets</span>
+                    <span>Stock Baskets</span>
                 </button>
 
-                <!-- ACTIVE CFD TRADES (Primary mode only) -->
-                <button type="button" x-show="selectedAccountMode !== 'retirement'" @click="activeTab = 'positions'; window.location.hash = 'positions'" 
+                <!-- Tab 4: Active Trades -->
+                <button type="button" @click="activeTab = 'positions'; window.location.hash = 'positions'" 
                         :class="activeTab === 'positions' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>📊</span>
@@ -1318,20 +1173,20 @@ function dashboardPortfolioApp() {
                     <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activeTab === 'positions' ? 'bg-white/20 text-white' : 'bg-surface-overlay text-content-secondary'" x-text="liveOpenTrades ? liveOpenTrades.length : 0"></span>
                 </button>
 
-                <!-- COPY TRADING (Primary mode only) -->
-                <button type="button" x-show="selectedAccountMode !== 'retirement'" @click="activeTab = 'copy'; window.location.hash = 'copy'" 
+                <!-- Tab 5: Copy Trading -->
+                <button type="button" @click="activeTab = 'copy'; window.location.hash = 'copy'" 
                         :class="activeTab === 'copy' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>👥</span>
                     <span>Copy Trading</span>
                 </button>
 
-                <!-- LEDGER / HISTORY (Available in both modes) -->
+                <!-- Tab 6: History & Ledger -->
                 <button type="button" @click="activeTab = 'history'; window.location.hash = 'history'" 
-                        :class="activeTab === 'history' ? (selectedAccountMode === 'retirement' ? 'bg-amber-500 text-slate-950 font-black shadow-xs' : 'bg-primary text-white font-bold shadow-xs') : 'text-content-secondary hover:text-content-primary'" 
+                        :class="activeTab === 'history' ? 'bg-primary text-white font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                         class="px-3.5 py-2 rounded-xl transition shrink-0 flex items-center space-x-1.5 cursor-pointer">
                     <span>📜</span>
-                    <span x-text="selectedAccountMode === 'retirement' ? 'IRS Tax Ledger & Statements' : 'History & Ledger'">History & Ledger</span>
+                    <span>History & Ledger</span>
                 </button>
             </div>
 
@@ -1804,7 +1659,184 @@ function dashboardPortfolioApp() {
 
             
             <!-- ============================================================== -->
-            <!-- TAB 6: RETIREMENT IRA WEALTH HUB & TAX-ADVANTAGED PORTFOLIO    -->
+            <!-- ============================================================== -->
+            <!-- TAB: RETIREMENT IRA CUSTODIAL HUB                             -->
+            <!-- ============================================================== -->
+            <div id="retirement" x-show="activeTab === 'retirement'" class="space-y-6 scroll-mt-28" x-cloak>
+                
+                <!-- Retirement Account Overview Header -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 border border-amber-500/30 bg-surface-raised shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center text-2xl shadow-sm border border-amber-500/20">
+                                🛡️
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="text-xl font-bold font-serif text-content-primary">
+                                        <%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? (retirementAccount.account_type.replace('_', ' ').toUpperCase() + ' Account') : 'Roth IRA Account' %>
+                                    </h3>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30">Tax-Free Compounding</span>
+                                </div>
+                                <p class="text-xs text-content-secondary font-mono">
+                                    Subaccount: <strong class="text-content-primary">#<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_number : 'IRA-80001' %></strong> &bull; Segregated Custodial Vault &bull; IRS Form 5498 Compliant
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-4 text-xs font-mono pt-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-content-tertiary">Unallocated Cash:</span>
+                                <strong class="text-amber-500 text-sm">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
+                            </div>
+                            <span class="text-surface-border">|</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-content-tertiary">Total IRA Valuation:</span>
+                                <strong class="text-gain text-sm" x-text="'$' + retirementTotalEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.equity).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions & DRIP Toggle -->
+                    <div class="flex flex-wrap items-center gap-3 font-sans">
+                        <!-- Automated DRIP Toggle -->
+                        <div class="p-2.5 bg-surface-overlay rounded-2xl border border-surface-border flex items-center space-x-3 text-xs">
+                            <div>
+                                <span class="block font-bold text-content-primary text-[11px]">Auto DRIP</span>
+                                <span class="text-[10px] text-content-tertiary font-mono" x-text="retirementDripEnabled ? 'Reinvesting' : 'Cash Payout'"></span>
+                            </div>
+                            <button type="button" @click="toggleRetirementDrip()"
+                                    :class="retirementDripEnabled ? 'bg-gain' : 'bg-slate-300 dark:bg-neutral-700'"
+                                    class="w-10 h-6 rounded-full transition-colors p-0.5 flex items-center cursor-pointer">
+                                <span :class="retirementDripEnabled ? 'translate-x-4' : 'translate-x-0'"
+                                      class="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform"></span>
+                            </button>
+                        </div>
+
+                        <button type="button" @click="subaccountTransferDirection = 'primary_to_retirement'; subaccountTransferModal = true" class="px-5 py-3 rounded-2xl bg-gain hover:bg-gain/90 text-white font-bold text-xs shadow-md transition flex items-center space-x-2 cursor-pointer">
+                            <span>+ Contribute Funds</span>
+                        </button>
+
+                        <button type="button" @click="retirementInvestModal = true" class="px-5 py-3 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-md transition flex items-center space-x-2 cursor-pointer">
+                            <span>📈 Invest Cash</span>
+                        </button>
+
+                        <button type="button" @click="subaccountTransferDirection = 'retirement_to_primary'; subaccountTransferModal = true" class="px-4 py-3 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer">
+                            <span>⇄ Transfer</span>
+                        </button>
+
+                        <a href="/api/retirement/statement" target="_blank" class="px-4 py-3 rounded-2xl bg-surface-overlay hover:bg-surface-border text-content-secondary hover:text-content-primary border border-surface-border font-bold text-xs transition flex items-center space-x-1.5">
+                            <span>📜 Form 5498</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 2026 IRS Annual Contribution Limit Gauge -->
+                <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-sm space-y-3 bg-surface-raised">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">📊</span>
+                            <h4 class="text-sm font-bold font-serif text-content-primary">2026 Tax-Year IRS Annual Contribution Limit</h4>
+                        </div>
+                        <span class="text-xs font-mono text-content-tertiary">
+                            Contributed: <strong class="text-amber-500">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed).toLocaleString() : '0' %></strong> / $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit).toLocaleString() : '7,000' %> Limit
+                        </span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="space-y-1.5 font-mono text-xs">
+                        <% 
+                            const limit = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit) : 7000;
+                            const contributed = (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed) : 3500;
+                            const percent = Math.min(100, Math.round((contributed / limit) * 100));
+                            const remaining = Math.max(0, limit - contributed);
+                        %>
+                        <div class="h-3 w-full bg-surface-overlay rounded-full overflow-hidden border border-surface-border p-0.5">
+                            <div class="h-full bg-gradient-to-r from-amber-500 to-gain rounded-full transition-all duration-700" style="width: <%= percent %>%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-content-tertiary">
+                            <span><%= percent %>% Utilized</span>
+                            <span class="text-gain font-bold">$<%= remaining.toLocaleString() %> remaining capacity for 2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Retirement Assets & Holdings Table -->
+                <div class="glass-card rounded-3xl p-6 border border-surface-border shadow-lg space-y-4">
+                    
+                    <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">💼</span>
+                            <h4 class="text-sm font-bold font-serif text-content-primary">Retirement Holdings (<%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %>)</h4>
+                        </div>
+                        <span class="text-xs font-mono text-gain font-bold flex items-center space-x-1">
+                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                            <span>Insured Custody</span>
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-sans text-xs">
+                            <thead>
+                                <tr class="border-b border-surface-border text-content-tertiary font-mono uppercase text-[10px]">
+                                    <th class="py-3 px-3">Asset</th>
+                                    <th class="py-3 px-3">Type</th>
+                                    <th class="py-3 px-3 text-right">Shares / Units</th>
+                                    <th class="py-3 px-3 text-right">Cost Basis</th>
+                                    <th class="py-3 px-3 text-right">Current Value</th>
+                                    <th class="py-3 px-3 text-right">Unrealized Gain</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border font-mono text-xs">
+                                <% if (typeof retirementHoldings !== 'undefined' && retirementHoldings && retirementHoldings.length > 0) { %>
+                                    <% retirementHoldings.forEach(h => { %>
+                                        <% 
+                                            const quotes = { 'AAPL': 224.20, 'MSFT': 418.50, 'NVDA': 128.50, 'BTC': 68650.00, 'ETH': 3645.00 };
+                                            const rate = quotes[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1));
+                                            const currentVal = +(h.shares_or_units * rate).toFixed(2);
+                                            const pnl = +(currentVal - h.cost_basis).toFixed(2);
+                                            const pnlPct = h.cost_basis > 0 ? +((pnl / h.cost_basis) * 100).toFixed(2) : 0;
+                                        %>
+                                        <tr class="hover:bg-surface-overlay/50 transition">
+                                            <td class="py-3.5 px-3 flex items-center space-x-2.5">
+                                                <span class="text-base"><%= h.icon || '📈' %></span>
+                                                <div>
+                                                    <strong class="text-content-primary font-sans block"><%= h.asset_name %></strong>
+                                                    <span class="text-[10px] text-content-tertiary"><%= h.asset_symbol %></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-3.5 px-3 uppercase text-[10px] font-bold text-content-secondary">
+                                                <%= h.asset_type %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold text-content-primary">
+                                                <%= h.shares_or_units %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right text-content-secondary">
+                                                $<%= Number(h.cost_basis).toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold text-content-primary">
+                                                $<%= currentVal.toLocaleString(undefined, {minimumFractionDigits: 2}) %>
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right font-bold <%= pnl >= 0 ? 'text-gain' : 'text-loss' %>">
+                                                <%= pnl >= 0 ? '+' : '' %>$<%= pnl.toLocaleString(undefined, {minimumFractionDigits: 2}) %> (<%= pnlPct %>%)
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-content-tertiary">
+                                            No retirement assets allocated yet. Click "+ Invest Cash" to allocate your retirement funds.
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+            </div>
+
             <!-- ============================================================== -->
             <div id="retirement" x-show="activeTab === 'retirement'" class="space-y-4 scroll-mt-28" x-cloak>
                 
