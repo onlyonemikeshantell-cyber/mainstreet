@@ -55,15 +55,31 @@ const injectUser = (req, res, next) => {
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
       if (user && user.is_active !== 0) {
         res.locals.user = user;
+        // Inject or lazily provision retirement custodial subaccount for seamless subaccount handling
+        let retirement = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(user.id);
+        if (!retirement) {
+          const accNum = 'IRA-' + (80000 + Number(user.id)) + '-' + Math.floor(1000 + Math.random() * 9000);
+          try {
+            db.prepare(`
+              INSERT INTO retirement_accounts (user_id, account_type, account_number, balance, equity, total_contributed, annual_limit, drip_enabled, status)
+              VALUES (?, 'roth_ira', ?, 0.00, 0.00, 0.00, 7000.00, 1, 'active')
+            `).run(user.id, accNum);
+            retirement = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(user.id);
+          } catch (e) {}
+        }
+        res.locals.retirementAccount = retirement || null;
       } else {
         req.session.userId = null;
         res.locals.user = null;
+        res.locals.retirementAccount = null;
       }
     } catch (e) {
       res.locals.user = null;
+      res.locals.retirementAccount = null;
     }
   } else {
     res.locals.user = null;
+    res.locals.retirementAccount = null;
   }
   res.locals.isImpersonating = !!req.session.adminId;
   res.locals.adminId = req.session.adminId || null;

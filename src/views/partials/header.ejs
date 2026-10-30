@@ -661,6 +661,134 @@
                             <!-- Institutional Notification Center & Live Pop-up Toast Engine -->
                             <%- include('./notifications') %>
 
+                            <!-- Institutional Subaccount Switcher Pill & Dropdown -->
+                            <div x-data="{
+                                subaccountOpen: false,
+                                activeMode: (typeof window !== 'undefined' && (localStorage.getItem('txe_active_subaccount') || 'standard')),
+                                init() {
+                                    window.addEventListener('subaccount-changed', (e) => {
+                                        if (e.detail && e.detail.mode) this.activeMode = e.detail.mode;
+                                    });
+                                },
+                                selectAccount(mode) {
+                                    this.activeMode = mode;
+                                    if (typeof window !== 'undefined') {
+                                        localStorage.setItem('txe_active_subaccount', mode);
+                                        window.dispatchEvent(new CustomEvent('subaccount-changed', { detail: { mode: mode } }));
+                                        if (window.location.pathname.startsWith('/dashboard')) {
+                                            window.location.hash = mode === 'retirement' ? 'retirement' : '';
+                                        } else if (mode === 'retirement') {
+                                            window.location.href = '/dashboard#retirement';
+                                        } else {
+                                            window.location.href = '/dashboard';
+                                        }
+                                    }
+                                    this.subaccountOpen = false;
+                                }
+                            }" class="relative shrink-0" @click.outside="subaccountOpen = false">
+                                <button type="button" 
+                                        @click="subaccountOpen = !subaccountOpen" 
+                                        class="px-2 sm:px-2.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08] text-xs font-semibold text-content-primary dark:text-white transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                                        title="Switch Subaccount">
+                                    <template x-if="activeMode === 'retirement'">
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                            <span class="text-amber-500 font-bold">🛡️ IRA</span>
+                                            <span class="text-content-secondary dark:text-neutral-400 font-mono text-[10px] hidden md:inline">#<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_number.slice(0, 9) : 'IRA' %></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="activeMode !== 'retirement'">
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="text-primary font-bold">💼 Brokerage</span>
+                                            <span class="text-content-secondary dark:text-neutral-400 font-mono text-[10px] hidden md:inline">#<%= 10000 + user.id %></span>
+                                        </div>
+                                    </template>
+                                    <svg class="w-3 h-3 text-content-tertiary transition-transform duration-200" :class="subaccountOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+
+                                <!-- Subaccount Switcher Dropdown Menu -->
+                                <div x-show="subaccountOpen" 
+                                     x-transition:enter="transition ease-out duration-150"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-100"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute right-0 mt-2 w-72 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-2xl p-2 z-50 text-xs select-none"
+                                     style="display: none;">
+                                    
+                                    <div class="px-2.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-content-tertiary flex items-center justify-between">
+                                        <span>Segregated Subaccounts</span>
+                                        <span class="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[9px] font-bold">Dual Vault</span>
+                                    </div>
+
+                                    <div class="space-y-1 mt-1">
+                                        <!-- 1. Primary Brokerage Subaccount -->
+                                        <button type="button" 
+                                                @click="selectAccount('standard')"
+                                                class="w-full text-left p-2.5 rounded-xl transition flex items-center justify-between group"
+                                                :class="activeMode !== 'retirement' ? 'bg-primary/10 border border-primary/20 text-content-primary dark:text-white' : 'hover:bg-black/5 dark:hover:bg-white/5 text-content-secondary dark:text-neutral-300'">
+                                            <div class="flex items-center space-x-2.5 min-w-0">
+                                                <div class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center text-sm shrink-0 font-bold">
+                                                    💼
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <div class="font-bold truncate text-content-primary dark:text-white flex items-center space-x-1.5">
+                                                        <span>Primary Brokerage</span>
+                                                        <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 text-content-tertiary">#<%= 10000 + user.id %></span>
+                                                    </div>
+                                                    <div class="text-[10px] text-content-secondary font-mono truncate">Margin &bull; Spot &bull; Copy Trading</div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right shrink-0 pl-2">
+                                                <div class="font-mono font-bold text-xs text-gain">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
+                                                <span class="text-[9px] text-content-tertiary font-mono">Available</span>
+                                            </div>
+                                        </button>
+
+                                        <!-- 2. Retirement IRA Subaccount -->
+                                        <button type="button" 
+                                                @click="selectAccount('retirement')"
+                                                class="w-full text-left p-2.5 rounded-xl transition flex items-center justify-between group"
+                                                :class="activeMode === 'retirement' ? 'bg-amber-500/10 border border-amber-500/30 text-content-primary dark:text-white' : 'hover:bg-black/5 dark:hover:bg-white/5 text-content-secondary dark:text-neutral-300'">
+                                            <div class="flex items-center space-x-2.5 min-w-0">
+                                                <div class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center text-sm shrink-0 font-bold">
+                                                    🛡️
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <div class="font-bold truncate text-content-primary dark:text-white flex items-center space-x-1.5">
+                                                        <span>Retirement Custodial</span>
+                                                        <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">IRA</span>
+                                                    </div>
+                                                    <div class="text-[10px] text-content-secondary font-mono truncate">#<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.account_number : 'IRA-80001' %> &bull; Tax-Free</div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right shrink-0 pl-2">
+                                                <div class="font-mono font-bold text-xs text-amber-500">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></div>
+                                                <span class="text-[9px] text-content-tertiary font-mono">Unallocated</span>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    <div class="my-1.5 border-t border-black/[0.06] dark:border-white/[0.08]"></div>
+
+                                    <!-- Quick Subaccount Action Links -->
+                                    <div class="px-1 space-y-1">
+                                        <a href="/dashboard#retirement" @click="subaccountOpen = false" class="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-primary dark:text-sky-400 hover:bg-primary/10 transition font-semibold text-[11px]">
+                                            <span>📊</span>
+                                            <span>View Retirement Portfolio</span>
+                                        </a>
+                                        <button type="button" 
+                                                @click="subaccountOpen = false; window.dispatchEvent(new CustomEvent('open-subaccount-transfer'))" 
+                                                class="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-content-secondary dark:text-neutral-300 hover:text-content-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition font-semibold text-[11px] text-left cursor-pointer">
+                                            <span>⇄</span>
+                                            <span>Transfer Between Subaccounts</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- User Profile & Account Dropdown -->
                             <div x-data="{ userMenuOpen: false }" class="relative shrink-0" @click.outside="userMenuOpen = false">
                                 <button type="button" @click="userMenuOpen = !userMenuOpen" class="px-2 sm:px-2.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08] text-xs font-medium text-content-primary dark:text-white transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer">
@@ -685,11 +813,24 @@
                                     <div class="px-3 py-2 border-b border-black/[0.06] dark:border-white/[0.08] mb-1">
                                         <div class="font-bold text-content-primary dark:text-white"><%= user.name %></div>
                                         <div class="text-[10px] text-content-secondary dark:text-neutral-400 font-mono">ID: #<%= 10000 + user.id %> &bull; <span class="text-gain font-semibold"><%= user.kyc_status === 'verified' ? 'Verified' : 'Standard' %></span></div>
-                                        <div class="text-[11px] font-mono font-extrabold text-content-primary dark:text-white mt-1">Cash: $<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
+                                        <div class="mt-1 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] space-y-0.5 font-mono text-[11px]">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-content-secondary text-[10px]">Brokerage:</span>
+                                                <span class="font-bold text-content-primary dark:text-white">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-amber-500 font-semibold text-[10px]">Retirement:</span>
+                                                <span class="font-bold text-amber-500">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></span>
+                                            </div>
+                                        </div>
                                     </div>
                                     <a href="/dashboard" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-primary dark:text-sky-400 font-semibold hover:bg-primary/10 transition">
                                         <span>📊</span>
                                         <span>Portfolio Dashboard</span>
+                                    </a>
+                                    <a href="/dashboard#retirement" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-amber-500 font-semibold hover:bg-amber-500/10 transition">
+                                        <span>🛡️</span>
+                                        <span>Retirement Subaccount</span>
                                     </a>
                                     <a href="/wallet" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-500/10 transition">
                                         <span>👛</span>

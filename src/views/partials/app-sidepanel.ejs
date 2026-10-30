@@ -263,8 +263,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- Available Cash Balance -->
                     <div class="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.06] text-xs font-mono">
-                        <span class="text-[11px] text-content-secondary dark:text-neutral-400">Available Cash</span>
+                        <span class="text-[11px] text-content-secondary dark:text-neutral-400">Brokerage Cash</span>
                         <span class="font-bold text-content-primary dark:text-white text-xs">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></span>
+                    </div>
+                    <div class="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.06] text-xs font-mono">
+                        <a href="/dashboard#retirement" @click="handleItemClick('/dashboard#retirement')" class="text-[10px] text-amber-500 font-semibold hover:underline flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span>Retirement IRA</span>
+                        </a>
+                        <span class="font-bold text-amber-500 text-xs">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></span>
                     </div>
 
                     <!-- Prominent Deposit CTA -->
@@ -286,7 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <!-- Tooltip Popover -->
                         <div class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-[#18181b] dark:bg-white text-white dark:text-black text-xs font-semibold rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 whitespace-nowrap z-[120] border border-white/10">
                             <div><%= user.name %></div>
-                            <div class="text-[10px] font-mono text-gain font-bold">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %></div>
+                            <div class="text-[10px] font-mono text-gain font-bold">$<%= Number(user.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) %> (Brokerage)</div>
+                            <div class="text-[9px] font-mono text-amber-400 font-bold">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2}) : '0.00' %> (Retirement IRA)</div>
                         </div>
                     </div>
 

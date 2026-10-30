@@ -1629,6 +1629,7 @@ router.get('/api/user/sync', (req, res) => {
   const openTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN' ORDER BY id DESC").all(user.id);
   const pendingOrders = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'PENDING' ORDER BY id DESC").all(user.id);
   const userBalances = db.prepare("SELECT * FROM user_crypto_balances WHERE user_id = ? ORDER BY id ASC").all(user.id);
+  const retirementAccount = db.prepare("SELECT * FROM retirement_accounts WHERE user_id = ?").get(user.id);
   
   let totalPnL = 0;
   let totalUsedMargin = 0;
@@ -1675,6 +1676,7 @@ router.get('/api/user/sync', (req, res) => {
     openTrades,
     pendingOrders,
     userBalances,
+    retirementAccount: retirementAccount || null,
     livePrices: getLivePrices(),
     sessionMetrics: {
       todayPnL: sessionTodayPnL,
