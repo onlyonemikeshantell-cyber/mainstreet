@@ -4,7 +4,21 @@ const db = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { distributeQuarterlyDividends } = require('../services/dripService');
 const { STOCK_BASKETS } = require('../services/stockBasketService');
+const { getLivePrices } = require('../services/livePriceService');
 
+
+
+// Helper to get live or cached asset price for retirement valuations & trades
+const getRetirementAssetRate = (symbol) => {
+  if (!symbol || symbol === 'USD' || symbol === 'USDT') return 1.0;
+  const clean = (symbol || '').replace('/USDT', '').replace('/USD', '').trim();
+  const live = getLivePrices();
+  if (live[clean] && live[clean].price) return Number(live[clean].price);
+  if (live[symbol] && live[symbol].price) return Number(live[symbol].price);
+  if (spotPrices[clean]) return Number(spotPrices[clean]);
+  if (spotPrices[symbol]) return Number(spotPrices[symbol]);
+  return 100.0;
+};
 
 // Live spot price quotes reference
 const spotPrices = {
@@ -98,7 +112,7 @@ router.get('/api/retirement/account', requireAuth, (req, res) => {
     // Calculate live valuations
     let totalHoldingsValuation = 0;
     const holdings = rawHoldings.map(h => {
-      const liveRate = spotPrices[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1));
+      const liveRate = getRetirementAssetRate(h.asset_symbol) || (h.cost_basis / (h.shares_or_units || 1));
       const marketVal = Number((h.shares_or_units * liveRate).toFixed(2));
       const pnlDollar = Number((marketVal - h.cost_basis).toFixed(2));
       const pnlPercent = h.cost_basis > 0 ? Number(((pnlDollar / h.cost_basis) * 100).toFixed(2)) : 0;
@@ -194,6 +208,7 @@ router.post('/api/retirement/contribute', requireAuth, (req, res) => {
 
       // Execute atomic transfer
       db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ?').run(contributeAmount, contributeAmount, userId);
+      db.prepare("UPDATE user_crypto_balances SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(contributeAmount, userId);
       db.prepare('UPDATE retirement_accounts SET balance = balance + ?, equity = equity + ?, total_contributed = total_contributed + ? WHERE id = ?').run(contributeAmount, contributeAmount, contributeAmount, account.id);
 
       // Record contribution ledger
@@ -261,6 +276,7 @@ router.post('/api/retirement/transfer', requireAuth, (req, res) => {
 
         db.prepare('UPDATE retirement_accounts SET balance = balance - ?, equity = equity - ? WHERE id = ?').run(transferAmount, transferAmount, account.id);
         db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?').run(transferAmount, transferAmount, userId);
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(transferAmount, userId);
 
         db.prepare(`
           INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
@@ -285,6 +301,7 @@ router.post('/api/retirement/transfer', requireAuth, (req, res) => {
         }
 
         db.prepare('UPDATE users SET balance = balance - ?, equity = equity - ? WHERE id = ?').run(transferAmount, transferAmount, userId);
+        db.prepare("UPDATE user_crypto_balances SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(transferAmount, userId);
         db.prepare('UPDATE retirement_accounts SET balance = balance + ?, equity = equity + ?, total_contributed = total_contributed + ? WHERE id = ?').run(transferAmount, transferAmount, transferAmount, account.id);
 
         db.prepare(`
@@ -334,7 +351,7 @@ router.post('/api/retirement/invest', requireAuth, (req, res) => {
       });
     }
 
-    const price = spotPrices[asset_symbol] || 100.0;
+    const price = getRetirementAssetRate(asset_symbol) || 100.0;
     const units = investAmount / price;
 
     // Deduct retirement cash
@@ -420,7 +437,7 @@ router.post('/api/retirement/invest-basket', requireAuth, (req, res) => {
     // Allocate across constituent holdings according to their weights
     basket.holdings.forEach(holding => {
       const stockAlloc = Number((numAmount * holding.weight).toFixed(2));
-      const stockPrice = spotPrices[holding.symbol] || 150.0;
+      const stockPrice = getRetirementAssetRate(holding.symbol) || 150.0;
       const shares = Number((stockAlloc / stockPrice).toFixed(4));
 
       const existingHolding = db.prepare('SELECT * FROM retirement_holdings WHERE account_id = ? AND asset_symbol = ?').get(account.id, holding.symbol);
@@ -468,7 +485,7 @@ router.get('/api/retirement/statement', requireAuth, (req, res) => {
 
     let totalHoldingsValuation = 0;
     const evaluatedHoldings = holdings.map(h => {
-      const liveRate = spotPrices[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1));
+      const liveRate = getRetirementAssetRate(h.asset_symbol) || (h.cost_basis / (h.shares_or_units || 1));
       const marketVal = Number((h.shares_or_units * liveRate).toFixed(2));
       const unrealizedPnl = Number((marketVal - h.cost_basis).toFixed(2));
       totalHoldingsValuation += marketVal;
