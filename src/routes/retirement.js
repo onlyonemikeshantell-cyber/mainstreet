@@ -382,6 +382,89 @@ router.post('/api/retirement/invest', requireAuth, (req, res) => {
   }
 });
 
+
+// POST /api/retirement/sell (Liquidate holding back to unallocated cash inside IRA)
+router.post('/api/retirement/sell', requireAuth, (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { holding_id, shares } = req.body;
+    const sharesToSell = parseFloat(shares);
+
+    if (isNaN(sharesToSell) || sharesToSell <= 0) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid number of shares/units to liquidate.' });
+    }
+
+    const account = db.prepare('SELECT * FROM retirement_accounts WHERE user_id = ?').get(userId);
+    if (!account) {
+      return res.status(404).json({ success: false, error: 'Retirement account not found.' });
+    }
+
+    const holding = db.prepare('SELECT * FROM retirement_holdings WHERE id = ? AND account_id = ?').get(holding_id, account.id);
+    if (!holding) {
+      return res.status(404).json({ success: false, error: 'Retirement holding position not found.' });
+    }
+
+    if (sharesToSell > holding.shares_or_units + 0.00001) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot liquidate ${sharesToSell} shares. You currently own ${holding.shares_or_units} shares of ${holding.asset_symbol}.`
+      });
+    }
+
+    const livePrice = getRetirementAssetRate(holding.asset_symbol);
+    const proceeds = Number((sharesToSell * livePrice).toFixed(2));
+    const costBasisReduction = Number(((sharesToSell / holding.shares_or_units) * holding.cost_basis).toFixed(2));
+    const remainingShares = Number((holding.shares_or_units - sharesToSell).toFixed(6));
+
+    const executeLiquidation = db.transaction(() => {
+      if (remainingShares <= 0.0001) {
+        db.prepare('DELETE FROM retirement_holdings WHERE id = ?').run(holding.id);
+      } else {
+        db.prepare(`
+          UPDATE retirement_holdings 
+          SET shares_or_units = ?, cost_basis = MAX(0, cost_basis - ?), updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(remainingShares, costBasisReduction, holding.id);
+      }
+
+      // Add proceeds to unallocated retirement cash
+      db.prepare('UPDATE retirement_accounts SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(proceeds, account.id);
+
+      // Recalculate full retirement equity
+      const allHoldings = db.prepare('SELECT * FROM retirement_holdings WHERE account_id = ?').all(account.id);
+      let holdingsTotal = 0;
+      allHoldings.forEach(h => {
+        const rate = getRetirementAssetRate(h.asset_symbol);
+        holdingsTotal += (h.shares_or_units * rate);
+      });
+      const newEquity = Number((account.balance + proceeds + holdingsTotal).toFixed(2));
+      db.prepare('UPDATE retirement_accounts SET equity = ? WHERE id = ?').run(newEquity, account.id);
+
+      // Log to retirement activity ledger
+      db.prepare(`
+        INSERT INTO retirement_contributions (account_id, user_id, amount, source_type, tax_year, notes)
+        VALUES (?, ?, ?, 'position_liquidation', 2026, ?)
+      `).run(account.id, userId, proceeds, `Liquidated ${sharesToSell} shares of ${holding.asset_symbol} @ ${livePrice.toFixed(2)} (Tax-Free Proceeds: ${proceeds.toFixed(2)})`);
+
+      return { proceeds, newBalance: account.balance + proceeds, newEquity, remainingShares };
+    });
+
+    const result = executeLiquidation();
+
+    res.json({
+      success: true,
+      message: `Successfully liquidated ${sharesToSell} shares of ${holding.asset_symbol} for ${result.proceeds.toLocaleString(undefined, {minimumFractionDigits: 2})} USD. Proceeds credited to unallocated cash.`,
+      proceeds: result.proceeds,
+      newRetirementBalance: result.newBalance,
+      newRetirementEquity: result.newEquity,
+      remainingShares: result.remainingShares
+    });
+  } catch (err) {
+    console.error('Error liquidating retirement holding:', err);
+    res.status(500).json({ success: false, error: 'Failed to liquidate retirement position.' });
+  }
+});
+
 // POST /api/retirement/toggle-drip (Toggle Dividend Reinvestment Program)
 router.post('/api/retirement/toggle-drip', requireAuth, (req, res) => {
   try {
@@ -539,6 +622,14 @@ router.get('/api/retirement/statement', requireAuth, (req, res) => {
       portfolioHoldings: evaluatedHoldings,
       transactionHistory: contributions
     };
+
+    if (req.query.format !== 'json' && !req.xhr && (req.headers.accept?.includes('text/html') || !req.headers.accept?.includes('application/json'))) {
+      return res.render('app/retirement-statement', {
+        title: `Tax-Year ${statement.taxYear} Form 5498 Custodial Report | Mainstreet Capital Exchange`,
+        statement,
+        user
+      });
+    }
 
     res.json({ success: true, statement });
   } catch (err) {

@@ -248,6 +248,20 @@ router.get('/dashboard', (req, res) => {
   const retirementHoldings = db.prepare('SELECT * FROM retirement_holdings WHERE account_id = ?').all(retirementAccount.id);
   const retirementContributions = db.prepare('SELECT * FROM retirement_contributions WHERE account_id = ? ORDER BY id DESC LIMIT 5').all(retirementAccount.id);
 
+  // Synchronize live retirement account equity with mark-to-market prices
+  const userDashRates = getLivePrices();
+  let retHoldingsTotal = 0;
+  retirementHoldings.forEach(rh => {
+    const cleanSym = (rh.asset_symbol || '').replace('/USDT', '').replace('/USD', '').trim();
+    const liveRate = userDashRates[cleanSym]?.price || userDashRates[rh.asset_symbol]?.price || (rh.cost_basis / (rh.shares_or_units || 1));
+    retHoldingsTotal += (Number(rh.shares_or_units || 0) * Number(liveRate));
+  });
+  const dynamicRetEquity = Number((Number(retirementAccount.balance || 0) + retHoldingsTotal).toFixed(2));
+  if (Number(retirementAccount.equity || 0) !== dynamicRetEquity) {
+    db.prepare('UPDATE retirement_accounts SET equity = ? WHERE id = ?').run(dynamicRetEquity, retirementAccount.id);
+    retirementAccount.equity = dynamicRetEquity;
+  }
+
   res.render('app/dashboard', {
     title: 'Trader Dashboard | Mainstreet Capital Exchange',
     user,

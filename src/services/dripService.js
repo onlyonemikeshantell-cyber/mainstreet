@@ -1,4 +1,5 @@
 const db = require('../db');
+const { getLivePrices } = require('./livePriceService');
 
 // Annual dividend yield rates
 const DIVIDEND_RATES = {
@@ -52,6 +53,19 @@ const DIVIDEND_RATES = {
   'CAT': 0.016,
   'LMT': 0.024,
   'GE': 0.008
+};
+
+
+// Helper to get real-time price quotes for DRIP execution
+const getDripLiveRate = (symbol, costBasis = 100, shares = 1) => {
+  if (!symbol || symbol === 'USD' || symbol === 'USDT') return 1.0;
+  const clean = (symbol || '').replace('/USDT', '').replace('/USD', '').trim();
+  const live = getLivePrices();
+  if (live[clean] && live[clean].price) return Number(live[clean].price);
+  if (live[symbol] && live[symbol].price) return Number(live[symbol].price);
+  if (SPOT_PRICES[clean]) return Number(SPOT_PRICES[clean]);
+  if (SPOT_PRICES[symbol]) return Number(SPOT_PRICES[symbol]);
+  return costBasis > 0 && shares > 0 ? (costBasis / shares) : 100.0;
 };
 
 const SPOT_PRICES = {
@@ -189,7 +203,7 @@ function distributeQuarterlyDividends(options = {}) {
         // Option A: Specific target holding selected
         if (targetHoldingId) {
           const matchedHolding = holdings.find(h => h.id === targetHoldingId) || holdings[0];
-          const currentPrice = SPOT_PRICES[matchedHolding.asset_symbol] || (matchedHolding.cost_basis / (matchedHolding.shares_or_units || 1)) || 100.0;
+          const currentPrice = getDripLiveRate(matchedHolding.asset_symbol, matchedHolding.cost_basis, matchedHolding.shares_or_units);
           const additionalShares = Number((totalDividendsForAccount / currentPrice).toFixed(4));
 
           db.prepare(`
@@ -214,13 +228,13 @@ function distributeQuarterlyDividends(options = {}) {
           // Option B: Proportional distribution across all stock holdings
           let totalHoldingsVal = 0;
           holdings.forEach(h => {
-            const p = SPOT_PRICES[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1)) || 100.0;
+            const p = getDripLiveRate(h.asset_symbol, h.cost_basis, h.shares_or_units);
             totalHoldingsVal += (h.shares_or_units * p);
           });
 
           let remainingPayout = totalDividendsForAccount;
           holdings.forEach((holding, idx) => {
-            const p = SPOT_PRICES[holding.asset_symbol] || (holding.cost_basis / (holding.shares_or_units || 1)) || 100.0;
+            const p = getDripLiveRate(holding.asset_symbol, holding.cost_basis, holding.shares_or_units);
             const hVal = holding.shares_or_units * p;
             const weight = totalHoldingsVal > 0 ? (hVal / totalHoldingsVal) : (1.0 / holdings.length);
             
@@ -287,7 +301,7 @@ function distributeQuarterlyDividends(options = {}) {
           annualRate = DIVIDEND_RATES[holding.asset_symbol] || 0.012; // default 1.2%
         }
         const quarterlyRate = annualRate / 4.0;
-        const currentPrice = SPOT_PRICES[holding.asset_symbol] || (holding.cost_basis / (holding.shares_or_units || 1));
+        const currentPrice = getDripLiveRate(holding.asset_symbol, holding.cost_basis, holding.shares_or_units);
         const marketVal = holding.shares_or_units * currentPrice;
         const dividendPayout = Number((marketVal * quarterlyRate).toFixed(2));
 
@@ -346,7 +360,7 @@ function distributeQuarterlyDividends(options = {}) {
     const updatedHoldings = db.prepare('SELECT * FROM retirement_holdings WHERE account_id = ?').all(account.id);
     let newHoldingsVal = 0;
     updatedHoldings.forEach(h => {
-      const p = SPOT_PRICES[h.asset_symbol] || (h.cost_basis / (h.shares_or_units || 1)) || 100.0;
+      const p = getDripLiveRate(h.asset_symbol, h.cost_basis, h.shares_or_units);
       newHoldingsVal += (h.shares_or_units * p);
     });
 

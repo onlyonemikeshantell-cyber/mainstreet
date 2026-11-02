@@ -64,6 +64,12 @@ function dashboardPortfolioApp() {
         retirementInvestModal: false,
         retirementInvestAsset: 'AAPL',
         retirementInvestAmount: 500,
+        retirementSellModal: false,
+        retirementSellHolding: null,
+        retirementSellShares: 1,
+        retirementSellSubmitting: false,
+        retirementSellMsg: '',
+        retirementSellError: '',
         retirementDripEnabled: <%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? retirementAccount.drip_enabled : 1 %>,
         retirementSubmitting: false,
         retirementMsg: '',
@@ -370,6 +376,67 @@ function dashboardPortfolioApp() {
         get retirementPnLPct() {
             if (this.retirementCostBasis <= 0) return '0.00';
             return ((this.retirementUnrealizedPnL / this.retirementCostBasis) * 100).toFixed(2);
+        },
+        get retirementRemainingLimit() {
+            const lim = this.retirementAccountData ? Number(this.retirementAccountData.annual_limit || 7000) : 7000;
+            const contrib = this.retirementAccountData ? Number(this.retirementAccountData.total_contributed || 0) : 0;
+            return Math.max(0, lim - contrib);
+        },
+        get retirementContributedPercent() {
+            const lim = this.retirementAccountData ? Number(this.retirementAccountData.annual_limit || 7000) : 7000;
+            const contrib = this.retirementAccountData ? Number(this.retirementAccountData.total_contributed || 0) : 0;
+            return Math.min(100, Math.round((contrib / lim) * 100));
+        },
+        getRetirementHoldingLivePrice(sym) {
+            if (!sym) return 1.0;
+            const clean = (sym || '').replace('/USDT', '').replace('/USD', '').trim();
+            return Number(this.rates[clean]?.price || this.rates[sym]?.price || 100.0);
+        },
+        openRetirementSellModal(holding) {
+            this.retirementSellHolding = holding;
+            this.retirementSellShares = Number(holding.shares_or_units || 1);
+            this.retirementSellError = '';
+            this.retirementSellMsg = '';
+            this.retirementSellModal = true;
+        },
+        async executeRetirementSell() {
+            if (!this.retirementSellHolding) return;
+            this.retirementSellSubmitting = true;
+            this.retirementSellError = '';
+            this.retirementSellMsg = '';
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const res = await fetch('/api/retirement/sell', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+                    body: JSON.stringify({
+                        holding_id: this.retirementSellHolding.id,
+                        shares: Number(this.retirementSellShares),
+                        _token: token
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    this.retirementSellMsg = data.message;
+                    if (this.retirementAccountData) {
+                        this.retirementAccountData.balance = Number(data.newRetirementBalance);
+                        this.retirementAccountData.equity = Number(data.newRetirementEquity);
+                    }
+                    if (window.showToast) window.showToast(data.message, 'success');
+                    setTimeout(() => {
+                        this.retirementSellModal = false;
+                        window.location.hash = '#retirement';
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    this.retirementSellError = data?.error || 'Failed to liquidate position.';
+                }
+            } catch (err) {
+                this.retirementSellError = 'Network error while executing liquidation.';
+            } finally {
+                this.retirementSellSubmitting = false;
+            }
         },
         setAccountMode(mode) {
             this.selectedAccountMode = mode;
@@ -688,7 +755,11 @@ function dashboardPortfolioApp() {
                 const data = await res.json();
                 if (data && data.success) {
                     this.retirementMsg = data.message;
-                    setTimeout(() => { window.location.reload(); }, 1200);
+                    if (window.showToast) window.showToast(data.message, 'success');
+                    setTimeout(() => { 
+                        window.location.hash = '#retirement';
+                        window.location.reload(); 
+                    }, 1000);
                 } else {
                     this.retirementError = (data && data.error) ? data.error : 'Contribution failed.';
                 }
@@ -710,8 +781,16 @@ function dashboardPortfolioApp() {
                 'MSFT': 'Microsoft Corporation',
                 'NVDA': 'NVIDIA Corporation',
                 'AMZN': 'Amazon.com, Inc.',
+                'GOOGL': 'Alphabet Inc.',
+                'META': 'Meta Platforms, Inc.',
+                'TSLA': 'Tesla, Inc.',
+                'PLTR': 'Palantir Technologies',
+                'AMD': 'Advanced Micro Devices',
+                'JPM': 'JPMorgan Chase & Co.',
+                'V': 'Visa Inc.',
                 'BTC': 'Bitcoin Cold IRA Vault',
-                'ETH': 'Ethereum Staking IRA'
+                'ETH': 'Ethereum Staking IRA',
+                'SOL': 'Solana High-Yield Vault'
             };
 
             const assetTypes = {
@@ -719,8 +798,16 @@ function dashboardPortfolioApp() {
                 'MSFT': 'stock',
                 'NVDA': 'stock',
                 'AMZN': 'stock',
+                'GOOGL': 'stock',
+                'META': 'stock',
+                'TSLA': 'stock',
+                'PLTR': 'stock',
+                'AMD': 'stock',
+                'JPM': 'stock',
+                'V': 'stock',
                 'BTC': 'crypto',
-                'ETH': 'crypto'
+                'ETH': 'crypto',
+                'SOL': 'crypto'
             };
 
             const assetIcons = {
@@ -728,8 +815,16 @@ function dashboardPortfolioApp() {
                 'MSFT': '🪟',
                 'NVDA': '🟢',
                 'AMZN': '📦',
+                'GOOGL': '🔍',
+                'META': '♾️',
+                'TSLA': '⚡',
+                'PLTR': '👁️',
+                'AMD': '💻',
+                'JPM': '🏛️',
+                'V': '💳',
                 'BTC': '₿',
-                'ETH': 'Ξ'
+                'ETH': 'Ξ',
+                'SOL': '☀️'
             };
 
             try {
@@ -1697,7 +1792,7 @@ function dashboardPortfolioApp() {
                         <div class="flex flex-wrap items-center gap-4 text-xs font-mono pt-1">
                             <div class="flex items-center space-x-2">
                                 <span class="text-content-tertiary">Unallocated Cash:</span>
-                                <strong class="text-amber-500 text-sm">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
+                                <strong class="text-amber-500 text-sm" x-text="'$' + (retirementAccountData ? Number(retirementAccountData.balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00') + ' USD'">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %> USD</strong>
                             </div>
                             <span class="text-surface-border">|</span>
                             <div class="flex items-center space-x-2">
@@ -1749,7 +1844,7 @@ function dashboardPortfolioApp() {
                             <h4 class="text-sm font-bold font-serif text-content-primary">2026 Tax-Year IRS Annual Contribution Limit</h4>
                         </div>
                         <span class="text-xs font-mono text-content-tertiary">
-                            Contributed: <strong class="text-amber-500">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.total_contributed).toLocaleString() : '0' %></strong> / $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.annual_limit).toLocaleString() : '7,000' %> Limit
+                            Contributed: <strong class="text-amber-500" x-text="'$' + (retirementAccountData ? Number(retirementAccountData.total_contributed || 0).toLocaleString() : '0')"></strong> / <span x-text="'$' + (retirementAccountData ? Number(retirementAccountData.annual_limit || 7000).toLocaleString() : '7,000') + ' Limit'"></span>
                         </span>
                     </div>
 
@@ -1762,11 +1857,11 @@ function dashboardPortfolioApp() {
                             const remaining = Math.max(0, limit - contributed);
                         %>
                         <div class="h-3 w-full bg-surface-overlay rounded-full overflow-hidden border border-surface-border p-0.5">
-                            <div class="h-full bg-gradient-to-r from-amber-500 to-gain rounded-full transition-all duration-700" style="width: <%= percent %>%;"></div>
+                            <div class="h-full bg-gradient-to-r from-amber-500 to-gain rounded-full transition-all duration-700" :style="'width: ' + retirementContributedPercent + '%;'"></div>
                         </div>
                         <div class="flex justify-between text-[11px] text-content-tertiary">
-                            <span><%= percent %>% Utilized</span>
-                            <span class="text-gain font-bold">$<%= remaining.toLocaleString() %> remaining capacity for 2026</span>
+                            <span x-text="retirementContributedPercent + '% Utilized'"><%= percent %>% Utilized</span>
+                            <span class="text-gain font-bold" x-text="'$' + retirementRemainingLimit.toLocaleString() + ' remaining capacity for 2026'">$<%= remaining.toLocaleString() %> remaining capacity for 2026</span>
                         </div>
                     </div>
                 </div>
@@ -1795,6 +1890,7 @@ function dashboardPortfolioApp() {
                                     <th class="py-3 px-3 text-right">Cost Basis</th>
                                     <th class="py-3 px-3 text-right">Current Value</th>
                                     <th class="py-3 px-3 text-right">Unrealized Gain</th>
+                                    <th class="py-3 px-3 text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-surface-border font-mono text-xs">
@@ -1829,6 +1925,13 @@ function dashboardPortfolioApp() {
                                             </td>
                                             <td class="py-3.5 px-3 text-right font-bold <%= pnl >= 0 ? 'text-gain' : 'text-loss' %>">
                                                 <%= pnl >= 0 ? '+' : '' %>$<%= pnl.toLocaleString(undefined, {minimumFractionDigits: 2}) %> (<%= pnlPct %>%)
+                                            </td>
+                                            <td class="py-3.5 px-3 text-right">
+                                                <button type="button" 
+                                                        @click="openRetirementSellModal({ id: <%= h.id %>, asset_symbol: '<%= h.asset_symbol %>', asset_name: '<%= h.asset_name %>', shares_or_units: <%= h.shares_or_units %>, cost_basis: <%= h.cost_basis %> })"
+                                                        class="px-3 py-1 rounded-xl bg-surface-overlay hover:bg-loss/15 text-content-primary hover:text-loss border border-surface-border hover:border-loss/30 text-xs font-bold transition flex items-center space-x-1 float-right cursor-pointer">
+                                                    <span>Liquidate &rarr;</span>
+                                                </button>
                                             </td>
                                         </tr>
                                     <% }) %>
@@ -2500,20 +2603,32 @@ function dashboardPortfolioApp() {
             <div class="space-y-4 text-xs font-sans">
                 <div>
                     <label class="block uppercase font-semibold text-content-secondary mb-1">Select Investment Vehicle *</label>
-                    <select x-model="retirementInvestAsset" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-xs shadow-sm">
-                        <option value="AAPL">Apple Inc. (AAPL) &bull; Blue-Chip Dividend Stock</option>
-                        <option value="MSFT">Microsoft Corporation (MSFT) &bull; Enterprise Tech</option>
-                        <option value="NVDA">NVIDIA Corporation (NVDA) &bull; AI Hardware</option>
-                        <option value="AMZN">Amazon.com, Inc. (AMZN) &bull; E-Commerce &amp; Cloud</option>
-                        <option value="BTC">Bitcoin Cold IRA Vault (BTC) &bull; Insured Crypto</option>
-                        <option value="ETH">Ethereum Staking IRA (ETH) &bull; Decentralized Layer-1</option>
+                    <select x-model="retirementInvestAsset" class="w-full bg-white dark:bg-[#252528] border border-surface-border text-content-primary dark:text-white rounded-xl px-4 py-2.5 outline-none font-bold text-xs shadow-sm">
+                        <optgroup label="Blue-Chip Equities &amp; Tech Giants">
+                            <option value="AAPL">Apple Inc. (AAPL) &bull; Blue-Chip Dividend Stock</option>
+                            <option value="MSFT">Microsoft Corporation (MSFT) &bull; Enterprise Tech &amp; AI</option>
+                            <option value="NVDA">NVIDIA Corporation (NVDA) &bull; AI Hardware Infrastructure</option>
+                            <option value="AMZN">Amazon.com, Inc. (AMZN) &bull; Cloud &amp; E-Commerce</option>
+                            <option value="GOOGL">Alphabet Inc. (GOOGL) &bull; Cloud Compute &amp; Search</option>
+                            <option value="META">Meta Platforms, Inc. (META) &bull; AI &amp; Metaverse</option>
+                            <option value="TSLA">Tesla, Inc. (TSLA) &bull; Autonomous Tech &amp; Robotics</option>
+                            <option value="PLTR">Palantir Technologies (PLTR) &bull; Enterprise Defense AI</option>
+                            <option value="AMD">Advanced Micro Devices (AMD) &bull; High-Performance Compute</option>
+                            <option value="JPM">JPMorgan Chase &amp; Co. (JPM) &bull; Institutional Financials</option>
+                            <option value="V">Visa Inc. (V) &bull; Global Payments Network</option>
+                        </optgroup>
+                        <optgroup label="Tax-Advantaged Digital Asset Vaults">
+                            <option value="BTC">Bitcoin Cold IRA Vault (BTC) &bull; Institutional Cold Storage</option>
+                            <option value="ETH">Ethereum Staking IRA (ETH) &bull; Layer-1 Smart Contracts</option>
+                            <option value="SOL">Solana High-Yield Vault (SOL) &bull; High-Throughput Layer-1</option>
+                        </optgroup>
                     </select>
                 </div>
 
                 <div>
                     <div class="flex justify-between mb-1">
                         <label class="block uppercase font-semibold text-content-secondary">Amount to Allocate (USD) *</label>
-                        <span class="text-[10px] text-content-tertiary font-mono">Unallocated IRA Cash: $<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString() : '0' %></span>
+                        <span class="text-[10px] text-content-tertiary font-mono">Unallocated IRA Cash: $<span x-text="(retirementAccountData ? Number(retirementAccountData.balance || 0) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span></span>
                     </div>
                     <input type="number" x-model.number="retirementInvestAmount" min="20" class="w-full bg-white border border-surface-border text-content-primary rounded-xl px-4 py-2.5 outline-none font-bold text-sm shadow-sm" />
                 </div>
@@ -2617,7 +2732,7 @@ function dashboardPortfolioApp() {
                     <button type="button" @click="subaccountTransferAmount = 500" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary dark:text-white border border-surface-border transition cursor-pointer">$500</button>
                     <button type="button" @click="subaccountTransferAmount = 1000" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary dark:text-white border border-surface-border transition cursor-pointer">$1,000</button>
                     <button type="button" 
-                            @click="subaccountTransferAmount = (subaccountTransferDirection === 'primary_to_retirement' ? Math.min(cashBalance, 3500) : (retirementAccountData ? Number(retirementAccountData.balance || 0) : 0))" 
+                            @click="subaccountTransferAmount = (subaccountTransferDirection === 'primary_to_retirement' ? Math.min(cashBalance, retirementRemainingLimit) : (retirementAccountData ? Number(retirementAccountData.balance || 0) : 0))" 
                             class="py-1.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-white text-primary dark:text-sky-300 border border-primary/30 font-bold transition cursor-pointer">Max</button>
                 </div>
             </div>
@@ -2658,6 +2773,103 @@ function dashboardPortfolioApp() {
         </div>
     </div>
 
+
+    <!-- ========================================================================== -->
+    <!-- MODAL: LIQUIDATE RETIREMENT HOLDING (RETURN CASH TO TAX-FREE IRA VAULT)    -->
+    <!-- ========================================================================== -->
+    <div x-show="retirementSellModal" class="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white dark:bg-[#1c1c1e] text-content-primary dark:text-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-left border border-surface-border shadow-2xl relative" @click.outside="retirementSellModal = false">
+            
+            <div class="flex justify-between items-center border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-loss/10 text-loss flex items-center justify-center text-xl font-bold">
+                        📉
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base font-serif text-content-primary dark:text-white">Liquidate Position</h3>
+                        <p class="text-[11px] text-content-secondary dark:text-neutral-400 font-mono">Tax-Free Reallocation &bull; 100% Cash Proceeds</p>
+                    </div>
+                </div>
+                <button type="button" @click="retirementSellModal = false" class="text-content-tertiary hover:text-content-primary dark:hover:text-white text-2xl transition">&times;</button>
+            </div>
+
+            <template x-if="retirementSellHolding">
+                <div class="space-y-4 text-xs font-sans">
+                    <!-- Holding Banner -->
+                    <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border flex items-center justify-between">
+                        <div>
+                            <span class="block text-[10px] text-content-tertiary uppercase font-mono">Position</span>
+                            <strong class="text-sm font-bold text-content-primary dark:text-white" x-text="retirementSellHolding.asset_name"></strong>
+                            <span class="text-xs font-mono text-content-secondary" x-text="retirementSellHolding.asset_symbol"></span>
+                        </div>
+                        <div class="text-right font-mono">
+                            <span class="block text-[10px] text-content-tertiary uppercase">Available</span>
+                            <span class="text-sm font-bold text-content-primary dark:text-white" x-text="retirementSellHolding.shares_or_units + ' shares'"></span>
+                            <span class="block text-[10px] text-content-secondary" x-text="'@ $' + getRetirementHoldingLivePrice(retirementSellHolding.asset_symbol).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                        </div>
+                    </div>
+
+                    <!-- Shares Input -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <label class="block uppercase font-mono text-[10px] font-semibold text-content-secondary dark:text-neutral-400">Shares to Liquidate *</label>
+                            <span class="text-[11px] font-mono text-content-tertiary" x-text="'Max: ' + retirementSellHolding.shares_or_units"></span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" 
+                                   x-model.number="retirementSellShares" 
+                                   :max="retirementSellHolding.shares_or_units" 
+                                   min="0.0001" 
+                                   step="any"
+                                   class="w-full px-4 py-2.5 rounded-xl bg-surface-overlay border border-surface-border font-mono font-bold text-sm text-content-primary dark:text-white outline-none focus:border-loss transition" />
+                        </div>
+
+                        <!-- Fraction Quick Selectors -->
+                        <div class="grid grid-cols-4 gap-2 font-mono text-xs">
+                            <button type="button" @click="retirementSellShares = +(retirementSellHolding.shares_or_units * 0.25).toFixed(4)" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary dark:text-white border border-surface-border transition cursor-pointer">25%</button>
+                            <button type="button" @click="retirementSellShares = +(retirementSellHolding.shares_or_units * 0.50).toFixed(4)" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary dark:text-white border border-surface-border transition cursor-pointer">50%</button>
+                            <button type="button" @click="retirementSellShares = +(retirementSellHolding.shares_or_units * 0.75).toFixed(4)" class="py-1.5 rounded-lg bg-surface-overlay hover:bg-surface-border text-content-primary dark:text-white border border-surface-border transition cursor-pointer">75%</button>
+                            <button type="button" @click="retirementSellShares = retirementSellHolding.shares_or_units" class="py-1.5 rounded-lg bg-loss/10 hover:bg-loss hover:text-white text-loss border border-loss/30 font-bold transition cursor-pointer">100%</button>
+                        </div>
+                    </div>
+
+                    <!-- Net Proceeds Breakdown -->
+                    <div class="p-3.5 rounded-2xl bg-surface-overlay/80 border border-surface-border space-y-2 text-xs font-mono">
+                        <div class="flex items-center justify-between text-content-secondary dark:text-neutral-400">
+                            <span>Market Execution Rate:</span>
+                            <span class="font-bold text-content-primary dark:text-white" x-text="'$' + getRetirementHoldingLivePrice(retirementSellHolding.asset_symbol).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                        </div>
+                        <div class="flex items-center justify-between text-content-secondary dark:text-neutral-400">
+                            <span>Estimated Cash Proceeds:</span>
+                            <span class="font-bold text-gain text-sm" x-text="'$' + (retirementSellShares * getRetirementHoldingLivePrice(retirementSellHolding.asset_symbol)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'"></span>
+                        </div>
+                        <div class="flex items-center justify-between text-content-secondary dark:text-neutral-400 pt-1 border-t border-surface-border/60 text-[11px]">
+                            <span>Tax Liability:</span>
+                            <span class="font-bold text-gain">0.00 USD (Tax-Exempt IRS 408A)</span>
+                        </div>
+                    </div>
+
+                    <!-- Alerts -->
+                    <div x-show="retirementSellError" class="p-3 rounded-xl bg-loss/10 border border-loss/30 text-loss text-xs font-bold font-sans" x-text="retirementSellError" x-cloak></div>
+                    <div x-show="retirementSellMsg" class="p-3 rounded-xl bg-gain/10 border border-gain/30 text-gain text-xs font-bold font-sans" x-text="retirementSellMsg" x-cloak></div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end gap-3 pt-2 font-sans">
+                        <button type="button" @click="retirementSellModal = false" class="px-4 py-2.5 rounded-xl bg-surface-overlay text-content-secondary dark:text-neutral-300 font-bold text-xs hover:text-content-primary transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="button" 
+                                @click="executeRetirementSell()" 
+                                :disabled="retirementSellSubmitting || retirementSellShares <= 0 || retirementSellShares > retirementSellHolding.shares_or_units" 
+                                class="px-6 py-2.5 rounded-xl bg-loss hover:bg-loss/90 text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer">
+                            <span x-text="retirementSellSubmitting ? 'Liquidating...' : 'Confirm Liquidation &rarr;'"></span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+        </div>
+    </div>
 </section>
 
 <%- include('../partials/footer') %>
