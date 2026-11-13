@@ -26,7 +26,7 @@ const retirementRoutes = require('./src/routes/retirement');
 
 // Import Background Workers & Cloud Vault Persistence
 const { startWorkers } = require('./src/workers/tradingWorkers');
-const { restoreFromCloudVault, scheduleCloudSync } = require('./src/services/cloudPersistenceService');
+const { restoreFromCloudVault, scheduleCloudSync, recordLocalMutation } = require('./src/services/cloudPersistenceService');
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -151,8 +151,9 @@ app.use(injectUser);
 // Automatically persist any state-mutating request (signup, KYC, balance, admin delete) to the permanent Cloud Vault
 app.use((req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    recordLocalMutation(db);
     res.on('finish', () => {
-      scheduleCloudSync(db, 800);
+      scheduleCloudSync(db, 500);
     });
   }
   next();

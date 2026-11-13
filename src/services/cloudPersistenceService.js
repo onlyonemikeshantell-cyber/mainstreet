@@ -15,6 +15,9 @@ const TABLES_TO_SYNC = [
   'transactions',
   'trades',
   'copy_subscriptions',
+  'master_traders',
+  'master_trades',
+  'investment_plans',
   'user_investments',
   'retirement_accounts',
   'retirement_contributions',
@@ -27,13 +30,62 @@ const TABLES_TO_SYNC = [
   'referrals',
   'password_resets',
   'system_settings',
-  'payment_gateways'
+  'payment_gateways',
+  'market_settings',
+  'smtp_settings',
+  'economic_events',
+  'trading_signals',
+  'activity_logs'
+];
+
+const CONFIG_TABLES = [
+  'payment_gateways',
+  'master_traders',
+  'master_trades',
+  'investment_plans',
+  'smtp_settings',
+  'economic_events',
+  'trading_signals'
 ];
 
 let syncTimer = null;
 let isSyncing = false;
 let pendingSync = false;
 let isRestored = false;
+
+function ensureMetaTable(db) {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS _vault_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at INTEGER
+      );
+    `);
+  } catch (e) {}
+}
+
+function recordLocalMutation(db) {
+  try {
+    ensureMetaTable(db);
+    const now = Date.now();
+    db.prepare(`
+      INSERT INTO _vault_meta (key, value, updated_at)
+      VALUES ('last_local_mutation', ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(String(now), now);
+  } catch (e) {}
+}
+
+function getLocalMutationTime(db) {
+  try {
+    ensureMetaTable(db);
+    const row = db.prepare("SELECT updated_at FROM _vault_meta WHERE key = 'last_local_mutation'").get();
+    return row && row.updated_at ? Number(row.updated_at) : 0;
+  } catch (e) {
+    return 0;
+  }
+}
 
 /**
  * Low-level promise-based IMAP client over TLS (zero external dependencies)
@@ -53,7 +105,7 @@ function runImapSession(handler) {
         try { socket.destroy(); } catch (e) {}
         reject(new Error('IMAP session timeout'));
       }
-    }, 25000);
+    }, 20000);
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -121,10 +173,9 @@ function runImapSession(handler) {
       socket.write(`${tag} ${commandStr}\r\n`, 'latin1');
     });
 
-    const appendLiteral = (mailbox, contentStr) => new Promise((res, rej) => {
+    const appendLiteral = (mailbox, contentStr) => new Promise((res) => {
       const tag = `A${tagCounter++}`;
       const byteLen = Buffer.byteLength(contentStr, 'latin1');
-      // Dovecot supports LITERAL+ ({size+}\r\n) or standard continuation
       currentTag = tag;
       currentResolve = res;
       socket.write(`${tag} APPEND ${mailbox} (\\Seen) {${byteLen}+}\r\n${contentStr}\r\n`, 'latin1');
@@ -157,13 +208,14 @@ function runImapSession(handler) {
 }
 
 /**
- * Serialize live SQLite database tables + KYC files into a compressed base64 payload
+ * Serialize live SQLite database tables + KYC + Avatars into a compressed base64 payload
  */
 function exportDatabaseSnapshot(db) {
   try {
     db.pragma('wal_checkpoint(PASSIVE)');
   } catch (e) {}
 
+  ensureMetaTable(db);
   const tables = {};
   for (const table of TABLES_TO_SYNC) {
     try {
@@ -173,14 +225,14 @@ function exportDatabaseSnapshot(db) {
     }
   }
 
-  // Only store non-zero user_crypto_balances to keep payload compact; 0-balance rows are auto-seeded
+  // Non-zero user_crypto_balances
   try {
     tables.user_crypto_balances = db.prepare('SELECT * FROM user_crypto_balances WHERE balance != 0').all();
   } catch (e) {
     tables.user_crypto_balances = [];
   }
 
-  // Include uploaded KYC files from storage/kyc referenced by kyc_documents
+  // Include uploaded KYC files
   const kycFiles = {};
   const kycDir = path.join(__dirname, '..', '..', 'storage', 'kyc');
   if (fs.existsSync(kycDir) && Array.isArray(tables.kyc_documents)) {
@@ -202,12 +254,33 @@ function exportDatabaseSnapshot(db) {
     }
   }
 
+  // Include uploaded custom avatars for copy traders
+  const avatarFiles = {};
+  const avatarDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
+  if (fs.existsSync(avatarDir)) {
+    try {
+      const files = fs.readdirSync(avatarDir);
+      for (const fname of files) {
+        const fpath = path.join(avatarDir, fname);
+        if (fs.statSync(fpath).isFile()) {
+          const stat = fs.statSync(fpath);
+          if (stat.size <= 2 * 1024 * 1024) {
+            avatarFiles[fname] = fs.readFileSync(fpath).toString('base64');
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  const now = Date.now();
   const snapshot = {
-    version: 1,
-    timestamp: Date.now(),
-    isoDate: new Date().toISOString(),
+    version: 2,
+    timestamp: now,
+    isoDate: new Date(now).toISOString(),
+    lastLocalMutation: getLocalMutationTime(db) || now,
     tables,
-    kycFiles
+    kycFiles,
+    avatarFiles
   };
 
   const jsonBuffer = Buffer.from(JSON.stringify(snapshot), 'utf8');
@@ -216,7 +289,7 @@ function exportDatabaseSnapshot(db) {
 }
 
 /**
- * Restore a snapshot object into the local SQLite database & storage/kyc directory
+ * Restore a snapshot object into the local SQLite database & filesystem
  */
 function importDatabaseSnapshot(db, snapshot) {
   if (!snapshot || !snapshot.tables || !Array.isArray(snapshot.tables.users)) {
@@ -228,12 +301,29 @@ function importDatabaseSnapshot(db, snapshot) {
     fs.mkdirSync(kycDir, { recursive: true });
   }
 
-  // Restore KYC files first
+  // Restore KYC files
   if (snapshot.kycFiles && typeof snapshot.kycFiles === 'object') {
     for (const [filename, b64] of Object.entries(snapshot.kycFiles)) {
       try {
         const safeName = path.basename(filename);
         const dest = path.join(kycDir, safeName);
+        if (!fs.existsSync(dest)) {
+          fs.writeFileSync(dest, Buffer.from(b64, 'base64'));
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Restore custom avatars
+  const avatarDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
+  if (snapshot.avatarFiles && typeof snapshot.avatarFiles === 'object') {
+    if (!fs.existsSync(avatarDir)) {
+      fs.mkdirSync(avatarDir, { recursive: true });
+    }
+    for (const [filename, b64] of Object.entries(snapshot.avatarFiles)) {
+      try {
+        const safeName = path.basename(filename);
+        const dest = path.join(avatarDir, safeName);
         if (!fs.existsSync(dest)) {
           fs.writeFileSync(dest, Buffer.from(b64, 'base64'));
         }
@@ -248,13 +338,20 @@ function importDatabaseSnapshot(db, snapshot) {
         const rows = snapshot.tables[table];
         if (!Array.isArray(rows) || rows.length === 0) continue;
 
-        // Preserve all existing accounts & data; safely merge/upsert snapshot records without wiping tables
         const localCols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
         const sampleCols = Object.keys(rows[0]).filter(col => localCols.includes(col));
         if (sampleCols.length === 0) continue;
 
         const placeholders = sampleCols.map(() => '?').join(', ');
         const colNames = sampleCols.map(c => `"${c}"`).join(', ');
+
+        // For configuration tables, replace existing seeded records so deletions & updates match authoritative snapshot
+        if (CONFIG_TABLES.includes(table)) {
+          try {
+            db.prepare(`DELETE FROM ${table}`).run();
+          } catch (e) {}
+        }
+
         const insertStmt = db.prepare(`INSERT OR REPLACE INTO ${table} (${colNames}) VALUES (${placeholders})`);
 
         for (const row of rows) {
@@ -276,6 +373,15 @@ function importDatabaseSnapshot(db, snapshot) {
           updateBal.run(row.balance, row.user_id, row.asset_symbol);
         }
       }
+
+      // Record snapshot timestamp in _vault_meta
+      ensureMetaTable(db);
+      const snapTs = snapshot.timestamp || Date.now();
+      db.prepare(`
+        INSERT INTO _vault_meta (key, value, updated_at)
+        VALUES ('last_local_mutation', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+      `).run(String(snapTs), snapTs);
     });
 
     restoreTx();
@@ -302,7 +408,7 @@ async function syncToCloudVault(db) {
     const base64Payload = exportDatabaseSnapshot(db);
     const mimeMsg = [
       'From: Mainstreet Vault <support@mainstreetcapitalx.com>',
-      'Subject: MAINSTREET_DB_SNAPSHOT_V1',
+      'Subject: MAINSTREET_DB_SNAPSHOT_V2',
       `Date: ${new Date().toUTCString()}`,
       'Content-Type: text/plain; charset=utf-8',
       '',
@@ -312,12 +418,8 @@ async function syncToCloudVault(db) {
     await runImapSession(async ({ cmd, appendLiteral }) => {
       await cmd(`CREATE ${VAULT_MAILBOX}`);
       const sel = await cmd(`SELECT ${VAULT_MAILBOX}`);
-      // Append the new snapshot first before deleting older ones
       const appRes = await appendLiteral(VAULT_MAILBOX, mimeMsg);
       if (appRes.status === 'OK') {
-        // Check message count and purge older snapshots if > 1
-        const existsMatch = /\* (\d+) EXISTS/.exec(sel.raw + '\r\n' + appRes.raw);
-        // Re-select to get latest message count
         const selAfter = await cmd(`SELECT ${VAULT_MAILBOX}`);
         const countMatch = /\* (\d+) EXISTS/.exec(selAfter.raw);
         const total = countMatch ? parseInt(countMatch[1], 10) : 1;
@@ -336,13 +438,13 @@ async function syncToCloudVault(db) {
     isSyncing = false;
     if (pendingSync) {
       pendingSync = false;
-      scheduleCloudSync(db, 1500);
+      scheduleCloudSync(db, 1000);
     }
   }
 }
 
 /**
- * Pull latest database snapshot from the Cloud Vault on server boot
+ * Pull latest database snapshot from Cloud Vault on server boot, with bidirectional timestamp protection
  */
 async function restoreFromCloudVault(db) {
   if (process.env.DISABLE_CLOUD_VAULT === '1') return false;
@@ -373,10 +475,30 @@ async function restoreFromCloudVault(db) {
 
     const decompressed = zlib.gunzipSync(Buffer.from(payload, 'base64')).toString('utf8');
     const snapshot = JSON.parse(decompressed);
+
+    // Guard: Compare local mutation time vs remote snapshot timestamp
+    const localMutationTime = getLocalMutationTime(db);
+    let localUsers = 0;
+    try {
+      localUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
+    } catch (e) {}
+
+    // If local database has active user data and was modified strictly AFTER the remote snapshot was created,
+    // NEVER overwrite local data with stale remote snapshot. Instead, upload local state to Cloud Vault.
+    if (localUsers > 0 && localMutationTime > 0 && snapshot.timestamp && localMutationTime > (snapshot.timestamp + 5000)) {
+      console.log(`[CloudVault] Local database is newer than remote snapshot (${new Date(localMutationTime).toISOString()} vs ${snapshot.isoDate}). Protecting local data and updating Cloud Vault with latest state...`);
+      isRestored = true;
+      await syncToCloudVault(db);
+      return true;
+    }
+
     const ok = importDatabaseSnapshot(db, snapshot);
     isRestored = true;
     if (ok) {
-      console.log(`[CloudVault] Restored ${snapshot.tables.users.length} live user(s) from permanent Cloud Vault (${snapshot.isoDate}).`);
+      const userCount = snapshot.tables && snapshot.tables.users ? snapshot.tables.users.length : 0;
+      const traderCount = snapshot.tables && snapshot.tables.master_traders ? snapshot.tables.master_traders.length : 0;
+      const gwCount = snapshot.tables && snapshot.tables.payment_gateways ? snapshot.tables.payment_gateways.length : 0;
+      console.log(`[CloudVault] Restored ${userCount} user(s), ${traderCount} copy trader(s), ${gwCount} gateway(s) from Cloud Vault (${snapshot.isoDate}).`);
     }
     return ok;
   } catch (err) {
@@ -389,9 +511,8 @@ async function restoreFromCloudVault(db) {
 /**
  * Debounced trigger to sync database changes after any write operation
  */
-function scheduleCloudSync(db, delayMs = 1200) {
+function scheduleCloudSync(db, delayMs = 800) {
   if (process.env.DISABLE_CLOUD_VAULT === '1') return;
-  if (!isRestored) return;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
     syncTimer = null;
@@ -402,5 +523,10 @@ function scheduleCloudSync(db, delayMs = 1200) {
 module.exports = {
   syncToCloudVault,
   restoreFromCloudVault,
-  scheduleCloudSync
+  scheduleCloudSync,
+  recordLocalMutation,
+  getLocalMutationTime,
+  exportDatabaseSnapshot,
+  importDatabaseSnapshot,
+  TABLES_TO_SYNC
 };

@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const db = require('../db');
 const { distributeQuarterlyDividends } = require('../services/dripService');
-const { syncToCloudVault } = require('../services/cloudPersistenceService');
+const { syncToCloudVault, scheduleCloudSync, recordLocalMutation } = require('../services/cloudPersistenceService');
 const { requireAdmin } = require('../middleware/auth');
 
 // Activity Logger helper
@@ -275,6 +275,9 @@ router.post(['/babyoku/copy-trading/master/save', '/admin/copy-trading/master/sa
     );
     req.session.flash = { success: `New Master Trader '${name}' added to leaderboard!` };
   }
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
   res.redirect('/babyoku');
 });
 
@@ -282,6 +285,9 @@ router.post(['/babyoku/copy-trading/master/delete', '/admin/copy-trading/master/
   const { master_id } = req.body;
   db.prepare('DELETE FROM master_trades WHERE master_id = ?').run(master_id);
   db.prepare('DELETE FROM master_traders WHERE id = ?').run(master_id);
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
   req.session.flash = { success: `Master Trader #${master_id} and associated strategy trades removed.` };
   res.redirect('/babyoku');
 });
@@ -744,6 +750,9 @@ router.post(['/babyoku/gateways/delete', '/admin/gateways/delete'], (req, res) =
   const { id } = req.body;
   if (id) {
     db.prepare('DELETE FROM payment_gateways WHERE id = ?').run(id);
+    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+    recordLocalMutation(db);
+    scheduleCloudSync(db, 100);
     req.session.flash = { success: 'Payment gateway deleted successfully.' };
   }
   res.redirect('/babyoku');
@@ -765,6 +774,9 @@ router.post(['/babyoku/gateways/save', '/admin/gateways/save'], (req, res) => {
     `).run(name, currency, network, address, instructions, parseFloat(min_deposit) || 50.0, is_active === '1' ? 1 : 0);
     req.session.flash = { success: `New payment gateway '${name}' added.` };
   }
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
   res.redirect('/babyoku');
 });
 
