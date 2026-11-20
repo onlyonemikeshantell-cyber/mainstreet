@@ -327,7 +327,7 @@
                     <template x-for="tr in paginatedTrades" :key="tr.id">
                         <tr class="hover:bg-surface-overlay/40 transition">
                             <td class="px-4 py-3 text-content-secondary font-semibold" x-text="'#TRD-' + tr.id"></td>
-                            <td class="px-4 py-3 font-bold text-content-primary" x-text="tr.symbol"></td>
+                            <td class="px-4 py-3 font-bold text-content-primary"><div class="flex items-center space-x-2"><span class="shrink-0" x-html="typeof getInstrumentLogo === 'function' ? getInstrumentLogo(tr.symbol, '', 'w-6 h-6') : ''"></span><span x-text="tr.symbol"></span></div></td>
                             <td class="px-4 py-3">
                                 <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
                                       :class="String(tr.type).toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-loss/15 text-loss border border-loss/30'"
@@ -376,7 +376,7 @@
                 <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm space-y-2.5 font-mono text-xs">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <span class="font-bold text-content-primary text-sm" x-text="tr.symbol"></span>
+                            <span class="shrink-0" x-html="typeof getInstrumentLogo === 'function' ? getInstrumentLogo(tr.symbol, '', 'w-6 h-6') : ''"></span><span class="font-bold text-content-primary text-sm" x-text="tr.symbol"></span>
                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
                                   :class="String(tr.type).toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-loss/15 text-loss border border-loss/30'"
                                   x-text="tr.type"></span>
