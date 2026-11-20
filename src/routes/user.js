@@ -311,11 +311,20 @@ router.get('/copy-trading/app', (req, res) => {
     ORDER BY cs.id DESC
   `).all(user.id);
 
+  const comments = db.prepare(`
+    SELECT c.*, mt.name as master_name, mt.strategy_name as master_strategy, mt.avatar as master_avatar
+    FROM copy_trading_comments c
+    LEFT JOIN master_traders mt ON c.master_id = mt.id
+    WHERE c.is_approved = 1
+    ORDER BY c.is_pinned DESC, c.id DESC
+  `).all();
+
   res.render('app/copy-trading-app', {
     title: 'Copy Trading Portfolio Station | Mainstreet Capital Exchange',
     user,
     masters,
-    mySubscriptions
+    mySubscriptions,
+    comments
   });
 });
 
