@@ -149,11 +149,13 @@ router.get(['/babyoku', '/admin'], (req, res) => {
   const emailLogs = db.prepare('SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT 30').all();
   const gateways = db.prepare('SELECT * FROM payment_gateways ORDER BY id ASC').all();
   const kycList = db.prepare(`
-    SELECT k.*, u.name as user_name, u.email as user_email 
+    SELECT k.*, u.name as user_name, u.email as user_email, u.kyc_status as user_kyc_status
     FROM kyc_documents k 
     JOIN users u ON k.user_id = u.id 
-    ORDER BY k.submitted_at DESC
+    ORDER BY CASE WHEN k.status = 'pending' THEN 0 ELSE 1 END, k.submitted_at DESC
   `).all();
+  const kycUserIdSet = new Set(kycList.map(k => k.user_id));
+  const pendingUsersWithoutDoc = users.filter(u => u.role !== 'admin' && u.kyc_status !== 'verified' && !kycUserIdSet.has(u.id));
   const markets = db.prepare('SELECT * FROM market_settings ORDER BY id ASC').all();
   const smtp = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get() || {};
   const systemSettings = db.prepare('SELECT * FROM system_settings WHERE id = 1').get() || {};
@@ -188,7 +190,7 @@ router.get(['/babyoku', '/admin'], (req, res) => {
     activeOpenTrades: openTrades.length,
     masterTradesCount: masterTrades.length,
     pendingWithdrawals: db.prepare("SELECT COUNT(*) as cnt FROM transactions WHERE type = 'withdrawal' AND status = 'pending'").get().cnt,
-    pendingKyc: db.prepare("SELECT COUNT(*) as cnt FROM kyc_documents WHERE status = 'pending'").get().cnt,
+    pendingKyc: db.prepare("SELECT COUNT(*) as cnt FROM kyc_documents WHERE status = 'pending'").get().cnt + pendingUsersWithoutDoc.length,
     unreadMessages: db.prepare("SELECT COUNT(*) as cnt FROM contact_messages WHERE status = 'unread'").get().cnt,
     activeCopySubscriptions: copySubscriptions.filter(s => s.status === 'active').length,
     totalEmailsSent: emailLogs.length,
@@ -216,6 +218,7 @@ router.get(['/babyoku', '/admin'], (req, res) => {
     emailLogs,
     gateways,
     kycList,
+    pendingUsersWithoutDoc,
     markets,
     smtp,
     systemSettings,
@@ -647,29 +650,50 @@ router.post(['/babyoku/user/status', '/admin/user/status'], (req, res) => {
 });
 
 router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], async (req, res) => {
-  const { user_id, kyc_status } = req.body;
-  const validStatus = ['verified', 'pending', 'rejected', 'unverified'].includes(kyc_status) ? kyc_status : 'verified';
-  db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(validStatus, user_id);
+  const { user_id, kyc_status, return_tab } = req.body;
+  const tab = (return_tab === 'kyc' || return_tab === 'users') ? return_tab : 'users';
+  const rawStatus = String(kyc_status || '').trim().toLowerCase();
+  const validStatus = (rawStatus === 'approved' || rawStatus === 'approve' || rawStatus === 'verified')
+    ? 'verified'
+    : (['pending', 'rejected', 'unverified'].includes(rawStatus) ? rawStatus : 'verified');
+
   const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(user_id);
+  if (!targetUser) {
+    req.session.flash = { error: `User #${user_id} not found.` };
+    return req.session.save(() => res.redirect(`/babyoku?tab=${tab}`));
+  }
+
   if (validStatus === 'verified') {
-    db.prepare("UPDATE kyc_documents SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
+    db.prepare("UPDATE users SET kyc_status = 'verified', email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(targetUser.id);
+    db.prepare("UPDATE kyc_documents SET status = 'approved', rejection_reason = NULL, reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ?").run(targetUser.id);
     try {
       db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
-        .run(user_id, 'Compliance Verification Confirmed', 'Administrator has approved your account for Tier-1 Verified status.');
-    } catch(e) {}
-    if (targetUser && targetUser.email) {
+        .run(targetUser.id, 'Compliance Verification Confirmed', 'Administrator has approved your account for Tier-1 Verified status.');
+    } catch (e) {}
+    if (targetUser.email) {
       sendEmail({
         to: targetUser.email,
         subject: 'KYC Approved — Your Mainstreet Capital Exchange Account Is Now Unlocked',
         message: `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can now access your dashboard, fund your account, and trade across all institutional markets at https://mainstreetcapitalx.com/dashboard.`,
-        recipientType: 'user'
+        recipientType: 'user',
+        async: true
       }).catch(() => {});
     }
   } else if (validStatus === 'rejected') {
-    db.prepare("UPDATE kyc_documents SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'pending'").run(user_id);
+    db.prepare("UPDATE users SET kyc_status = 'rejected' WHERE id = ?").run(targetUser.id);
+    db.prepare("UPDATE kyc_documents SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ?").run(targetUser.id);
+  } else {
+    db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(validStatus, targetUser.id);
   }
-  req.session.flash = { success: `KYC status for User #${user_id} updated to ${validStatus.toUpperCase()}!` };
-  res.redirect('/babyoku');
+
+  const effectiveAdminId = req.session.adminId || req.session.userId;
+  logActivity(effectiveAdminId, 'ADMIN_KYC_STATUS_UPDATE', `Updated KYC status for User #${targetUser.id} (${targetUser.email}) to ${validStatus.toUpperCase()}`, req);
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
+
+  req.session.flash = { success: `KYC status for ${targetUser.name} (#${targetUser.id}) updated to ${validStatus.toUpperCase()}!` };
+  return req.session.save(() => res.redirect(`/babyoku?tab=${tab}`));
 });
 
 router.post(['/babyoku/user/reset-password', '/admin/user/reset-password'], (req, res) => {
@@ -807,32 +831,46 @@ router.post(['/babyoku/gateways/save', '/admin/gateways/save'], (req, res) => {
   res.redirect('/babyoku');
 });
 
-router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
-  const { kyc_id, action, rejection_reason } = req.body;
-  const status = (action === 'approve' || action === 'approved') ? 'approved' : 'rejected';
-  const doc = db.prepare('SELECT * FROM kyc_documents WHERE id = ?').get(kyc_id);
+const processKycDocumentDecision = (req, res, { kycId, rawDecision, rejectionReason }) => {
+  const doc = db.prepare('SELECT * FROM kyc_documents WHERE id = ?').get(kycId);
   if (!doc) {
-    req.session.flash = { error: 'Document not found.' };
-    return res.redirect('/babyoku');
+    req.session.flash = { error: 'KYC document record not found.' };
+    return req.session.save(() => res.redirect('/babyoku?tab=kyc'));
+  }
+
+  const normalized = String(rawDecision || '').trim().toLowerCase();
+  let status;
+  if (normalized === 'approve' || normalized === 'approved' || normalized === 'verified') {
+    status = 'approved';
+  } else if (normalized === 'reject' || normalized === 'rejected' || normalized === 'decline') {
+    status = 'rejected';
+  } else {
+    req.session.flash = { error: 'Invalid KYC decision action. Please click Approve or Reject.' };
+    return req.session.save(() => res.redirect('/babyoku?tab=kyc'));
   }
 
   db.prepare(`
     UPDATE kyc_documents 
     SET status = ?, rejection_reason = ?, reviewed_at = CURRENT_TIMESTAMP 
     WHERE id = ?
-  `).run(status, rejection_reason || null, doc.id);
+  `).run(status, status === 'approved' ? null : (rejectionReason || null), doc.id);
 
-  // Sync user's global KYC status
+  // Sync user's global KYC status (also ensure email_verified=1 upon admin approval so user is never blocked)
   const userKycStatus = (status === 'approved') ? 'verified' : 'rejected';
-  db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
+  if (status === 'approved') {
+    db.prepare("UPDATE users SET kyc_status = 'verified', email_verified = 1, email_verification_code = NULL, email_verification_expires = NULL WHERE id = ?").run(doc.user_id);
+  } else {
+    db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
+  }
+
   const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(doc.user_id);
 
   try {
     const isApp = (status === 'approved');
     const notifTitle = isApp ? 'Identity Verification Approved' : 'Identity Verification Declined';
-    const notifMsg = isApp 
+    const notifMsg = isApp
       ? 'Your compliance identity verification has been approved. Full institutional trading and withdrawal limits are now unlocked.'
-      : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
+      : `Your KYC document submission was declined. Reason: ${rejectionReason || 'Incomplete documentation. Please resubmit clear photos.'}`;
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
       .run(doc.user_id, notifTitle, notifMsg, 'kyc');
     if (targetUser && targetUser.email) {
@@ -843,59 +881,41 @@ router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
           : 'Action Required: KYC Verification Update — Mainstreet Capital Exchange',
         message: isApp
           ? `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can access your trading dashboard at https://mainstreetcapitalx.com/dashboard.`
-          : `Hello ${targetUser.name || 'Trader'},\n\nYour recent KYC document submission could not be approved. Reason: ${rejection_reason || 'Please submit clear, unobstructed identification photos.'}\n\nPlease sign in at https://mainstreetcapitalx.com/onboarding/kyc to resubmit your verification documents.`,
-        recipientType: 'user'
+          : `Hello ${targetUser.name || 'Trader'},\n\nYour recent KYC document submission could not be approved. Reason: ${rejectionReason || 'Please submit clear, unobstructed identification photos.'}\n\nPlease sign in at https://mainstreetcapitalx.com/onboarding/kyc to resubmit your verification documents.`,
+        recipientType: 'user',
+        async: true
       }).catch(() => {});
     }
-  } catch(ne) {}
+  } catch (ne) {}
 
-  req.session.flash = { success: `KYC Document #${doc.id} successfully marked as ${status.toUpperCase()} (Trader KYC updated to ${userKycStatus}).` };
-  res.redirect('/babyoku');
+  const effectiveAdminId = req.session.adminId || req.session.userId;
+  logActivity(effectiveAdminId, isAppOrRejAction(status), `KYC Document #${doc.id} for User #${doc.user_id} marked ${status.toUpperCase()} (user kyc_status=${userKycStatus})`, req);
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
+
+  req.session.flash = { success: `KYC Document #${doc.id} (${targetUser ? targetUser.name : 'User #' + doc.user_id}) marked as ${status.toUpperCase()} — Trader KYC is now ${userKycStatus.toUpperCase()}.` };
+  return req.session.save(() => res.redirect('/babyoku?tab=kyc'));
+};
+
+const isAppOrRejAction = (status) => (status === 'approved' ? 'ADMIN_KYC_APPROVED' : 'ADMIN_KYC_REJECTED');
+
+router.post(['/babyoku/kyc/action', '/admin/kyc/action'], (req, res) => {
+  const { kyc_id, action, status, rejection_reason } = req.body;
+  return processKycDocumentDecision(req, res, {
+    kycId: kyc_id,
+    rawDecision: action || status,
+    rejectionReason: rejection_reason
+  });
 });
 
 router.post(['/babyoku/kyc/review', '/admin/kyc/review'], (req, res) => {
-  const { kyc_id, status, rejection_reason } = req.body;
-  const doc = db.prepare('SELECT * FROM kyc_documents WHERE id = ?').get(kyc_id);
-  if (!doc) {
-    req.session.flash = { error: 'Document not found.' };
-    return res.redirect('/babyoku');
-  }
-
-  db.prepare(`
-    UPDATE kyc_documents 
-    SET status = ?, rejection_reason = ?, reviewed_at = CURRENT_TIMESTAMP 
-    WHERE id = ?
-  `).run(status, rejection_reason || null, doc.id);
-
-  // Sync user's global KYC status
-  const userKycStatus = (status === 'approved') ? 'verified' : (status === 'rejected' ? 'rejected' : 'pending');
-  db.prepare('UPDATE users SET kyc_status = ? WHERE id = ?').run(userKycStatus, doc.user_id);
-  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(doc.user_id);
-
-  try {
-    const isApp = (status === 'approved');
-    const notifTitle = isApp ? 'Identity Verification Approved' : 'Identity Verification Declined';
-    const notifMsg = isApp 
-      ? 'Your compliance identity verification has been approved. Full institutional trading and withdrawal limits are now unlocked.'
-      : `Your KYC document submission was declined. Reason: ${rejection_reason || 'Incomplete documentation. Please resubmit clear photos.'}`;
-    db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
-      .run(doc.user_id, notifTitle, notifMsg, 'kyc');
-    if (targetUser && targetUser.email && (status === 'approved' || status === 'rejected')) {
-      sendEmail({
-        to: targetUser.email,
-        subject: isApp
-          ? 'KYC Approved — Your Mainstreet Capital Exchange Account Is Now Unlocked'
-          : 'Action Required: KYC Verification Update — Mainstreet Capital Exchange',
-        message: isApp
-          ? `Hello ${targetUser.name || 'Trader'},\n\nCongratulations! Your KYC identity verification has been reviewed and approved by our Compliance Desk.\n\nYour live trading account is now fully unlocked. You can access your trading dashboard at https://mainstreetcapitalx.com/dashboard.`
-          : `Hello ${targetUser.name || 'Trader'},\n\nYour recent KYC document submission could not be approved. Reason: ${rejection_reason || 'Please submit clear, unobstructed identification photos.'}\n\nPlease sign in at https://mainstreetcapitalx.com/onboarding/kyc to resubmit your verification documents.`,
-        recipientType: 'user'
-      }).catch(() => {});
-    }
-  } catch(ne) {}
-
-  req.session.flash = { success: `KYC Document #${doc.id} marked as ${status} (Trader KYC updated to ${userKycStatus}).` };
-  res.redirect('/babyoku');
+  const { kyc_id, status, action, rejection_reason } = req.body;
+  return processKycDocumentDecision(req, res, {
+    kycId: kyc_id,
+    rawDecision: status || action,
+    rejectionReason: rejection_reason
+  });
 });
 
 router.post(['/babyoku/markets/save', '/admin/markets/save'], (req, res) => {
@@ -1443,8 +1463,12 @@ router.post(['/babyoku/settings/kyc-policy', '/babyoku/settings/didit', '/admin/
     WHERE id = 1
   `).run(autoApprove, autoApprove);
 
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  recordLocalMutation(db);
+  scheduleCloudSync(db, 100);
+
   req.session.flash = { success: 'Institutional KYC policy settings updated successfully!' };
-  res.redirect('/babyoku');
+  return req.session.save(() => res.redirect('/babyoku?tab=settings'));
 });
 
 // Send Live Test Email from Admin Settings

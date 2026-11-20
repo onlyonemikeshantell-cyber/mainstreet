@@ -832,12 +832,10 @@ db.exec(`
 
 // Ensure smtp_settings has working cPanel defaults if empty or unconfigured
 try {
-  // Synchronize system_settings row 1 with live zero-demo and manual KYC policies
+  // Ensure zero-demo welcome bonus without overwriting admin's saved auto_approve_kyc setting
   db.prepare(`
     UPDATE system_settings
-    SET default_welcome_bonus = 0.00,
-        auto_approve_kyc = 0,
-        didit_auto_approve = 0
+    SET default_welcome_bonus = 0.00
     WHERE id = 1
   `).run();
 

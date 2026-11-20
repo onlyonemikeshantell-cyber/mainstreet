@@ -655,9 +655,11 @@ router.post('/register', async (req, res) => {
     (memOtp && (memOtp.verified || (cleanSubmittedOtp && memOtp.code === cleanSubmittedOtp)))
   );
 
-  // All newly registered accounts must wait for manual KYC compliance approval before accessing the trading terminal
-  const initialKycStatus = 'pending';
-  const docStatus = 'pending';
+  // Respect Admin Institutional KYC Policy (default: manual approval -> 'pending')
+  const sysPolicy = db.prepare('SELECT auto_approve_kyc FROM system_settings WHERE id = 1').get() || {};
+  const isAutoApprove = Number(sysPolicy.auto_approve_kyc) === 1;
+  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
 
   const hash = bcrypt.hashSync(password, 10);
   const emailCode = isStep2EmailVerified ? null : Math.floor(100000 + Math.random() * 900000).toString();

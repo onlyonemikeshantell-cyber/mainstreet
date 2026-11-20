@@ -79,6 +79,17 @@
     }
     </script>
 
+    <!-- Safe KYC Dossier Lookup Map -->
+    <script>
+      window.__kycDocsById = {};
+      try {
+        const __kycArr = <%- (typeof safeJson === 'function') ? safeJson(kycList || []) : JSON.stringify(kycList || []).replace(/</g, '\\u003c') %>;
+        if (Array.isArray(__kycArr)) {
+          __kycArr.forEach(function(item) { window.__kycDocsById[String(item.id)] = item; });
+        }
+      } catch (e) {}
+    </script>
+
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 
@@ -254,7 +265,9 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(22, 22, 23, 0.72);
             backdrop-filter: blur(20px);
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
         }
         .cyber-table thead th {
@@ -301,7 +314,7 @@
 </head>
 <body class="bg-[#0B0F19] text-[#F5F5F7] font-sans antialiased min-h-screen selection:bg-primary/30 selection:text-white"
       x-data="{ 
-    activeTab: 'overview',
+    activeTab: (new URLSearchParams(window.location.search).get('tab')) || 'overview',
     sidebarOpen: true,
     mobileMenu: false,
     mobileMoreSheet: false,
@@ -339,6 +352,13 @@
     },
     kycModal: false,
     selectedKyc: {},
+    openKycModal(id) {
+        const rec = (window.__kycDocsById && window.__kycDocsById[String(id)]) || null;
+        if (rec) {
+            this.selectedKyc = rec;
+            this.kycModal = true;
+        }
+    },
     fullImgModal: false,
     fullImgSrc: '',
     navDropdown: false,
@@ -464,7 +484,6 @@
     }, 
     addTxModal: false,
     selectedUserTx: {},
-    selectedKyc: {},
     inspectKycModal: false,
     kycZoom: 100,
     kycRotate: 0,
@@ -1821,14 +1840,27 @@
                                                     <span class="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 rounded">ADMIN</span>
                                                 <% } %>
                                             </div>
-                                            <div class="flex items-center space-x-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                                            <div class="flex items-center flex-wrap gap-1.5 text-[10px] text-slate-400 font-mono mt-0.5">
                                                 <span class="truncate"><%= u.email %></span>
                                                 <% if (u.kyc_status === 'verified' || u.kyc_status === 'approved') { %>
-                                                    <span class="pill-emerald text-[9px] py-0 px-1.5" title="KYC Verified">TIER 1</span>
+                                                    <span class="pill-emerald text-[9px] py-0 px-1.5" title="KYC Verified">TIER 1 ✓</span>
                                                 <% } else if (u.kyc_status === 'pending') { %>
                                                     <span class="pill-amber text-[9px] py-0 px-1.5" title="KYC In Review">⏳ IN REVIEW</span>
+                                                <% } else if (u.kyc_status === 'rejected') { %>
+                                                    <span class="pill-rose text-[9px] py-0 px-1.5" title="KYC Rejected">REJECTED</span>
                                                 <% } else { %>
                                                     <span class="text-slate-500">Unverified</span>
+                                                <% } %>
+                                                <% if (u.role !== 'admin' && u.kyc_status !== 'verified' && u.kyc_status !== 'approved') { %>
+                                                    <form action="/babyoku/user/kyc-status" method="POST" class="inline-block">
+                                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                                        <input type="hidden" name="user_id" value="<%= u.id %>" />
+                                                        <input type="hidden" name="kyc_status" value="verified" />
+                                                        <input type="hidden" name="return_tab" value="users" />
+                                                        <button type="submit" class="px-2 py-0.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border border-emerald-500/40 text-[9px] font-bold transition cursor-pointer" title="Authorize KYC Immediately">
+                                                            ✓ Approve KYC
+                                                        </button>
+                                                    </form>
                                                 <% } %>
                                             </div>
                                         </div>
@@ -1916,13 +1948,26 @@
                                     <div class="text-[11px] text-slate-400 font-mono truncate mt-0.5"><%= u.email %></div>
                                 </div>
                             </div>
-                            <div class="flex-shrink-0">
+                            <div class="flex-shrink-0 flex flex-col items-end gap-1">
                                 <% if (u.kyc_status === 'verified' || u.kyc_status === 'approved') { %>
-                                    <span class="pill-emerald text-[9px] py-0 px-1.5">TIER 1</span>
+                                    <span class="pill-emerald text-[9px] py-0 px-1.5">TIER 1 ✓</span>
                                 <% } else if (u.kyc_status === 'pending') { %>
                                     <span class="pill-amber text-[9px] py-0 px-1.5">⏳ IN REVIEW</span>
+                                <% } else if (u.kyc_status === 'rejected') { %>
+                                    <span class="pill-rose text-[9px] py-0 px-1.5">REJECTED</span>
                                 <% } else { %>
                                     <span class="text-[10px] text-slate-500 font-mono">Unverified</span>
+                                <% } %>
+                                <% if (u.role !== 'admin' && u.kyc_status !== 'verified' && u.kyc_status !== 'approved') { %>
+                                    <form action="/babyoku/user/kyc-status" method="POST" class="inline-block">
+                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                        <input type="hidden" name="user_id" value="<%= u.id %>" />
+                                        <input type="hidden" name="kyc_status" value="verified" />
+                                        <input type="hidden" name="return_tab" value="users" />
+                                        <button type="submit" class="px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border border-emerald-500/40 text-[10px] font-bold transition cursor-pointer">
+                                            ✓ Approve KYC
+                                        </button>
+                                    </form>
                                 <% } %>
                             </div>
                         </div>
@@ -2277,6 +2322,42 @@
                 </div>
             </div>
 
+            <% if (typeof pendingUsersWithoutDoc !== 'undefined' && pendingUsersWithoutDoc && pendingUsersWithoutDoc.length > 0) { %>
+                <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 font-mono">Accounts Awaiting Direct KYC Authorization (No Document Uploaded Yet)</h3>
+                        <span class="pill-amber text-[10px]"><%= pendingUsersWithoutDoc.length %> Account(s)</span>
+                    </div>
+                    <div class="space-y-2">
+                        <% pendingUsersWithoutDoc.forEach(pu => { %>
+                            <div class="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-black/40 border border-white/10">
+                                <div class="text-xs">
+                                    <span class="font-bold text-white"><%= pu.name %></span>
+                                    <span class="text-slate-400 font-mono ml-2">#<%= pu.id %> &bull; <%= pu.email %></span>
+                                    <span class="pill-amber text-[9px] ml-2 uppercase"><%= pu.kyc_status || 'pending' %></span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <form action="/babyoku/user/kyc-status" method="POST" class="inline-block">
+                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                        <input type="hidden" name="user_id" value="<%= pu.id %>" />
+                                        <input type="hidden" name="kyc_status" value="verified" />
+                                        <input type="hidden" name="return_tab" value="kyc" />
+                                        <button type="submit" class="btn-cyber btn-cyber-emerald text-[11px] py-1.5 px-3">✓ Authorize & Verify KYC</button>
+                                    </form>
+                                    <form action="/babyoku/user/kyc-status" method="POST" class="inline-block">
+                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                        <input type="hidden" name="user_id" value="<%= pu.id %>" />
+                                        <input type="hidden" name="kyc_status" value="rejected" />
+                                        <input type="hidden" name="return_tab" value="kyc" />
+                                        <button type="submit" class="btn-cyber btn-cyber-rose text-[11px] py-1.5 px-3">✗ Reject</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            <% } %>
+
             <% if (kycList.length === 0) { %>
                 <div class="py-12 text-center text-slate-500 text-xs font-mono space-y-2">
                     <div class="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-500 mx-auto mb-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
@@ -2320,7 +2401,7 @@
                                         <div class="flex items-center space-x-2">
                                             <% if (k.front_image) { %>
                                                 <div class="relative group cursor-pointer shrink-0" 
-                                                     @click="selectedKyc = <%= JSON.stringify(k) %>; kycModal = true" 
+                                                     @click="openKycModal(<%= k.id %>)" 
                                                      title="Click to inspect ID in high resolution">
                                                     <img src="<%= k.front_image %>" 
                                                          class="w-14 h-9 object-cover rounded-xl border border-white/20 shadow-md group-hover:scale-105 group-hover:border-sky-400 group-hover:ring-2 group-hover:ring-sky-400/30 transition bg-black/40" 
@@ -2334,7 +2415,7 @@
                                             <% } %>
 
                                             <button type="button" 
-                                                    @click="selectedKyc = <%= JSON.stringify(k) %>; kycModal = true"
+                                                    @click="openKycModal(<%= k.id %>)"
                                                     class="btn-cyber btn-cyber-ghost text-[10px] py-1 px-2.5">
                                                 <span>Inspect ID</span>
                                             </button>
@@ -2350,17 +2431,25 @@
                                         <% } %>
                                     </td>
                                     <td class="text-slate-400 font-mono text-[10px]"><%= k.submitted_at %></td>
-                                    <td class="text-right">
-                                        <form action="/babyoku/kyc/review" method="POST" class="inline-flex space-x-1.5">
-                                            <input type="hidden" name="_token" value="<%= csrfToken %>" />
-                                            <input type="hidden" name="kyc_id" value="<%= k.id %>" />
-                                            <button type="submit" name="status" value="approved" class="btn-cyber btn-cyber-emerald text-[10px] py-1 px-2.5">
-                                                Approve
-                                            </button>
-                                            <button type="submit" name="status" value="rejected" class="btn-cyber btn-cyber-rose text-[10px] py-1 px-2.5">
-                                                Reject
-                                            </button>
-                                        </form>
+                                    <td class="text-right whitespace-nowrap">
+                                        <div class="inline-flex items-center space-x-1.5">
+                                            <form action="/babyoku/kyc/review" method="POST" class="inline-block">
+                                                <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                                <input type="hidden" name="kyc_id" value="<%= k.id %>" />
+                                                <input type="hidden" name="status" value="approved" />
+                                                <button type="submit" class="btn-cyber btn-cyber-emerald text-[10px] py-1 px-2.5">
+                                                    ✓ Approve
+                                                </button>
+                                            </form>
+                                            <form action="/babyoku/kyc/review" method="POST" class="inline-block">
+                                                <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                                <input type="hidden" name="kyc_id" value="<%= k.id %>" />
+                                                <input type="hidden" name="status" value="rejected" />
+                                                <button type="submit" class="btn-cyber btn-cyber-rose text-[10px] py-1 px-2.5">
+                                                    ✗ Reject
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <% }) %>
@@ -2398,7 +2487,7 @@
                                 <!-- Thumbnail -->
                                 <% if (k.front_image) { %>
                                     <div class="cursor-pointer shrink-0" 
-                                         @click="selectedKyc = <%= JSON.stringify(k) %>; kycModal = true">
+                                         @click="openKycModal(<%= k.id %>)">
                                         <img src="<%= k.front_image %>" 
                                              class="w-16 h-12 object-cover rounded-xl border border-white/20 shadow-md bg-black/40" 
                                              alt="ID Preview" />
@@ -2409,20 +2498,28 @@
                             <!-- Touch Action Buttons -->
                             <div class="flex items-center justify-between pt-2 border-t border-white/[0.06] gap-2">
                                 <button type="button" 
-                                        @click="selectedKyc = <%= JSON.stringify(k) %>; kycModal = true"
+                                        @click="openKycModal(<%= k.id %>)"
                                         class="btn-cyber btn-cyber-ghost text-xs py-2 px-3">
                                     🔍 Inspect ID
                                 </button>
-                                <form action="/babyoku/kyc/review" method="POST" class="flex items-center space-x-1.5 flex-1">
-                                    <input type="hidden" name="_token" value="<%= csrfToken %>" />
-                                    <input type="hidden" name="kyc_id" value="<%= k.id %>" />
-                                    <button type="submit" name="status" value="approved" class="flex-1 btn-cyber btn-cyber-emerald text-xs py-2 justify-center">
-                                        ✓ Approve
-                                    </button>
-                                    <button type="submit" name="status" value="rejected" class="flex-1 btn-cyber btn-cyber-rose text-xs py-2 justify-center">
-                                        ✗ Reject
-                                    </button>
-                                </form>
+                                <div class="flex items-center space-x-1.5 flex-1">
+                                    <form action="/babyoku/kyc/review" method="POST" class="flex-1">
+                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                        <input type="hidden" name="kyc_id" value="<%= k.id %>" />
+                                        <input type="hidden" name="status" value="approved" />
+                                        <button type="submit" class="w-full btn-cyber btn-cyber-emerald text-xs py-2 justify-center">
+                                            ✓ Approve
+                                        </button>
+                                    </form>
+                                    <form action="/babyoku/kyc/review" method="POST" class="flex-1">
+                                        <input type="hidden" name="_token" value="<%= csrfToken %>" />
+                                        <input type="hidden" name="kyc_id" value="<%= k.id %>" />
+                                        <input type="hidden" name="status" value="rejected" />
+                                        <button type="submit" class="w-full btn-cyber btn-cyber-rose text-xs py-2 justify-center">
+                                            ✗ Reject
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <% }) %>
@@ -4957,8 +5054,8 @@
     <!-- ============================================================================== -->
     <!-- MODAL: KYC DOSSIER INSPECTOR (FRONT ID, BACK ID & BIOMETRIC VIDEO)             -->
     <!-- ============================================================================== -->
-    <div x-show="kycModal" class="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" x-cloak>
-        <div class="luxury-glass-panel rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-5 text-xs font-mono my-8">
+    <div x-show="kycModal" class="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto" x-cloak>
+        <div class="luxury-glass-panel rounded-3xl p-5 sm:p-6 max-w-3xl w-full shadow-2xl space-y-5 text-xs font-mono my-4 max-h-[92vh] overflow-y-auto">
             
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-surface-border pb-4">

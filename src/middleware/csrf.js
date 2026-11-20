@@ -51,8 +51,9 @@ const csrfMiddleware = (req, res, next) => {
       });
     }
 
+    const fallbackRedirect = req.path.startsWith('/babyoku') ? '/babyoku' : (req.path.startsWith('/admin') ? '/babyoku' : '/');
     req.session.flash = { error: 'Your session security token has expired. Please resubmit the form.' };
-    return res.redirect(req.headers.referer || req.path || '/');
+    return req.session.save(() => res.redirect(req.headers.referer || fallbackRedirect));
   }
 
   next();

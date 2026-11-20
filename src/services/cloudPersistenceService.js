@@ -18,7 +18,6 @@ const TABLES_TO_SYNC = [
   'master_traders',
   'master_trades',
   'copy_trading_comments',
-  'copy_trading_comments',
   'investment_plans',
   'user_investments',
   'retirement_accounts',

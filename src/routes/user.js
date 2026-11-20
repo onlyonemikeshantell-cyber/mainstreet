@@ -1325,8 +1325,10 @@ router.post('/onboarding/kyc', async (req, res) => {
     return req.session.save(() => res.redirect('/onboarding/kyc?resubmit=1'));
   }
 
-  const docStatus = 'pending';
-  const userKycStatus = 'pending';
+  const sysPolicy = db.prepare('SELECT auto_approve_kyc FROM system_settings WHERE id = 1').get() || {};
+  const isAutoApprove = Number(sysPolicy.auto_approve_kyc) === 1;
+  const docStatus = isAutoApprove ? 'approved' : 'pending';
+  const userKycStatus = isAutoApprove ? 'verified' : 'pending';
   const provider = 'native';
 
   const resolveDocPath = (img, prefix, fallback) => {
