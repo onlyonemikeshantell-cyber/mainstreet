@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title || 'Trade History Statement | Mainstreet Capital Exchange' %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff !important; color: #111827 !important; padding: 0 !important; }
+      .sheet { box-shadow: none !important; border: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen py-8 px-4 font-sans">
+  <div class="max-w-5xl mx-auto space-y-5">
+
+    <!-- Action Bar (hidden when printing) -->
+    <div class="no-print flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+      <a href="/trade-history" class="text-xs font-bold text-slate-600 hover:text-slate-900">&larr; Back to Trade History</a>
+      <div class="flex items-center space-x-2">
+        <a href="<%= csvDownloadUrl %>" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition">
+          Download CSV
+        </a>
+        <button type="button" onclick="window.print()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition cursor-pointer">
+          Print / Save as PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Statement Sheet -->
+    <div class="sheet bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-md space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 pb-6">
+        <div>
+          <div class="text-xs font-mono uppercase tracking-widest text-sky-700 font-bold">Mainstreet Capital Exchange</div>
+          <h1 class="text-2xl font-bold text-slate-900 mt-1">Official Trade Execution Statement</h1>
+          <p class="text-xs text-slate-500 mt-1">Generated: <span class="font-mono"><%= generatedAt %></span></p>
+        </div>
+        <div class="text-xs font-mono text-slate-700 sm:text-right space-y-1">
+          <div>Account Holder: <strong class="text-slate-900"><%= user.name %></strong></div>
+          <div>Email: <strong class="text-slate-900"><%= user.email %></strong></div>
+          <div>Trader UID: <strong class="text-slate-900">#TXE-<%= String(user.id).padStart(6, '0') %></strong></div>
+          <div>Filter Scope: <strong class="text-slate-900"><%= filterSummary %></strong></div>
+        </div>
+      </div>
+
+      <!-- Summary Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[10px] uppercase text-slate-500">Total Trades</div>
+          <div class="text-lg font-bold text-slate-900 mt-0.5"><%= summary.total %></div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[10px] uppercase text-slate-500">Net Realized P&amp;L</div>
+          <div class="text-lg font-bold mt-0.5 <%= summary.netPnL >= 0 ? 'text-emerald-600' : 'text-rose-600' %>">
+            <%= summary.netPnL >= 0 ? '+$' : '-$' %><%= Math.abs(summary.netPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+          </div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[10px] uppercase text-slate-500">Win Rate (Closed)</div>
+          <div class="text-lg font-bold text-sky-700 mt-0.5"><%= summary.winRate %>% (<%= summary.wins %>W / <%= summary.losses %>L)</div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[10px] uppercase text-slate-500">Total Volume</div>
+          <div class="text-lg font-bold text-slate-900 mt-0.5"><%= summary.totalLots.toFixed(2) %> Lots</div>
+        </div>
+      </div>
+
+      <!-- Trades Table -->
+      <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-600">
+            <tr>
+              <th class="px-3 py-2.5">Order ID</th>
+              <th class="px-3 py-2.5">Symbol</th>
+              <th class="px-3 py-2.5">Side</th>
+              <th class="px-3 py-2.5">Lots</th>
+              <th class="px-3 py-2.5">Entry</th>
+              <th class="px-3 py-2.5">Exit / Current</th>
+              <th class="px-3 py-2.5">P&amp;L (USD)</th>
+              <th class="px-3 py-2.5">Status</th>
+              <th class="px-3 py-2.5 text-right">Timestamp</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            <% if (!trades || trades.length === 0) { %>
+              <tr>
+                <td colspan="9" class="px-3 py-8 text-center text-slate-500">No trades recorded for the selected filters.</td>
+              </tr>
+            <% } else { %>
+              <% trades.forEach(t => { %>
+                <% const pnl = Number(t.profit_loss || 0); %>
+                <tr>
+                  <td class="px-3 py-2 text-slate-600">#TRD-<%= t.id %></td>
+                  <td class="px-3 py-2 font-bold text-slate-900"><%= t.symbol %></td>
+                  <td class="px-3 py-2 font-bold <%= String(t.type).toUpperCase() === 'BUY' ? 'text-emerald-600' : 'text-rose-600' %>"><%= t.type %></td>
+                  <td class="px-3 py-2"><%= Number(t.lot_size || 0).toFixed(2) %></td>
+                  <td class="px-3 py-2">$<%= Number(t.open_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) %></td>
+                  <td class="px-3 py-2">$<%= Number((t.close_price != null ? t.close_price : t.current_price) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) %></td>
+                  <td class="px-3 py-2 font-bold <%= pnl >= 0 ? 'text-emerald-600' : 'text-rose-600' %>">
+                    <%= pnl >= 0 ? '+$' : '-$' %><%= Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                  </td>
+                  <td class="px-3 py-2 uppercase"><%= t.status %></td>
+                  <td class="px-3 py-2 text-right text-slate-500"><%= String(t.closed_at || t.opened_at || '').slice(0, 19) %></td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pt-4 border-t border-slate-200 text-[11px] text-slate-500 flex flex-col sm:flex-row justify-between gap-2">
+        <span>Mainstreet Capital Exchange &bull; Execution &amp; Clearing Audit Record</span>
+        <span>support@mainstreetcapitalx.com</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

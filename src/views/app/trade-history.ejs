@@ -1,0 +1,431 @@
+<%- include('../partials/header') %>
+
+<script>
+  window.__ALL_TRADES__ = <%- safeJson(typeof trades !== 'undefined' && trades ? trades : []) %>;
+
+  window.tradeHistoryController = function () {
+    const rawTrades = Array.isArray(window.__ALL_TRADES__) ? window.__ALL_TRADES__ : [];
+
+    return {
+      allTrades: rawTrades,
+      currentPage: 1,
+      perPage: 15,
+      filterStatus: 'all',
+      filterSide: 'all',
+      dateFrom: '',
+      dateTo: '',
+      searchQuery: '',
+
+      get filteredTrades() {
+        const q = (this.searchQuery || '').trim().toLowerCase();
+        const fromTs = this.dateFrom ? new Date(this.dateFrom + 'T00:00:00Z').getTime() : null;
+        const toTs = this.dateTo ? new Date(this.dateTo + 'T23:59:59Z').getTime() : null;
+
+        return this.allTrades.filter(t => {
+          const st = String(t.status || '').toUpperCase();
+          const side = String(t.type || '').toUpperCase();
+
+          if (this.filterStatus !== 'all' && st !== this.filterStatus) return false;
+          if (this.filterSide !== 'all' && side !== this.filterSide) return false;
+
+          if (fromTs || toTs) {
+            const rawDate = t.closed_at || t.opened_at || '';
+            const ts = rawDate ? new Date(String(rawDate).replace(' ', 'T') + (String(rawDate).includes('Z') ? '' : 'Z')).getTime() : NaN;
+            if (!isNaN(ts)) {
+              if (fromTs && ts < fromTs) return false;
+              if (toTs && ts > toTs) return false;
+            }
+          }
+
+          if (q) {
+            const idStr = ('#trd-' + t.id + ' ' + t.id).toLowerCase();
+            const sym = String(t.symbol || '').toLowerCase();
+            if (!idStr.includes(q) && !sym.includes(q) && !side.toLowerCase().includes(q) && !st.toLowerCase().includes(q)) {
+              return false;
+            }
+          }
+          return true;
+        });
+      },
+
+      get summary() {
+        const list = this.filteredTrades;
+        let netPnL = 0;
+        let closedCount = 0;
+        let wins = 0;
+        let losses = 0;
+        let totalLots = 0;
+        let bestTrade = null;
+        let worstTrade = null;
+
+        for (const t of list) {
+          const pnl = Number(t.profit_loss || 0);
+          const lots = Number(t.lot_size || 0);
+          const st = String(t.status || '').toUpperCase();
+          totalLots += lots;
+          if (st === 'CLOSED') {
+            closedCount++;
+            netPnL += pnl;
+            if (pnl >= 0) wins++;
+            else losses++;
+            if (bestTrade === null || pnl > bestTrade) bestTrade = pnl;
+            if (worstTrade === null || pnl < worstTrade) worstTrade = pnl;
+          }
+        }
+
+        const winRate = closedCount > 0 ? Math.round((wins / closedCount) * 100) : 0;
+        return {
+          total: list.length,
+          closedCount,
+          wins,
+          losses,
+          winRate,
+          netPnL,
+          totalLots,
+          bestTrade: bestTrade === null ? 0 : bestTrade,
+          worstTrade: worstTrade === null ? 0 : worstTrade
+        };
+      },
+
+      get totalPages() {
+        return Math.max(1, Math.ceil(this.filteredTrades.length / this.perPage));
+      },
+
+      get paginatedTrades() {
+        if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
+        const start = (this.currentPage - 1) * this.perPage;
+        return this.filteredTrades.slice(start, start + Number(this.perPage));
+      },
+
+      get visiblePages() {
+        const total = this.totalPages;
+        const curr = this.currentPage;
+        const pages = [];
+        const maxButtons = 5;
+        let start = Math.max(1, curr - Math.floor(maxButtons / 2));
+        let end = Math.min(total, start + maxButtons - 1);
+        if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+        return pages;
+      },
+
+      goToPage(p) {
+        this.currentPage = Math.max(1, Math.min(this.totalPages, Number(p) || 1));
+      },
+
+      resetFilters() {
+        this.filterStatus = 'all';
+        this.filterSide = 'all';
+        this.dateFrom = '';
+        this.dateTo = '';
+        this.searchQuery = '';
+        this.currentPage = 1;
+      },
+
+      buildExportUrl(basePath, extraParams) {
+        const params = new URLSearchParams();
+        if (extraParams) {
+          Object.keys(extraParams).forEach(k => params.set(k, extraParams[k]));
+        }
+        if (this.filterStatus !== 'all') params.set('status', this.filterStatus);
+        if (this.filterSide !== 'all') params.set('type', this.filterSide);
+        if (this.dateFrom) params.set('from', this.dateFrom);
+        if (this.dateTo) params.set('to', this.dateTo);
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        const qs = params.toString();
+        return qs ? (basePath + '?' + qs) : basePath;
+      },
+
+      formatMoney(val, showSign) {
+        const n = Number(val || 0);
+        const abs = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (n < 0) return '-$' + abs;
+        return (showSign ? '+$' : '$') + abs;
+      },
+
+      formatPrice(val) {
+        const n = Number(val);
+        if (!isFinite(n)) return '--';
+        const decimals = Math.abs(n) < 10 ? 4 : 2;
+        return '$' + n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      },
+
+      formatDate(val) {
+        if (!val) return '--';
+        return String(val).replace('T', ' ').slice(0, 19);
+      }
+    };
+  };
+</script>
+
+<div class="py-8 sm:py-10 bg-surface-base min-h-[calc(100vh-140px)]" x-data="tradeHistoryController()">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+
+        <!-- Header & Download Toolbar -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-mono font-bold uppercase tracking-wider mb-1.5">
+                    <span>Execution Blotter & Audit Log</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold font-serif text-content-primary">Trade History</h1>
+                <p class="text-xs sm:text-sm text-content-secondary mt-1">
+                    Review executed orders, realized profit &amp; loss, and download your official trade history reports.
+                </p>
+            </div>
+
+            <!-- Export / Download Action Buttons -->
+            <div class="flex flex-wrap items-center gap-2">
+                <a :href="buildExportUrl('/trade-history/download', { format: 'csv' })"
+                   class="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold shadow-md shadow-primary/20 transition inline-flex items-center space-x-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+                    <span>Download CSV</span>
+                </a>
+                <a :href="buildExportUrl('/trade-history/download', { format: 'json' })"
+                   class="px-3.5 py-2.5 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary text-xs font-bold transition inline-flex items-center space-x-1.5">
+                    <span>Download JSON</span>
+                </a>
+                <a :href="buildExportUrl('/trade-history/statement')" target="_blank"
+                   class="px-3.5 py-2.5 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-surface-border text-content-primary text-xs font-bold transition inline-flex items-center space-x-1.5">
+                    <span>Print / PDF Statement</span>
+                </a>
+                <a href="/webtrade/app"
+                   class="px-3.5 py-2.5 rounded-xl bg-gain/15 hover:bg-gain text-gain hover:text-white border border-gain/30 text-xs font-bold transition inline-flex items-center space-x-1.5">
+                    <span>Open Terminal &rarr;</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Performance Summary KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-content-secondary">Filtered Trades</div>
+                <div class="text-xl sm:text-2xl font-bold font-mono text-content-primary mt-1" x-text="summary.total"></div>
+                <div class="text-[11px] text-content-tertiary font-mono mt-1">
+                    <span x-text="summary.closedCount"></span> Closed &bull; <span x-text="summary.wins"></span>W / <span x-text="summary.losses"></span>L
+                </div>
+            </div>
+
+            <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-content-secondary">Net Realized P&amp;L</div>
+                <div class="text-xl sm:text-2xl font-bold font-mono mt-1"
+                     :class="summary.netPnL >= 0 ? 'text-gain' : 'text-loss'"
+                     x-text="formatMoney(summary.netPnL, true)"></div>
+                <div class="text-[11px] text-content-tertiary font-mono mt-1">
+                    Closed executions total
+                </div>
+            </div>
+
+            <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-content-secondary">Win Rate</div>
+                <div class="text-xl sm:text-2xl font-bold font-mono text-primary mt-1" x-text="summary.winRate + '%'"></div>
+                <div class="text-[11px] text-content-tertiary font-mono mt-1">
+                    Best: <span class="text-gain" x-text="formatMoney(summary.bestTrade, true)"></span>
+                </div>
+            </div>
+
+            <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-content-secondary">Total Volume</div>
+                <div class="text-xl sm:text-2xl font-bold font-mono text-content-primary mt-1" x-text="summary.totalLots.toFixed(2) + ' Lots'"></div>
+                <div class="text-[11px] text-content-tertiary font-mono mt-1">
+                    Worst: <span class="text-loss" x-text="formatMoney(summary.worstTrade, true)"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters & Search Panel -->
+        <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 sm:p-5 shadow-md space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <!-- Status Pills -->
+                <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+                    <button type="button" @click="filterStatus = 'all'; goToPage(1)"
+                            :class="filterStatus === 'all' ? 'bg-primary text-white font-bold shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                            class="px-3 py-1.5 rounded-xl transition cursor-pointer">
+                        All Statuses
+                    </button>
+                    <button type="button" @click="filterStatus = 'CLOSED'; goToPage(1)"
+                            :class="filterStatus === 'CLOSED' ? 'bg-primary text-white font-bold shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                            class="px-3 py-1.5 rounded-xl transition cursor-pointer">
+                        Closed
+                    </button>
+                    <button type="button" @click="filterStatus = 'OPEN'; goToPage(1)"
+                            :class="filterStatus === 'OPEN' ? 'bg-primary text-white font-bold shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                            class="px-3 py-1.5 rounded-xl transition cursor-pointer">
+                        Open
+                    </button>
+                    <button type="button" @click="filterStatus = 'PENDING'; goToPage(1)"
+                            :class="filterStatus === 'PENDING' ? 'bg-primary text-white font-bold shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                            class="px-3 py-1.5 rounded-xl transition cursor-pointer">
+                        Pending
+                    </button>
+                    <button type="button" @click="filterStatus = 'CANCELLED'; goToPage(1)"
+                            :class="filterStatus === 'CANCELLED' ? 'bg-primary text-white font-bold shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'"
+                            class="px-3 py-1.5 rounded-xl transition cursor-pointer">
+                        Cancelled
+                    </button>
+                </div>
+
+                <!-- Side Filter & Reset -->
+                <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+                    <select x-model="filterSide" @change="goToPage(1)"
+                            class="bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-1.5 outline-none focus:border-primary">
+                        <option value="all">All Sides (BUY &amp; SELL)</option>
+                        <option value="BUY">BUY (Long)</option>
+                        <option value="SELL">SELL (Short)</option>
+                    </select>
+                    <select x-model.number="perPage" @change="goToPage(1)"
+                            class="bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3 py-1.5 outline-none focus:border-primary">
+                        <option value="10">10 / page</option>
+                        <option value="15">15 / page</option>
+                        <option value="25">25 / page</option>
+                        <option value="50">50 / page</option>
+                    </select>
+                    <button type="button" @click="resetFilters()"
+                            class="px-3 py-1.5 rounded-xl bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-secondary hover:text-content-primary transition cursor-pointer">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search & Date Range -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                <div class="sm:col-span-1">
+                    <label class="block text-[10px] uppercase text-content-tertiary mb-1">Search Symbol / Order ID</label>
+                    <input type="text" x-model="searchQuery" @input="goToPage(1)" placeholder="e.g. BTC/USD, XAU/USD, #TRD-12"
+                           class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-2 outline-none focus:border-primary" />
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-content-tertiary mb-1">From Date</label>
+                    <input type="date" x-model="dateFrom" @change="goToPage(1)"
+                           class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-2 outline-none focus:border-primary" />
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-content-tertiary mb-1">To Date</label>
+                    <input type="date" x-model="dateTo" @change="goToPage(1)"
+                           class="w-full bg-surface-overlay border border-surface-border text-content-primary rounded-xl px-3.5 py-2 outline-none focus:border-primary" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Trade History Table -->
+        <div class="hidden md:block bg-surface-raised border border-surface-border rounded-2xl shadow-md overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-surface-overlay/70 border-b border-surface-border text-[11px] uppercase text-content-secondary">
+                    <tr>
+                        <th class="px-4 py-3.5">Order ID</th>
+                        <th class="px-4 py-3.5">Symbol</th>
+                        <th class="px-4 py-3.5">Side</th>
+                        <th class="px-4 py-3.5">Lots</th>
+                        <th class="px-4 py-3.5">Entry Price</th>
+                        <th class="px-4 py-3.5">Exit / Live Price</th>
+                        <th class="px-4 py-3.5">SL / TP</th>
+                        <th class="px-4 py-3.5">P&amp;L (USD)</th>
+                        <th class="px-4 py-3.5">Status</th>
+                        <th class="px-4 py-3.5 text-right">Opened / Closed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                    <template x-for="tr in paginatedTrades" :key="tr.id">
+                        <tr class="hover:bg-surface-overlay/40 transition">
+                            <td class="px-4 py-3 text-content-secondary font-semibold" x-text="'#TRD-' + tr.id"></td>
+                            <td class="px-4 py-3 font-bold text-content-primary" x-text="tr.symbol"></td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
+                                      :class="String(tr.type).toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-loss/15 text-loss border border-loss/30'"
+                                      x-text="tr.type"></span>
+                            </td>
+                            <td class="px-4 py-3 text-content-primary" x-text="Number(tr.lot_size || 0).toFixed(2)"></td>
+                            <td class="px-4 py-3 text-content-secondary" x-text="formatPrice(tr.open_price)"></td>
+                            <td class="px-4 py-3 text-content-primary font-semibold" x-text="formatPrice(tr.close_price != null ? tr.close_price : tr.current_price)"></td>
+                            <td class="px-4 py-3 text-[11px] text-content-tertiary">
+                                <div>SL: <span x-text="tr.stop_loss ? formatPrice(tr.stop_loss) : '--'"></span></div>
+                                <div>TP: <span x-text="tr.take_profit ? formatPrice(tr.take_profit) : '--'"></span></div>
+                            </td>
+                            <td class="px-4 py-3 font-bold text-sm"
+                                :class="Number(tr.profit_loss || 0) >= 0 ? 'text-gain' : 'text-loss'"
+                                x-text="formatMoney(tr.profit_loss, true)"></td>
+                            <td class="px-4 py-3">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                                      :class="{
+                                        'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30': String(tr.status).toUpperCase() === 'CLOSED',
+                                        'bg-sky-500/15 text-sky-500 border border-sky-500/30': String(tr.status).toUpperCase() === 'OPEN',
+                                        'bg-amber-500/15 text-amber-500 border border-amber-500/30': String(tr.status).toUpperCase() === 'PENDING',
+                                        'bg-slate-500/15 text-slate-400 border border-slate-500/30': String(tr.status).toUpperCase() === 'CANCELLED'
+                                      }"
+                                      x-text="tr.status"></span>
+                            </td>
+                            <td class="px-4 py-3 text-right text-[11px] text-content-tertiary">
+                                <div x-text="'In: ' + formatDate(tr.opened_at)"></div>
+                                <div x-show="tr.closed_at" x-text="'Out: ' + formatDate(tr.closed_at)"></div>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="paginatedTrades.length === 0">
+                        <tr>
+                            <td colspan="10" class="px-4 py-12 text-center text-content-tertiary">
+                                No trades match the current filters. Execute orders in <a href="/webtrade/app" class="text-primary font-bold hover:underline">WebTrader Pro</a> to see your history here.
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Stacked Trade Cards -->
+        <div class="md:hidden space-y-3">
+            <template x-for="tr in paginatedTrades" :key="tr.id">
+                <div class="bg-surface-raised border border-surface-border rounded-2xl p-4 shadow-sm space-y-2.5 font-mono text-xs">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-content-primary text-sm" x-text="tr.symbol"></span>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
+                                  :class="String(tr.type).toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-loss/15 text-loss border border-loss/30'"
+                                  x-text="tr.type"></span>
+                        </div>
+                        <span class="font-bold text-sm" :class="Number(tr.profit_loss || 0) >= 0 ? 'text-gain' : 'text-loss'" x-text="formatMoney(tr.profit_loss, true)"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] text-content-secondary bg-surface-overlay/60 p-2.5 rounded-xl">
+                        <div>Order: <strong class="text-content-primary" x-text="'#TRD-' + tr.id"></strong></div>
+                        <div>Lots: <strong class="text-content-primary" x-text="Number(tr.lot_size || 0).toFixed(2)"></strong></div>
+                        <div>Entry: <strong class="text-content-primary" x-text="formatPrice(tr.open_price)"></strong></div>
+                        <div>Exit: <strong class="text-content-primary" x-text="formatPrice(tr.close_price != null ? tr.close_price : tr.current_price)"></strong></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-content-tertiary">
+                        <span x-text="formatDate(tr.closed_at || tr.opened_at)"></span>
+                        <span class="uppercase font-bold" x-text="tr.status"></span>
+                    </div>
+                </div>
+            </template>
+            <template x-if="paginatedTrades.length === 0">
+                <div class="bg-surface-raised border border-surface-border rounded-2xl p-8 text-center text-xs text-content-tertiary">
+                    No trades found for the selected filters.
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-raised border border-surface-border rounded-2xl px-4 py-3 text-xs font-mono">
+            <div class="text-content-secondary">
+                Showing <strong class="text-content-primary" x-text="paginatedTrades.length"></strong> of
+                <strong class="text-primary" x-text="filteredTrades.length"></strong> trades (Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>)
+            </div>
+            <div class="flex items-center space-x-1">
+                <button type="button" @click="goToPage(currentPage - 1)" :disabled="currentPage <= 1"
+                        class="px-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-content-primary disabled:opacity-40 cursor-pointer">
+                    &larr; Prev
+                </button>
+                <template x-for="p in visiblePages" :key="p">
+                    <button type="button" @click="goToPage(p)"
+                            :class="p === currentPage ? 'bg-primary text-white font-bold' : 'bg-surface-overlay border border-surface-border text-content-secondary'"
+                            class="px-3 py-1.5 rounded-xl cursor-pointer" x-text="p"></button>
+                </template>
+                <button type="button" @click="goToPage(currentPage + 1)" :disabled="currentPage >= totalPages"
+                        class="px-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-content-primary disabled:opacity-40 cursor-pointer">
+                    Next &rarr;
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

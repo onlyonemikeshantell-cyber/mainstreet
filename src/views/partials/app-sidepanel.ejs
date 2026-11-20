@@ -11,6 +11,7 @@ document.addEventListener('alpine:init', () => {
                       window.location.pathname.startsWith('/deposit') || 
                       window.location.pathname.startsWith('/withdraw') || 
                       window.location.pathname.startsWith('/transactions') || 
+                      window.location.pathname.startsWith('/trade-history') || 
                       window.location.pathname.startsWith('/settings') || 
                       window.location.pathname.startsWith('/referrals') || 
                       window.location.pathname.startsWith('/webtrade') ||
@@ -421,7 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 {title: 'WebTrader Pro Terminal', tags: 'trading charts execution stp matching'},
                 {title: 'Spot Fractional Desk', tags: 'buy sell equities crypto fractional'},
                 {title: 'CFD Margin (100x)', tags: 'leverage margin cfd forex indices short'},
-                {title: 'Instant Cross Swap', tags: 'swap cross conversion usdt btc eth exchange'}
+                {title: 'Instant Cross Swap', tags: 'swap cross conversion usdt btc eth exchange'},
+                {title: 'Trade History', tags: 'trade history closed orders pnl download csv statement export'},
+                {title: 'Trade History', tags: 'trade history closed orders pnl download csv statement export'}
             ])" class="space-y-1 pt-2">
                 <div x-show="isExpanded" class="px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-content-tertiary dark:text-neutral-500 flex items-center justify-between">
                     <span>Trading Desks</span>
@@ -486,6 +489,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </a>
                     <div x-show="isRetracted" class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-[#18181b] dark:bg-white text-white dark:text-black text-xs font-semibold rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-[120]">
                         Instant Token Swap
+                    </div>
+                </div>
+
+                <!-- Trade History & Export -->
+                <div class="relative group" x-show="matches('Trade History', 'trade history closed orders pnl download csv statement export')">
+                    <a href="/trade-history" @click="handleItemClick('/trade-history')"
+                       :class="{
+                           'justify-center px-0': isRetracted,
+                           'px-2.5': isExpanded,
+                           'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light font-bold': <%= currentPath.startsWith('/trade-history') || currentPath.startsWith('/trades/history') %>,
+                           'text-content-primary dark:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5': <%= !(currentPath.startsWith('/trade-history') || currentPath.startsWith('/trades/history')) %>
+                       }"
+                       class="flex items-center py-2 rounded-xl text-xs transition">
+                        <span class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center text-sm flex-shrink-0">📑</span>
+                        <span x-show="isExpanded" class="ml-2.5 flex-1 truncate">Trade History</span>
+                        <span x-show="isExpanded" class="text-[8px] font-mono font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">CSV</span>
+                    </a>
+                    <div x-show="isRetracted" class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-[#18181b] dark:bg-white text-white dark:text-black text-xs font-semibold rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-[120]">
+                        Trade History <span class="text-amber-400 text-[9px] ml-1">CSV</span>
                     </div>
                 </div>
             </div>

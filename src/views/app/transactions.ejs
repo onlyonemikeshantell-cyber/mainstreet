@@ -136,8 +136,11 @@
                 <p class="text-xs sm:text-sm text-content-secondary mt-1">Paginated account statement and verified audit ledger — navigate page by page below.</p>
             </div>
 
-            <!-- Page Indicator Badge -->
-            <div class="flex items-center space-x-2 self-start md:self-auto">
+            <!-- Page Indicator Badge & Trade History Shortcut -->
+            <div class="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                <a href="/trade-history" class="px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold shadow-sm transition inline-flex items-center space-x-1.5">
+                    <span>📑 Trade History &amp; Download</span>
+                </a>
                 <div class="px-3.5 py-2 rounded-xl bg-surface-raised border border-surface-border text-xs font-mono text-content-secondary shadow-sm flex items-center space-x-2">
                     <span>Page <strong class="text-content-primary" x-text="currentPage"></strong> of <strong class="text-content-primary" x-text="totalPages"></strong></span>
                     <span class="text-content-tertiary">|</span>

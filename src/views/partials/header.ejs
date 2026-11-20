@@ -616,6 +616,7 @@
                                         else if (currentPath.startsWith('/deposit')) breadcrumbSection = 'Deposit';
                                         else if (currentPath.startsWith('/withdraw')) breadcrumbSection = 'Withdraw';
                                         else if (currentPath.startsWith('/transactions')) breadcrumbSection = 'Statements';
+                                        else if (currentPath.startsWith('/trade-history') || currentPath.startsWith('/trades/history')) breadcrumbSection = 'Trade History';
                                         else if (currentPath.startsWith('/settings') || currentPath.startsWith('/profile')) breadcrumbSection = 'Settings';
                                         else if (currentPath.startsWith('/retirement')) breadcrumbSection = 'Retirement';
                                         else if (currentPath.startsWith('/referrals')) breadcrumbSection = 'Affiliates';
@@ -839,6 +840,10 @@
                                     <a href="/settings" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-content-secondary dark:text-neutral-300 hover:text-content-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition">
                                         <span>👤</span>
                                         <span>Profile &amp; KYC</span>
+                                    </a>
+                                    <a href="/trade-history" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-content-secondary dark:text-neutral-300 hover:text-content-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition">
+                                        <span>📑</span>
+                                        <span>Trade History &amp; Export</span>
                                     </a>
                                     <a href="/transactions" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-content-secondary dark:text-neutral-300 hover:text-content-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition">
                                         <span>📜</span>

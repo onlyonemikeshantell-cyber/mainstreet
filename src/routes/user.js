@@ -87,7 +87,7 @@ router.get('/api/crypto/session-data', (req, res) => {
 const userProtectedPrefixes = [
   '/dashboard', '/webtrade', '/trading', '/trade', '/terminal',
   '/copy-trading/app', '/deposit', '/cashier', '/withdraw',
-  '/wallet', '/wallets', '/crypto-wallet', '/transactions',
+  '/wallet', '/wallets', '/crypto-wallet', '/transactions', '/trade-history', '/trades',
   '/settings', '/kyc', '/onboarding', '/profile', '/account', '/referrals', '/dividends'
 ];
 
@@ -289,12 +289,14 @@ router.get('/dashboard', (req, res) => {
 router.get(['/webtrade/app', '/trading', '/trade', '/terminal'], (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const openTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN' ORDER BY id DESC").all(user.id);
+  const closedTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status IN ('CLOSED', 'CANCELLED') ORDER BY id DESC LIMIT 100").all(user.id);
   const markets = db.prepare('SELECT * FROM market_settings WHERE is_tradable = 1').all();
 
   res.render('app/webtrader', {
     title: 'WebTrader Pro Execution Terminal | Mainstreet Capital Exchange',
     user,
     openTrades,
+    closedTrades,
     markets
   });
 });
@@ -1268,6 +1270,202 @@ router.get('/transactions', (req, res) => {
   });
 });
 
+
+// Helper: Query & Filter User Trade History
+const queryFilteredUserTrades = (userId, qParams = {}) => {
+  const allTrades = db.prepare('SELECT * FROM trades WHERE user_id = ? ORDER BY id DESC').all(userId);
+  const statusFilter = String(qParams.status || 'all').trim().toUpperCase();
+  const typeFilter = String(qParams.type || 'all').trim().toUpperCase();
+  const q = String(qParams.q || '').trim().toLowerCase();
+  const fromTs = qParams.from ? new Date(String(qParams.from) + 'T00:00:00Z').getTime() : null;
+  const toTs = qParams.to ? new Date(String(qParams.to) + 'T23:59:59Z').getTime() : null;
+
+  return allTrades.filter(t => {
+    const st = String(t.status || '').toUpperCase();
+    const side = String(t.type || '').toUpperCase();
+    if (statusFilter !== 'ALL' && statusFilter !== '' && st !== statusFilter) return false;
+    if (typeFilter !== 'ALL' && typeFilter !== '' && side !== typeFilter) return false;
+
+    if (fromTs || toTs) {
+      const rawDate = t.closed_at || t.opened_at || '';
+      const ts = rawDate ? new Date(String(rawDate).replace(' ', 'T') + (String(rawDate).includes('Z') ? '' : 'Z')).getTime() : NaN;
+      if (!isNaN(ts)) {
+        if (fromTs && ts < fromTs) return false;
+        if (toTs && ts > toTs) return false;
+      }
+    }
+
+    if (q) {
+      const idStr = ('#trd-' + t.id + ' ' + t.id).toLowerCase();
+      const sym = String(t.symbol || '').toLowerCase();
+      if (!idStr.includes(q) && !sym.includes(q) && !side.toLowerCase().includes(q) && !st.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
+};
+
+const summarizeTrades = (trades) => {
+  let netPnL = 0;
+  let closedCount = 0;
+  let wins = 0;
+  let losses = 0;
+  let totalLots = 0;
+  for (const t of trades) {
+    const pnl = Number(t.profit_loss || 0);
+    totalLots += Number(t.lot_size || 0);
+    if (String(t.status || '').toUpperCase() === 'CLOSED') {
+      closedCount++;
+      netPnL += pnl;
+      if (pnl >= 0) wins++;
+      else losses++;
+    }
+  }
+  return {
+    total: trades.length,
+    closedCount,
+    wins,
+    losses,
+    winRate: closedCount > 0 ? Math.round((wins / closedCount) * 100) : 0,
+    netPnL: +netPnL.toFixed(2),
+    totalLots: +totalLots.toFixed(2)
+  };
+};
+
+const escapeCsvCell = (val) => {
+  const str = val === null || val === undefined ? '' : String(val);
+  if (/[",\r\n]/.test(str)) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+};
+
+// 6b. Dedicated Trade History Page
+router.get(['/trade-history', '/trades/history'], (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const trades = db.prepare('SELECT * FROM trades WHERE user_id = ? ORDER BY id DESC').all(user.id);
+  const summary = summarizeTrades(trades);
+
+  res.render('app/trade-history', {
+    title: 'Trade History & Execution Blotter | Mainstreet Capital Exchange',
+    user,
+    trades,
+    summary
+  });
+});
+
+// 6c. Download Trade History (CSV or JSON with Active Filters)
+router.get(['/trade-history/download', '/trades/history/download', '/api/trades/export'], (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+
+  const format = String(req.query.format || 'csv').trim().toLowerCase();
+  const filtered = queryFilteredUserTrades(user.id, req.query);
+  const summary = summarizeTrades(filtered);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+
+  logActivity(user.id, 'TRADE_HISTORY_DOWNLOAD', `Downloaded trade history (${format.toUpperCase()}, ${filtered.length} records)`, req);
+
+  if (format === 'json') {
+    const filename = `mainstreet_trade_history_${user.id}_${dateStamp}.json`;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(JSON.stringify({
+      platform: 'Mainstreet Capital Exchange',
+      exportedAt: new Date().toISOString(),
+      account: {
+        uid: '#TXE-' + String(user.id).padStart(6, '0'),
+        name: user.name,
+        email: user.email
+      },
+      filters: {
+        status: req.query.status || 'all',
+        type: req.query.type || 'all',
+        from: req.query.from || null,
+        to: req.query.to || null,
+        q: req.query.q || null
+      },
+      summary,
+      trades: filtered.map(t => ({
+        orderId: '#TRD-' + t.id,
+        id: t.id,
+        symbol: t.symbol,
+        side: t.type,
+        lots: Number(t.lot_size || 0),
+        openPrice: Number(t.open_price || 0),
+        closePrice: t.close_price != null ? Number(t.close_price) : Number(t.current_price || 0),
+        takeProfit: t.take_profit != null ? Number(t.take_profit) : null,
+        stopLoss: t.stop_loss != null ? Number(t.stop_loss) : null,
+        profitLossUsd: Number(t.profit_loss || 0),
+        status: t.status,
+        openedAt: t.opened_at || null,
+        closedAt: t.closed_at || null
+      }))
+    }, null, 2));
+  }
+
+  // Default: CSV with UTF-8 BOM for clean Excel / Google Sheets opening
+  const filename = `mainstreet_trade_history_${user.id}_${dateStamp}.csv`;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+  const headers = [
+    'Order ID', 'Symbol', 'Side', 'Lots', 'Open Price', 'Exit / Current Price',
+    'Take Profit', 'Stop Loss', 'Profit/Loss (USD)', 'Status', 'Opened At', 'Closed At'
+  ];
+  const lines = [headers.join(',')];
+
+  for (const t of filtered) {
+    const exitPrice = t.close_price != null ? t.close_price : t.current_price;
+    lines.push([
+      escapeCsvCell('#TRD-' + t.id),
+      escapeCsvCell(t.symbol),
+      escapeCsvCell(t.type),
+      escapeCsvCell(Number(t.lot_size || 0).toFixed(2)),
+      escapeCsvCell(t.open_price != null ? Number(t.open_price) : ''),
+      escapeCsvCell(exitPrice != null ? Number(exitPrice) : ''),
+      escapeCsvCell(t.take_profit != null ? Number(t.take_profit) : ''),
+      escapeCsvCell(t.stop_loss != null ? Number(t.stop_loss) : ''),
+      escapeCsvCell(Number(t.profit_loss || 0).toFixed(2)),
+      escapeCsvCell(t.status),
+      escapeCsvCell(t.opened_at || ''),
+      escapeCsvCell(t.closed_at || '')
+    ].join(','));
+  }
+
+  return res.send('\uFEFF' + lines.join('\r\n') + '\r\n');
+});
+
+// 6d. Printable / PDF Trade Execution Statement
+router.get(['/trade-history/statement', '/trades/history/statement'], (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  const filtered = queryFilteredUserTrades(user.id, req.query);
+  const summary = summarizeTrades(filtered);
+
+  const filterParts = [];
+  if (req.query.status && req.query.status !== 'all') filterParts.push('Status: ' + String(req.query.status).toUpperCase());
+  if (req.query.type && req.query.type !== 'all') filterParts.push('Side: ' + String(req.query.type).toUpperCase());
+  if (req.query.from) filterParts.push('From: ' + req.query.from);
+  if (req.query.to) filterParts.push('To: ' + req.query.to);
+  if (req.query.q) filterParts.push('Query: ' + req.query.q);
+
+  const csvParams = new URLSearchParams({ format: 'csv' });
+  ['status', 'type', 'from', 'to', 'q'].forEach(k => {
+    if (req.query[k]) csvParams.set(k, req.query[k]);
+  });
+
+  res.render('app/trade-history-statement', {
+    title: 'Official Trade Execution Statement | Mainstreet Capital Exchange',
+    user,
+    trades: filtered,
+    summary,
+    filterSummary: filterParts.length > 0 ? filterParts.join(' | ') : 'All Recorded Trades',
+    generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+    csvDownloadUrl: '/trade-history/download?' + csvParams.toString()
+  });
+});
+
 // Live KYC Status Check Endpoint (Polled by /onboarding/kyc waiting screen)
 router.get('/api/kyc/status', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -1658,6 +1856,7 @@ router.get('/api/user/sync', (req, res) => {
 
   const openTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN' ORDER BY id DESC").all(user.id);
   const pendingOrders = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status = 'PENDING' ORDER BY id DESC").all(user.id);
+  const closedTrades = db.prepare("SELECT * FROM trades WHERE user_id = ? AND status IN ('CLOSED', 'CANCELLED') ORDER BY id DESC LIMIT 100").all(user.id);
   const userBalances = db.prepare("SELECT * FROM user_crypto_balances WHERE user_id = ? ORDER BY id ASC").all(user.id);
   const retirementAccount = db.prepare("SELECT * FROM retirement_accounts WHERE user_id = ?").get(user.id);
   
@@ -1705,6 +1904,7 @@ router.get('/api/user/sync', (req, res) => {
     marginLevelPercent,
     openTrades,
     pendingOrders,
+    closedTrades,
     userBalances,
     retirementAccount: retirementAccount || null,
     livePrices: getLivePrices(),

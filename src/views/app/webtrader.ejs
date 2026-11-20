@@ -95,6 +95,7 @@ function webTraderApp() {
         livePnL: 0,
         positions: <%- safeJson(openTrades || []) %>,
         pendingOrders: [],
+        closedTrades: <%- safeJson(typeof closedTrades !== 'undefined' && closedTrades ? closedTrades : []) %>,
         executionSuccessMsg: '',
         executionErrorMsg: '',
         calendarModal: false,
@@ -675,6 +676,7 @@ function webTraderApp() {
                     this.livePnL = Number(data.totalPnL);
                     this.positions = data.openTrades || [];
                     this.pendingOrders = data.pendingOrders || [];
+                    if (Array.isArray(data.closedTrades)) this.closedTrades = data.closedTrades;
                     this.usedMargin = Number(data.usedMargin || 0);
                     this.freeMargin = Number(data.freeMargin || data.equity);
                     this.marginLevelPercent = Number(data.marginLevelPercent || 9999);
@@ -1150,7 +1152,27 @@ function webTraderApp() {
                     <span>⏳ Pending Orders</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activePositionsTab === 'pending' ? 'bg-white/20' : 'bg-surface-base'" x-text="pendingOrders.length"></span>
                 </button>
+
+                <button type="button" @click="activePositionsTab = 'history'" :class="activePositionsTab === 'history' ? 'bg-primary text-white shadow-sm' : 'bg-surface-overlay text-content-secondary hover:text-content-primary border border-surface-border'" class="px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition">
+                    <span>📜 Trade History</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activePositionsTab === 'history' ? 'bg-white/20' : 'bg-surface-base'" x-text="closedTrades.length"></span>
+                </button>
             </div>
+
+            <!-- Trade History Export Controls (Visible when Trade History Tab Active) -->
+            <template x-if="activePositionsTab === 'history'">
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="/trade-history/download?format=csv" class="px-3 py-1 rounded-lg bg-primary hover:bg-primary-dark text-white text-[10px] font-bold transition shadow-sm">
+                        ⬇ Download CSV
+                    </a>
+                    <a href="/trade-history/statement" target="_blank" class="px-2.5 py-1 rounded-lg bg-surface-overlay hover:bg-surface-border border border-surface-border text-content-primary text-[10px] font-bold transition">
+                        📄 PDF Statement
+                    </a>
+                    <a href="/trade-history" class="px-2.5 py-1 rounded-lg bg-surface-overlay hover:bg-surface-border border border-surface-border text-primary text-[10px] font-bold transition">
+                        Full History &rarr;
+                    </a>
+                </div>
+            </template>
 
             <!-- Bulk Action Buttons (MT5 Style Emergency Liquidation Controls) -->
             <template x-if="activePositionsTab === 'open' && positions.length > 0">
@@ -1257,6 +1279,402 @@ function webTraderApp() {
                     <template x-if="pendingOrders.length === 0">
                         <tr>
                             <td colspan="8" class="py-6 text-center text-content-tertiary text-xs">No pending limit orders. Switch to 'Limit Order' mode on the ticket to place pending triggers.</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Closed Trade History Table (When Tab = 'history') -->
+        <div x-show="activePositionsTab === 'history'" class="overflow-x-auto" x-cloak>
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                    <tr>
+                        <th class="pb-2">Order ID</th>
+                        <th class="pb-2">Symbol</th>
+                        <th class="pb-2">Type</th>
+                        <th class="pb-2">Lots</th>
+                        <th class="pb-2">Entry Price</th>
+                        <th class="pb-2">Close Price</th>
+                        <th class="pb-2">Realized P&amp;L ($)</th>
+                        <th class="pb-2">Status</th>
+                        <th class="pb-2 text-right">Closed At</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                    <template x-for="ht in closedTrades" :key="ht.id">
+                        <tr>
+                            <td class="py-2.5 text-content-secondary" x-text="'#TRD-' + ht.id"></td>
+                            <td class="py-2.5 font-bold text-content-primary">
+                                <div class="flex items-center space-x-2">
+                                    <span class="shrink-0" x-html="getInstrumentLogo(ht.symbol, '', 'w-5 h-5')"></span>
+                                    <span x-text="ht.symbol"></span>
+                                </div>
+                            </td>
+                            <td class="py-2.5 font-bold" :class="ht.type === 'BUY' ? 'text-gain' : 'text-loss'" x-text="ht.type"></td>
+                            <td class="py-2.5 text-content-secondary" x-text="Number(ht.lot_size || 0).toFixed(2)"></td>
+                            <td class="py-2.5 text-content-secondary" x-text="'
+
+</div>
+
+<!-- ============================================================================== -->
+    <!-- ECONOMIC CALENDAR MODAL                                                        -->
+    <!-- ============================================================================== -->
+    <div x-show="calendarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📅</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Global Economic Calendar</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">High-Impact Central Bank & Macroeconomic Releases</span>
+                    </div>
+                </div>
+                <button type="button" @click="calendarModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                        <tr>
+                            <th class="pb-2">Time (GMT)</th>
+                            <th class="pb-2">Country</th>
+                            <th class="pb-2">Event</th>
+                            <th class="pb-2">Impact</th>
+                            <th class="pb-2">Forecast</th>
+                            <th class="pb-2">Previous</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <template x-for="ev in economicEvents" :key="ev.id">
+                            <tr>
+                                <td class="py-2.5 text-primary font-bold" x-text="ev.event_time"></td>
+                                <td class="py-2.5 text-content-primary font-sans" x-text="ev.flag + ' ' + ev.country"></td>
+                                <td class="py-2.5 font-bold text-content-primary" x-text="ev.title"></td>
+                                <td class="py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold" 
+                                          :class="ev.impact === 'HIGH' ? 'bg-loss/15 text-loss' : 'bg-primary/15 text-primary'" 
+                                          x-text="ev.impact"></span>
+                                </td>
+                                <td class="py-2.5 text-content-secondary" x-text="ev.forecast"></td>
+                                <td class="py-2.5 text-content-tertiary" x-text="ev.previous"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- AI QUANT SIGNALS & MARKET SENTIMENT DRAWER                                     -->
+    <!-- ============================================================================== -->
+    <div x-show="signalsDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🎯</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">AI Quant Signals & Sentiment</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">Real-Time Institutional Algorithmic Setups</span>
+                    </div>
+                </div>
+                <button type="button" @click="signalsDrawer = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Bull / Bear Sentiment Ratio -->
+            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                <div class="flex justify-between text-xs font-bold font-mono">
+                    <span class="text-gain">🟢 Buyers: <span x-text="bullSentiment + '%'"></span></span>
+                    <span class="text-loss">🔴 Sellers: <span x-text="bearSentiment + '%'"></span></span>
+                </div>
+                <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
+                    <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
+                </div>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+            </div>
+
+            <!-- Signal Cards Grid -->
+            <div class="space-y-3 font-mono text-xs">
+                <template x-for="sig in quantSignals" :key="sig.id">
+                    <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 hover:border-primary transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-sm text-content-primary" x-text="sig.symbol"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="sig.type === 'BUY' ? 'bg-gain text-white' : 'bg-loss text-white'" x-text="sig.type + ' (' + sig.timeframe + ')'"></span>
+                            </div>
+                            <span class="text-primary font-bold text-[11px]" x-text="'Confidence: ' + sig.confidence_score + '%'"></span>
+                        </div>
+
+                        <p class="text-xs text-content-secondary font-sans" x-text="sig.rationale"></p>
+
+                        <div class="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-surface-border text-[11px] text-center">
+                            <div>
+                                <span class="text-content-tertiary block text-[9px] uppercase">Entry</span>
+                                <strong class="text-content-primary" x-text="'$' + Number(sig.entry_price).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-gain block text-[9px] uppercase">Take Profit</span>
+                                <strong class="text-gain font-bold" x-text="'$' + Number(sig.take_profit).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-loss block text-[9px] uppercase">Stop Loss</span>
+                                <strong class="text-loss font-bold" x-text="'$' + Number(sig.stop_loss).toLocaleString()"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+<%- include('../partials/footer') %>
+ + Number(ht.open_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5 font-bold text-content-primary" x-text="'
+
+</div>
+
+<!-- ============================================================================== -->
+    <!-- ECONOMIC CALENDAR MODAL                                                        -->
+    <!-- ============================================================================== -->
+    <div x-show="calendarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📅</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Global Economic Calendar</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">High-Impact Central Bank & Macroeconomic Releases</span>
+                    </div>
+                </div>
+                <button type="button" @click="calendarModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                        <tr>
+                            <th class="pb-2">Time (GMT)</th>
+                            <th class="pb-2">Country</th>
+                            <th class="pb-2">Event</th>
+                            <th class="pb-2">Impact</th>
+                            <th class="pb-2">Forecast</th>
+                            <th class="pb-2">Previous</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <template x-for="ev in economicEvents" :key="ev.id">
+                            <tr>
+                                <td class="py-2.5 text-primary font-bold" x-text="ev.event_time"></td>
+                                <td class="py-2.5 text-content-primary font-sans" x-text="ev.flag + ' ' + ev.country"></td>
+                                <td class="py-2.5 font-bold text-content-primary" x-text="ev.title"></td>
+                                <td class="py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold" 
+                                          :class="ev.impact === 'HIGH' ? 'bg-loss/15 text-loss' : 'bg-primary/15 text-primary'" 
+                                          x-text="ev.impact"></span>
+                                </td>
+                                <td class="py-2.5 text-content-secondary" x-text="ev.forecast"></td>
+                                <td class="py-2.5 text-content-tertiary" x-text="ev.previous"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- AI QUANT SIGNALS & MARKET SENTIMENT DRAWER                                     -->
+    <!-- ============================================================================== -->
+    <div x-show="signalsDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🎯</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">AI Quant Signals & Sentiment</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">Real-Time Institutional Algorithmic Setups</span>
+                    </div>
+                </div>
+                <button type="button" @click="signalsDrawer = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Bull / Bear Sentiment Ratio -->
+            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                <div class="flex justify-between text-xs font-bold font-mono">
+                    <span class="text-gain">🟢 Buyers: <span x-text="bullSentiment + '%'"></span></span>
+                    <span class="text-loss">🔴 Sellers: <span x-text="bearSentiment + '%'"></span></span>
+                </div>
+                <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
+                    <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
+                </div>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+            </div>
+
+            <!-- Signal Cards Grid -->
+            <div class="space-y-3 font-mono text-xs">
+                <template x-for="sig in quantSignals" :key="sig.id">
+                    <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 hover:border-primary transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-sm text-content-primary" x-text="sig.symbol"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="sig.type === 'BUY' ? 'bg-gain text-white' : 'bg-loss text-white'" x-text="sig.type + ' (' + sig.timeframe + ')'"></span>
+                            </div>
+                            <span class="text-primary font-bold text-[11px]" x-text="'Confidence: ' + sig.confidence_score + '%'"></span>
+                        </div>
+
+                        <p class="text-xs text-content-secondary font-sans" x-text="sig.rationale"></p>
+
+                        <div class="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-surface-border text-[11px] text-center">
+                            <div>
+                                <span class="text-content-tertiary block text-[9px] uppercase">Entry</span>
+                                <strong class="text-content-primary" x-text="'$' + Number(sig.entry_price).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-gain block text-[9px] uppercase">Take Profit</span>
+                                <strong class="text-gain font-bold" x-text="'$' + Number(sig.take_profit).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-loss block text-[9px] uppercase">Stop Loss</span>
+                                <strong class="text-loss font-bold" x-text="'$' + Number(sig.stop_loss).toLocaleString()"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+<%- include('../partials/footer') %>
+ + Number(ht.close_price != null ? ht.close_price : ht.current_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                            <td class="py-2.5 font-bold text-sm" :class="Number(ht.profit_loss || 0) >= 0 ? 'text-gain' : 'text-loss'" x-text="(Number(ht.profit_loss || 0) >= 0 ? '+' : '-') + '
+
+</div>
+
+<!-- ============================================================================== -->
+    <!-- ECONOMIC CALENDAR MODAL                                                        -->
+    <!-- ============================================================================== -->
+    <div x-show="calendarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📅</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">Global Economic Calendar</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">High-Impact Central Bank & Macroeconomic Releases</span>
+                    </div>
+                </div>
+                <button type="button" @click="calendarModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-content-secondary border-b border-surface-border uppercase font-semibold text-[11px]">
+                        <tr>
+                            <th class="pb-2">Time (GMT)</th>
+                            <th class="pb-2">Country</th>
+                            <th class="pb-2">Event</th>
+                            <th class="pb-2">Impact</th>
+                            <th class="pb-2">Forecast</th>
+                            <th class="pb-2">Previous</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border">
+                        <template x-for="ev in economicEvents" :key="ev.id">
+                            <tr>
+                                <td class="py-2.5 text-primary font-bold" x-text="ev.event_time"></td>
+                                <td class="py-2.5 text-content-primary font-sans" x-text="ev.flag + ' ' + ev.country"></td>
+                                <td class="py-2.5 font-bold text-content-primary" x-text="ev.title"></td>
+                                <td class="py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold" 
+                                          :class="ev.impact === 'HIGH' ? 'bg-loss/15 text-loss' : 'bg-primary/15 text-primary'" 
+                                          x-text="ev.impact"></span>
+                                </td>
+                                <td class="py-2.5 text-content-secondary" x-text="ev.forecast"></td>
+                                <td class="py-2.5 text-content-tertiary" x-text="ev.previous"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- AI QUANT SIGNALS & MARKET SENTIMENT DRAWER                                     -->
+    <!-- ============================================================================== -->
+    <div x-show="signalsDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" x-cloak>
+        <div class="bg-white rounded-3xl border border-surface-border max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-surface-border pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🎯</span>
+                    <div>
+                        <h3 class="text-lg font-bold font-serif text-content-primary">AI Quant Signals & Sentiment</h3>
+                        <span class="text-[10px] text-content-secondary font-mono">Real-Time Institutional Algorithmic Setups</span>
+                    </div>
+                </div>
+                <button type="button" @click="signalsDrawer = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Bull / Bear Sentiment Ratio -->
+            <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2">
+                <div class="flex justify-between text-xs font-bold font-mono">
+                    <span class="text-gain">🟢 Buyers: <span x-text="bullSentiment + '%'"></span></span>
+                    <span class="text-loss">🔴 Sellers: <span x-text="bearSentiment + '%'"></span></span>
+                </div>
+                <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
+                    <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
+                </div>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+            </div>
+
+            <!-- Signal Cards Grid -->
+            <div class="space-y-3 font-mono text-xs">
+                <template x-for="sig in quantSignals" :key="sig.id">
+                    <div class="p-4 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 hover:border-primary transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-sm text-content-primary" x-text="sig.symbol"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="sig.type === 'BUY' ? 'bg-gain text-white' : 'bg-loss text-white'" x-text="sig.type + ' (' + sig.timeframe + ')'"></span>
+                            </div>
+                            <span class="text-primary font-bold text-[11px]" x-text="'Confidence: ' + sig.confidence_score + '%'"></span>
+                        </div>
+
+                        <p class="text-xs text-content-secondary font-sans" x-text="sig.rationale"></p>
+
+                        <div class="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-surface-border text-[11px] text-center">
+                            <div>
+                                <span class="text-content-tertiary block text-[9px] uppercase">Entry</span>
+                                <strong class="text-content-primary" x-text="'$' + Number(sig.entry_price).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-gain block text-[9px] uppercase">Take Profit</span>
+                                <strong class="text-gain font-bold" x-text="'$' + Number(sig.take_profit).toLocaleString()"></strong>
+                            </div>
+                            <div>
+                                <span class="text-loss block text-[9px] uppercase">Stop Loss</span>
+                                <strong class="text-loss font-bold" x-text="'$' + Number(sig.stop_loss).toLocaleString()"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+<%- include('../partials/footer') %>
+ + Math.abs(Number(ht.profit_loss || 0)).toFixed(2)"></td>
+                            <td class="py-2.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                                      :class="ht.status === 'CLOSED' ? 'bg-gain/15 text-gain border border-gain/30' : 'bg-surface-overlay text-content-tertiary border border-surface-border'"
+                                      x-text="ht.status"></span>
+                            </td>
+                            <td class="py-2.5 text-right text-content-tertiary text-[11px]" x-text="String(ht.closed_at || ht.opened_at || '').slice(0, 19)"></td>
+                        </tr>
+                    </template>
+                    <template x-if="closedTrades.length === 0">
+                        <tr>
+                            <td colspan="9" class="py-6 text-center text-content-tertiary text-xs">No closed trades yet. Closed positions will appear here immediately with CSV download options.</td>
                         </tr>
                     </template>
                 </tbody>
