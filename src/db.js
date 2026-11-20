@@ -137,7 +137,28 @@ try {
     ['CAT', 'Caterpillar Inc.', 0.10],
     ['BA', 'The Boeing Company', 0.08],
     ['LMT', 'Lockheed Martin Corp', 0.12],
-    ['GE', 'GE Aerospace', 0.06]
+    ['GE', 'GE Aerospace', 0.06],
+    // Top-Performing US Stocks (2-Year Market Leaders 2024-2026)
+    ['APP', 'AppLovin Corporation', 0.12],
+    ['VST', 'Vistra Corp.', 0.10],
+    ['CEG', 'Constellation Energy Corp.', 0.12],
+    ['GEV', 'GE Vernova Inc.', 0.12],
+    ['HOOD', 'Robinhood Markets, Inc.', 0.06],
+    ['RKLB', 'Rocket Lab USA, Inc.', 0.06],
+    ['HIMS', 'Hims & Hers Health, Inc.', 0.08],
+    ['CVNA', 'Carvana Co.', 0.12],
+    ['AXON', 'Axon Enterprise, Inc.', 0.15],
+    ['RDDT', 'Reddit, Inc.', 0.10],
+    ['VRT', 'Vertiv Holdings Co', 0.08],
+    ['SPOT', 'Spotify Technology S.A.', 0.14],
+    ['CRWD', 'CrowdStrike Holdings', 0.12],
+    ['ASTS', 'AST SpaceMobile, Inc.', 0.08],
+    ['IONQ', 'IonQ, Inc.', 0.08],
+    ['ALAB', 'Astera Labs, Inc.', 0.10],
+    ['SMCI', 'Super Micro Computer', 0.08],
+    ['SOFI', 'SoFi Technologies, Inc.', 0.04],
+    ['TPL', 'Texas Pacific Land Corp.', 0.25],
+    ['FIX', 'Comfort Systems USA, Inc.', 0.14]
   ];
   for (const [sym, name, spr] of majorStocks) {
     const existing = db.prepare('SELECT id FROM market_settings WHERE symbol = ?').get(sym);
@@ -145,6 +166,38 @@ try {
       stockInsert.run(sym, name, spr);
     } else {
       db.prepare('UPDATE market_settings SET category = ? WHERE symbol = ?').run('stocks', sym);
+    }
+  }
+
+  // Ensure Top-Performing Crypto Assets (2-Year Leaders 2024-2026) exist in market_settings
+  const cryptoInsert = db.prepare(`
+    INSERT OR IGNORE INTO market_settings (symbol, name, category, spread, leverage, min_lot, max_lot, is_tradable)
+    VALUES (?, ?, 'crypto', ?, 100, 0.01, 100.0, 1)
+  `);
+  const topPerformingCryptos = [
+    ['HYPE/USDT', 'Hyperliquid', 0.15],
+    ['ONDO/USDT', 'Ondo Finance', 0.20],
+    ['BGB/USDT', 'Bitget Token', 0.20],
+    ['HBAR/USDT', 'Hedera Hashgraph', 0.20],
+    ['XLM/USDT', 'Stellar Lumens', 0.20],
+    ['ENA/USDT', 'Ethena', 0.25],
+    ['VIRTUAL/USDT', 'Virtuals Protocol', 0.30],
+    ['WIF/USDT', 'dogwifhat', 0.30],
+    ['BONK/USDT', 'Bonk', 0.30],
+    ['KAS/USDT', 'Kaspa', 0.25],
+    ['OM/USDT', 'MANTRA', 0.25],
+    ['SEI/USDT', 'Sei Network', 0.25],
+    ['INJ/USDT', 'Injective', 0.25],
+    ['PENDLE/USDT', 'Pendle Finance', 0.25],
+    ['JUP/USDT', 'Jupiter', 0.25],
+    ['AERO/USDT', 'Aerodrome Finance', 0.25],
+    ['WLD/USDT', 'Worldcoin', 0.25],
+    ['TRX/USDT', 'TRON Network', 0.15]
+  ];
+  for (const [sym, name, spr] of topPerformingCryptos) {
+    const existing = db.prepare('SELECT id FROM market_settings WHERE symbol = ?').get(sym);
+    if (!existing) {
+      cryptoInsert.run(sym, name, spr);
     }
   }
 } catch(e) {}
@@ -537,6 +590,32 @@ const defaultSpotAssets = [
   { symbol: 'USDT', name: 'Tether USD', icon: '₮', balance: 0.0, rate: 1.00, type: 'crypto' },
   { symbol: 'SOL', name: 'Solana', icon: '◎', balance: 0.0, rate: 148.50, type: 'crypto' },
   { symbol: 'BNB', name: 'BNB Chain', icon: '🔶', balance: 0.0, rate: 580.00, type: 'crypto' },
+  { symbol: 'XRP', name: 'Ripple', icon: '✕', balance: 0.0, rate: 1.36, type: 'crypto' },
+  { symbol: 'SUI', name: 'Sui Network', icon: '🌊', balance: 0.0, rate: 1.85, type: 'crypto' },
+  { symbol: 'TAO', name: 'Bittensor', icon: '🧠', balance: 0.0, rate: 348.50, type: 'crypto' },
+  { symbol: 'RENDER', name: 'Render Network', icon: '🎨', balance: 0.0, rate: 6.85, type: 'crypto' },
+  { symbol: 'AAVE', name: 'Aave', icon: '👻', balance: 0.0, rate: 142.50, type: 'crypto' },
+  { symbol: 'LINK', name: 'Chainlink', icon: '🔗', balance: 0.0, rate: 14.50, type: 'crypto' },
+  { symbol: 'DOGE', name: 'Dogecoin', icon: '🐕', balance: 0.0, rate: 0.18, type: 'crypto' },
+  { symbol: 'PEPE', name: 'Pepe', icon: '🐸', balance: 0.0, rate: 0.000012, type: 'crypto' },
+  { symbol: 'HYPE', name: 'Hyperliquid', icon: '💧', balance: 0.0, rate: 26.8, type: 'crypto' },
+  { symbol: 'ONDO', name: 'Ondo Finance', icon: '🏦', balance: 0.0, rate: 1.42, type: 'crypto' },
+  { symbol: 'BGB', name: 'Bitget Token', icon: '🔷', balance: 0.0, rate: 5.85, type: 'crypto' },
+  { symbol: 'HBAR', name: 'Hedera Hashgraph', icon: 'ℏ', balance: 0.0, rate: 0.285, type: 'crypto' },
+  { symbol: 'XLM', name: 'Stellar Lumens', icon: '✦', balance: 0.0, rate: 0.395, type: 'crypto' },
+  { symbol: 'ENA', name: 'Ethena', icon: '⚡', balance: 0.0, rate: 0.84, type: 'crypto' },
+  { symbol: 'VIRTUAL', name: 'Virtuals Protocol', icon: '🤖', balance: 0.0, rate: 2.15, type: 'crypto' },
+  { symbol: 'WIF', name: 'dogwifhat', icon: '🐕', balance: 0.0, rate: 1.65, type: 'crypto' },
+  { symbol: 'BONK', name: 'Bonk', icon: '🦴', balance: 0.0, rate: 0.000028, type: 'crypto' },
+  { symbol: 'KAS', name: 'Kaspa', icon: '◈', balance: 0.0, rate: 0.142, type: 'crypto' },
+  { symbol: 'OM', name: 'MANTRA', icon: '🕉️', balance: 0.0, rate: 4.25, type: 'crypto' },
+  { symbol: 'SEI', name: 'Sei Network', icon: '🔴', balance: 0.0, rate: 0.44, type: 'crypto' },
+  { symbol: 'INJ', name: 'Injective', icon: '💠', balance: 0.0, rate: 22.4, type: 'crypto' },
+  { symbol: 'PENDLE', name: 'Pendle Finance', icon: '⏳', balance: 0.0, rate: 4.85, type: 'crypto' },
+  { symbol: 'JUP', name: 'Jupiter', icon: '🪐', balance: 0.0, rate: 0.96, type: 'crypto' },
+  { symbol: 'AERO', name: 'Aerodrome Finance', icon: '✈️', balance: 0.0, rate: 1.28, type: 'crypto' },
+  { symbol: 'WLD', name: 'Worldcoin', icon: '🌐', balance: 0.0, rate: 2.35, type: 'crypto' },
+  { symbol: 'TRX', name: 'TRON Network', icon: '🔺', balance: 0.0, rate: 0.248, type: 'crypto' },
   { symbol: 'USD', name: 'US Dollar (Fiat)', icon: '$', balance: 0.0, rate: 1.00, type: 'fiat' },
   // Blue-Chip Stocks to Buy and Hold
   { symbol: 'AAPL', name: 'Apple Inc.', icon: '🍏', balance: 0.0, rate: 224.20, type: 'stock' },
@@ -596,7 +675,28 @@ const defaultSpotAssets = [
   { symbol: 'CAT', name: 'Caterpillar Inc.', icon: '🏛️', balance: 0.0, rate: 384.20, type: 'stock' },
   { symbol: 'BA', name: 'The Boeing Company', icon: '🏛️', balance: 0.0, rate: 156.40, type: 'stock' },
   { symbol: 'LMT', name: 'Lockheed Martin Corp', icon: '🏛️', balance: 0.0, rate: 586.40, type: 'stock' },
-  { symbol: 'GE', name: 'GE Aerospace', icon: '🏛️', balance: 0.0, rate: 188.60, type: 'stock' }
+  { symbol: 'GE', name: 'GE Aerospace', icon: '🏛️', balance: 0.0, rate: 188.60, type: 'stock' },
+  // Top-Performing US Stocks (2-Year Leaders 2024-2026)
+  { symbol: 'APP', name: 'AppLovin Corporation', icon: '🚀', balance: 0.0, rate: 368.50, type: 'stock' },
+  { symbol: 'VST', name: 'Vistra Corp.', icon: '🚀', balance: 0.0, rate: 158.40, type: 'stock' },
+  { symbol: 'CEG', name: 'Constellation Energy Corp.', icon: '🚀', balance: 0.0, rate: 274.20, type: 'stock' },
+  { symbol: 'GEV', name: 'GE Vernova Inc.', icon: '🚀', balance: 0.0, rate: 382.60, type: 'stock' },
+  { symbol: 'HOOD', name: 'Robinhood Markets, Inc.', icon: '🚀', balance: 0.0, rate: 54.80, type: 'stock' },
+  { symbol: 'RKLB', name: 'Rocket Lab USA, Inc.', icon: '🚀', balance: 0.0, rate: 28.40, type: 'stock' },
+  { symbol: 'HIMS', name: 'Hims & Hers Health, Inc.', icon: '🚀', balance: 0.0, rate: 42.60, type: 'stock' },
+  { symbol: 'CVNA', name: 'Carvana Co.', icon: '🚀', balance: 0.0, rate: 248.90, type: 'stock' },
+  { symbol: 'AXON', name: 'Axon Enterprise, Inc.', icon: '🚀', balance: 0.0, rate: 618.40, type: 'stock' },
+  { symbol: 'RDDT', name: 'Reddit, Inc.', icon: '🚀', balance: 0.0, rate: 164.50, type: 'stock' },
+  { symbol: 'VRT', name: 'Vertiv Holdings Co', icon: '🚀', balance: 0.0, rate: 126.80, type: 'stock' },
+  { symbol: 'SPOT', name: 'Spotify Technology S.A.', icon: '🚀', balance: 0.0, rate: 542.30, type: 'stock' },
+  { symbol: 'CRWD', name: 'CrowdStrike Holdings', icon: '🚀', balance: 0.0, rate: 392.50, type: 'stock' },
+  { symbol: 'ASTS', name: 'AST SpaceMobile, Inc.', icon: '🚀', balance: 0.0, rate: 31.20, type: 'stock' },
+  { symbol: 'IONQ', name: 'IonQ, Inc.', icon: '🚀', balance: 0.0, rate: 34.80, type: 'stock' },
+  { symbol: 'ALAB', name: 'Astera Labs, Inc.', icon: '🚀', balance: 0.0, rate: 112.40, type: 'stock' },
+  { symbol: 'SMCI', name: 'Super Micro Computer', icon: '🚀', balance: 0.0, rate: 48.60, type: 'stock' },
+  { symbol: 'SOFI', name: 'SoFi Technologies, Inc.', icon: '🚀', balance: 0.0, rate: 16.40, type: 'stock' },
+  { symbol: 'TPL', name: 'Texas Pacific Land Corp.', icon: '🚀', balance: 0.0, rate: 1340.00, type: 'stock' },
+  { symbol: 'FIX', name: 'Comfort Systems USA, Inc.', icon: '🚀', balance: 0.0, rate: 462.50, type: 'stock' }
 ];
 
 const ensureUserCryptoBalances = (userId) => {
@@ -610,8 +710,8 @@ const ensureUserCryptoBalances = (userId) => {
       insertStmt.run(userId, a.symbol, a.name, a.balance, a.icon, a.rate, a.type);
     });
   } else {
-    // Ensure any newly added catalog stocks exist with 0.0 balance for existing users
-    defaultSpotAssets.filter(a => a.type === 'stock').forEach(a => {
+    // Ensure any newly added catalog stocks and cryptos exist with 0.0 balance for existing users
+    defaultSpotAssets.forEach(a => {
       insertStmt.run(userId, a.symbol, a.name, 0.0, a.icon, a.rate, a.type);
     });
   }

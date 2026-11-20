@@ -28,6 +28,25 @@ const assetPrices = {
   'PEPE': { symbol: 'PEPE', name: 'Pepe', price: 0.00000356, change24h: 6.50, prevPrice: 0.00000356, direction: 'up', source: 'MEXC Spot' },
   'SHIB': { symbol: 'SHIB', name: 'Shiba Inu', price: 0.00000502, change24h: 2.20, prevPrice: 0.00000502, direction: 'up', source: 'MEXC Spot' },
   'LTC': { symbol: 'LTC', name: 'Litecoin', price: 65.40, change24h: 0.70, prevPrice: 65.40, direction: 'up', source: 'MEXC Spot' },
+  // Top-Performing Crypto Assets (2-Year Leaders 2024-2026)
+  'HYPE': { symbol: 'HYPE', name: 'Hyperliquid', price: 26.8, change24h: 5.4, prevPrice: 26.8, direction: 'up', source: 'MEXC Spot' },
+  'ONDO': { symbol: 'ONDO', name: 'Ondo Finance', price: 1.42, change24h: 3.8, prevPrice: 1.42, direction: 'up', source: 'MEXC Spot' },
+  'BGB': { symbol: 'BGB', name: 'Bitget Token', price: 5.85, change24h: 2.9, prevPrice: 5.85, direction: 'up', source: 'MEXC Spot' },
+  'HBAR': { symbol: 'HBAR', name: 'Hedera Hashgraph', price: 0.285, change24h: 4.15, prevPrice: 0.285, direction: 'up', source: 'MEXC Spot' },
+  'XLM': { symbol: 'XLM', name: 'Stellar Lumens', price: 0.395, change24h: 3.25, prevPrice: 0.395, direction: 'up', source: 'MEXC Spot' },
+  'ENA': { symbol: 'ENA', name: 'Ethena', price: 0.84, change24h: 4.6, prevPrice: 0.84, direction: 'up', source: 'MEXC Spot' },
+  'VIRTUAL': { symbol: 'VIRTUAL', name: 'Virtuals Protocol', price: 2.15, change24h: 6.2, prevPrice: 2.15, direction: 'up', source: 'MEXC Spot' },
+  'WIF': { symbol: 'WIF', name: 'dogwifhat', price: 1.65, change24h: 5.1, prevPrice: 1.65, direction: 'up', source: 'MEXC Spot' },
+  'BONK': { symbol: 'BONK', name: 'Bonk', price: 0.000028, change24h: 4.8, prevPrice: 0.000028, direction: 'up', source: 'MEXC Spot' },
+  'KAS': { symbol: 'KAS', name: 'Kaspa', price: 0.142, change24h: 3.1, prevPrice: 0.142, direction: 'up', source: 'MEXC Spot' },
+  'OM': { symbol: 'OM', name: 'MANTRA', price: 4.25, change24h: 3.9, prevPrice: 4.25, direction: 'up', source: 'MEXC Spot' },
+  'SEI': { symbol: 'SEI', name: 'Sei Network', price: 0.44, change24h: 2.85, prevPrice: 0.44, direction: 'up', source: 'MEXC Spot' },
+  'INJ': { symbol: 'INJ', name: 'Injective', price: 22.4, change24h: 3.3, prevPrice: 22.4, direction: 'up', source: 'MEXC Spot' },
+  'PENDLE': { symbol: 'PENDLE', name: 'Pendle Finance', price: 4.85, change24h: 4.1, prevPrice: 4.85, direction: 'up', source: 'MEXC Spot' },
+  'JUP': { symbol: 'JUP', name: 'Jupiter', price: 0.96, change24h: 3.5, prevPrice: 0.96, direction: 'up', source: 'MEXC Spot' },
+  'AERO': { symbol: 'AERO', name: 'Aerodrome Finance', price: 1.28, change24h: 3.7, prevPrice: 1.28, direction: 'up', source: 'MEXC Spot' },
+  'WLD': { symbol: 'WLD', name: 'Worldcoin', price: 2.35, change24h: 2.95, prevPrice: 2.35, direction: 'up', source: 'MEXC Spot' },
+  'TRX': { symbol: 'TRX', name: 'TRON Network', price: 0.248, change24h: 1.95, prevPrice: 0.248, direction: 'up', source: 'MEXC Spot' },
 
   // Traditional Crypto ETFs & Equities
   'IBIT': { symbol: 'IBIT', name: 'iShares Bitcoin ETF', price: 36.85, change24h: 1.80, prevPrice: 36.85, direction: 'up', source: 'NASDAQ' },
@@ -115,6 +134,27 @@ const assetPrices = {
   'BA': { symbol: 'BA', name: 'The Boeing Company', price: 156.40, change24h: -0.52, prevPrice: 156.40, direction: 'down', source: 'NYSE' },
   'LMT': { symbol: 'LMT', name: 'Lockheed Martin', price: 586.40, change24h: 0.72, prevPrice: 586.40, direction: 'up', source: 'NYSE' },
   'GE': { symbol: 'GE', name: 'GE Aerospace', price: 188.60, change24h: 1.28, prevPrice: 188.60, direction: 'up', source: 'NYSE' },
+  // Top-Performing US Stocks (2-Year Leaders 2024-2026)
+  'APP': { symbol: 'APP', name: 'AppLovin Corporation', price: 368.50, change24h: 3.45, prevPrice: 368.50, direction: 'up', source: 'NASDAQ' },
+  'VST': { symbol: 'VST', name: 'Vistra Corp.', price: 158.40, change24h: 2.8, prevPrice: 158.40, direction: 'up', source: 'NYSE' },
+  'CEG': { symbol: 'CEG', name: 'Constellation Energy Corp.', price: 274.20, change24h: 2.15, prevPrice: 274.20, direction: 'up', source: 'NASDAQ' },
+  'GEV': { symbol: 'GEV', name: 'GE Vernova Inc.', price: 382.60, change24h: 2.95, prevPrice: 382.60, direction: 'up', source: 'NYSE' },
+  'HOOD': { symbol: 'HOOD', name: 'Robinhood Markets, Inc.', price: 54.80, change24h: 3.2, prevPrice: 54.80, direction: 'up', source: 'NASDAQ' },
+  'RKLB': { symbol: 'RKLB', name: 'Rocket Lab USA, Inc.', price: 28.40, change24h: 4.1, prevPrice: 28.40, direction: 'up', source: 'NASDAQ' },
+  'HIMS': { symbol: 'HIMS', name: 'Hims & Hers Health, Inc.', price: 42.60, change24h: 2.75, prevPrice: 42.60, direction: 'up', source: 'NYSE' },
+  'CVNA': { symbol: 'CVNA', name: 'Carvana Co.', price: 248.90, change24h: 2.4, prevPrice: 248.90, direction: 'up', source: 'NYSE' },
+  'AXON': { symbol: 'AXON', name: 'Axon Enterprise, Inc.', price: 618.40, change24h: 1.95, prevPrice: 618.40, direction: 'up', source: 'NASDAQ' },
+  'RDDT': { symbol: 'RDDT', name: 'Reddit, Inc.', price: 164.50, change24h: 3.1, prevPrice: 164.50, direction: 'up', source: 'NYSE' },
+  'VRT': { symbol: 'VRT', name: 'Vertiv Holdings Co', price: 126.80, change24h: 2.65, prevPrice: 126.80, direction: 'up', source: 'NYSE' },
+  'SPOT': { symbol: 'SPOT', name: 'Spotify Technology S.A.', price: 542.30, change24h: 1.85, prevPrice: 542.30, direction: 'up', source: 'NYSE' },
+  'CRWD': { symbol: 'CRWD', name: 'CrowdStrike Holdings', price: 392.50, change24h: 1.6, prevPrice: 392.50, direction: 'up', source: 'NASDAQ' },
+  'ASTS': { symbol: 'ASTS', name: 'AST SpaceMobile, Inc.', price: 31.20, change24h: 4.5, prevPrice: 31.20, direction: 'up', source: 'NASDAQ' },
+  'IONQ': { symbol: 'IONQ', name: 'IonQ, Inc.', price: 34.80, change24h: 3.85, prevPrice: 34.80, direction: 'up', source: 'NYSE' },
+  'ALAB': { symbol: 'ALAB', name: 'Astera Labs, Inc.', price: 112.40, change24h: 2.9, prevPrice: 112.40, direction: 'up', source: 'NASDAQ' },
+  'SMCI': { symbol: 'SMCI', name: 'Super Micro Computer', price: 48.60, change24h: 2.3, prevPrice: 48.60, direction: 'up', source: 'NASDAQ' },
+  'SOFI': { symbol: 'SOFI', name: 'SoFi Technologies, Inc.', price: 16.40, change24h: 2.25, prevPrice: 16.40, direction: 'up', source: 'NASDAQ' },
+  'TPL': { symbol: 'TPL', name: 'Texas Pacific Land Corp.', price: 1340.00, change24h: 1.45, prevPrice: 1340.00, direction: 'up', source: 'NYSE' },
+  'FIX': { symbol: 'FIX', name: 'Comfort Systems USA, Inc.', price: 462.50, change24h: 1.9, prevPrice: 462.50, direction: 'up', source: 'NYSE' },
   'USD': { symbol: 'USD', name: 'US Dollar', price: 1.00, change24h: 0.00, prevPrice: 1.00, direction: 'flat', source: 'Fiat' },
 
   // Premier Real Estate Investment Trusts (REITs)
@@ -177,7 +217,25 @@ const CRYPTO_SYMBOL_MAP = {
   'OPUSDT': 'OP',
   'MATICUSDT': 'MATIC',
   'APTUSDT': 'APT',
-  'TONUSDT': 'TON'
+  'TONUSDT': 'TON',
+  'HYPEUSDT': 'HYPE',
+  'ONDOUSDT': 'ONDO',
+  'BGBUSDT': 'BGB',
+  'HBARUSDT': 'HBAR',
+  'XLMUSDT': 'XLM',
+  'ENAUSDT': 'ENA',
+  'VIRTUALUSDT': 'VIRTUAL',
+  'WIFUSDT': 'WIF',
+  'BONKUSDT': 'BONK',
+  'KASUSDT': 'KAS',
+  'OMUSDT': 'OM',
+  'SEIUSDT': 'SEI',
+  'INJUSDT': 'INJ',
+  'PENDLEUSDT': 'PENDLE',
+  'JUPUSDT': 'JUP',
+  'AEROUSDT': 'AERO',
+  'WLDUSDT': 'WLD',
+  'TRXUSDT': 'TRX'
 };
 
 function updateItemPrice(target, newPrice, source) {
@@ -336,6 +394,26 @@ const YAHOO_MAP = {
   'BA': 'BA',
   'LMT': 'LMT',
   'GE': 'GE',
+  'APP': 'APP',
+  'VST': 'VST',
+  'CEG': 'CEG',
+  'GEV': 'GEV',
+  'HOOD': 'HOOD',
+  'RKLB': 'RKLB',
+  'HIMS': 'HIMS',
+  'CVNA': 'CVNA',
+  'AXON': 'AXON',
+  'RDDT': 'RDDT',
+  'VRT': 'VRT',
+  'SPOT': 'SPOT',
+  'CRWD': 'CRWD',
+  'ASTS': 'ASTS',
+  'IONQ': 'IONQ',
+  'ALAB': 'ALAB',
+  'SMCI': 'SMCI',
+  'SOFI': 'SOFI',
+  'TPL': 'TPL',
+  'FIX': 'FIX',
   'MSTR': 'MSTR',
   'COIN': 'COIN',
   'IBIT': 'IBIT',
@@ -763,6 +841,43 @@ const getLivePrices = () => {
   fullMap['PEPE/USDT'] = assetPrices['PEPE'];
   fullMap['SHIB/USDT'] = assetPrices['SHIB'];
   fullMap['LTC/USDT'] = assetPrices['LTC'];
+  fullMap['LTC/USD'] = assetPrices['LTC'];
+  fullMap['HYPE/USDT'] = assetPrices['HYPE'];
+  fullMap['HYPE/USD'] = assetPrices['HYPE'];
+  fullMap['ONDO/USDT'] = assetPrices['ONDO'];
+  fullMap['ONDO/USD'] = assetPrices['ONDO'];
+  fullMap['BGB/USDT'] = assetPrices['BGB'];
+  fullMap['BGB/USD'] = assetPrices['BGB'];
+  fullMap['HBAR/USDT'] = assetPrices['HBAR'];
+  fullMap['HBAR/USD'] = assetPrices['HBAR'];
+  fullMap['XLM/USDT'] = assetPrices['XLM'];
+  fullMap['XLM/USD'] = assetPrices['XLM'];
+  fullMap['ENA/USDT'] = assetPrices['ENA'];
+  fullMap['ENA/USD'] = assetPrices['ENA'];
+  fullMap['VIRTUAL/USDT'] = assetPrices['VIRTUAL'];
+  fullMap['VIRTUAL/USD'] = assetPrices['VIRTUAL'];
+  fullMap['WIF/USDT'] = assetPrices['WIF'];
+  fullMap['WIF/USD'] = assetPrices['WIF'];
+  fullMap['BONK/USDT'] = assetPrices['BONK'];
+  fullMap['BONK/USD'] = assetPrices['BONK'];
+  fullMap['KAS/USDT'] = assetPrices['KAS'];
+  fullMap['KAS/USD'] = assetPrices['KAS'];
+  fullMap['OM/USDT'] = assetPrices['OM'];
+  fullMap['OM/USD'] = assetPrices['OM'];
+  fullMap['SEI/USDT'] = assetPrices['SEI'];
+  fullMap['SEI/USD'] = assetPrices['SEI'];
+  fullMap['INJ/USDT'] = assetPrices['INJ'];
+  fullMap['INJ/USD'] = assetPrices['INJ'];
+  fullMap['PENDLE/USDT'] = assetPrices['PENDLE'];
+  fullMap['PENDLE/USD'] = assetPrices['PENDLE'];
+  fullMap['JUP/USDT'] = assetPrices['JUP'];
+  fullMap['JUP/USD'] = assetPrices['JUP'];
+  fullMap['AERO/USDT'] = assetPrices['AERO'];
+  fullMap['AERO/USD'] = assetPrices['AERO'];
+  fullMap['WLD/USDT'] = assetPrices['WLD'];
+  fullMap['WLD/USD'] = assetPrices['WLD'];
+  fullMap['TRX/USDT'] = assetPrices['TRX'];
+  fullMap['TRX/USD'] = assetPrices['TRX'];
 
   return fullMap;
 };

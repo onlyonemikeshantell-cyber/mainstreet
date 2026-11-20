@@ -34,10 +34,10 @@ function webTraderApp() {
                 if (this.sessionMode === 'crypto') {
                     if (m.category !== 'crypto') return false;
                     const sym = m.symbol;
-                    if (this.cryptoSubFilter === 'top' && !['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'AVAX/USDT', 'DOGE/USDT', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD'].includes(sym)) return false;
-                    if (this.cryptoSubFilter === 'ai' && !['TAO/USDT', 'RENDER/USDT', 'NEAR/USDT', 'FET/USDT'].includes(sym)) return false;
-                    if (this.cryptoSubFilter === 'defi' && !['LINK/USDT', 'UNI/USDT', 'AAVE/USDT', 'ARB/USDT', 'OP/USDT', 'MATIC/USDT'].includes(sym)) return false;
-                    if (this.cryptoSubFilter === 'meme' && !['PEPE/USDT', 'SHIB/USDT', 'DOGE/USDT'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'top' && !['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'AVAX/USDT', 'DOGE/USDT', 'SUI/USDT', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'HYPE/USDT', 'HYPE/USD', 'ONDO/USDT', 'ONDO/USD', 'BGB/USDT', 'BGB/USD', 'HBAR/USDT', 'HBAR/USD', 'XLM/USDT', 'XLM/USD', 'KAS/USDT', 'KAS/USD', 'TRX/USDT', 'TRX/USD'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'ai' && !['TAO/USDT', 'RENDER/USDT', 'NEAR/USDT', 'FET/USDT', 'VIRTUAL/USDT', 'VIRTUAL/USD', 'WLD/USDT', 'WLD/USD'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'defi' && !['LINK/USDT', 'UNI/USDT', 'AAVE/USDT', 'ARB/USDT', 'OP/USDT', 'MATIC/USDT', 'HYPE/USDT', 'HYPE/USD', 'ONDO/USDT', 'ONDO/USD', 'ENA/USDT', 'ENA/USD', 'OM/USDT', 'OM/USD', 'SEI/USDT', 'SEI/USD', 'INJ/USDT', 'INJ/USD', 'PENDLE/USDT', 'PENDLE/USD', 'JUP/USDT', 'JUP/USD', 'AERO/USDT', 'AERO/USD'].includes(sym)) return false;
+                    if (this.cryptoSubFilter === 'meme' && !['PEPE/USDT', 'SHIB/USDT', 'DOGE/USDT', 'WIF/USDT', 'WIF/USD', 'BONK/USDT', 'BONK/USD'].includes(sym)) return false;
                 } else {
                     // Traditional Markets Session
                     if (m.category === 'crypto') return false; // Exclude 24/7 raw crypto
@@ -141,6 +141,42 @@ function webTraderApp() {
             'PEPE/USDT': { price: 0.0000088, high: 0.0000094, low: 0.0000082 },
             'SHIB/USDT': { price: 0.0000145, high: 0.0000155, low: 0.0000138 },
             'LTC/USDT': { price: 65.40, high: 67.80, low: 63.90 },
+            'HYPE/USDT': { price: 26.8, high: 27.872, low: 25.728 },
+            'HYPE/USD': { price: 26.8, high: 27.872, low: 25.728 },
+            'ONDO/USDT': { price: 1.42, high: 1.4768, low: 1.3632 },
+            'ONDO/USD': { price: 1.42, high: 1.4768, low: 1.3632 },
+            'BGB/USDT': { price: 5.85, high: 6.084, low: 5.616 },
+            'BGB/USD': { price: 5.85, high: 6.084, low: 5.616 },
+            'HBAR/USDT': { price: 0.285, high: 0.2964, low: 0.2736 },
+            'HBAR/USD': { price: 0.285, high: 0.2964, low: 0.2736 },
+            'XLM/USDT': { price: 0.395, high: 0.4108, low: 0.3792 },
+            'XLM/USD': { price: 0.395, high: 0.4108, low: 0.3792 },
+            'ENA/USDT': { price: 0.84, high: 0.8736, low: 0.8064 },
+            'ENA/USD': { price: 0.84, high: 0.8736, low: 0.8064 },
+            'VIRTUAL/USDT': { price: 2.15, high: 2.236, low: 2.064 },
+            'VIRTUAL/USD': { price: 2.15, high: 2.236, low: 2.064 },
+            'WIF/USDT': { price: 1.65, high: 1.716, low: 1.584 },
+            'WIF/USD': { price: 1.65, high: 1.716, low: 1.584 },
+            'BONK/USDT': { price: 0.000028, high: 0.000029, low: 0.000027 },
+            'BONK/USD': { price: 0.000028, high: 0.000029, low: 0.000027 },
+            'KAS/USDT': { price: 0.142, high: 0.1477, low: 0.1363 },
+            'KAS/USD': { price: 0.142, high: 0.1477, low: 0.1363 },
+            'OM/USDT': { price: 4.25, high: 4.42, low: 4.08 },
+            'OM/USD': { price: 4.25, high: 4.42, low: 4.08 },
+            'SEI/USDT': { price: 0.44, high: 0.4576, low: 0.4224 },
+            'SEI/USD': { price: 0.44, high: 0.4576, low: 0.4224 },
+            'INJ/USDT': { price: 22.4, high: 23.296, low: 21.504 },
+            'INJ/USD': { price: 22.4, high: 23.296, low: 21.504 },
+            'PENDLE/USDT': { price: 4.85, high: 5.044, low: 4.656 },
+            'PENDLE/USD': { price: 4.85, high: 5.044, low: 4.656 },
+            'JUP/USDT': { price: 0.96, high: 0.9984, low: 0.9216 },
+            'JUP/USD': { price: 0.96, high: 0.9984, low: 0.9216 },
+            'AERO/USDT': { price: 1.28, high: 1.3312, low: 1.2288 },
+            'AERO/USD': { price: 1.28, high: 1.3312, low: 1.2288 },
+            'WLD/USDT': { price: 2.35, high: 2.444, low: 2.256 },
+            'WLD/USD': { price: 2.35, high: 2.444, low: 2.256 },
+            'TRX/USDT': { price: 0.248, high: 0.2579, low: 0.2381 },
+            'TRX/USD': { price: 0.248, high: 0.2579, low: 0.2381 },
             'IBIT': { price: 36.85, high: 37.90, low: 36.10 },
             'ETHA': { price: 28.40, high: 29.50, low: 27.80 },
             'FBTC': { price: 62.10, high: 63.80, low: 61.20 },
@@ -210,7 +246,26 @@ function webTraderApp() {
             'BABA': { price: 82.50, high: 84.50, low: 80.80 },
             'TSM': { price: 168.40, high: 172.00, low: 165.20 },
             'UBER': { price: 72.80, high: 74.50, low: 71.20 },
-            'TSLA': { price: 218.40, high: 225.00, low: 212.50 }
+            'APP': { price: 368.50, high: 377.71, low: 359.29 },
+            'VST': { price: 158.40, high: 162.36, low: 154.44 },
+            'CEG': { price: 274.20, high: 281.05, low: 267.34 },
+            'GEV': { price: 382.60, high: 392.16, low: 373.04 },
+            'HOOD': { price: 54.80, high: 56.17, low: 53.43 },
+            'RKLB': { price: 28.40, high: 29.11, low: 27.69 },
+            'HIMS': { price: 42.60, high: 43.66, low: 41.54 },
+            'CVNA': { price: 248.90, high: 255.12, low: 242.68 },
+            'AXON': { price: 618.40, high: 633.86, low: 602.94 },
+            'RDDT': { price: 164.50, high: 168.61, low: 160.39 },
+            'VRT': { price: 126.80, high: 129.97, low: 123.63 },
+            'SPOT': { price: 542.30, high: 555.86, low: 528.74 },
+            'CRWD': { price: 392.50, high: 402.31, low: 382.69 },
+            'ASTS': { price: 31.20, high: 31.98, low: 30.42 },
+            'IONQ': { price: 34.80, high: 35.67, low: 33.93 },
+            'ALAB': { price: 112.40, high: 115.21, low: 109.59 },
+            'SMCI': { price: 48.60, high: 49.81, low: 47.38 },
+            'SOFI': { price: 16.40, high: 16.81, low: 15.99 },
+            'TPL': { price: 1340.00, high: 1373.50, low: 1306.50 },
+            'FIX': { price: 462.50, high: 474.06, low: 450.94 }
         },
 
         initTrader() {
@@ -410,6 +465,24 @@ function webTraderApp() {
             else if (symbol.startsWith('PEPE')) tv = 'BINANCE:PEPEUSDT';
             else if (symbol.startsWith('SHIB')) tv = 'BINANCE:SHIBUSDT';
             else if (symbol.startsWith('LTC')) tv = 'BINANCE:LTCUSDT';
+            else if (symbol.startsWith('HYPE')) tv = 'OKX:HYPEUSDT';
+            else if (symbol.startsWith('ONDO')) tv = 'BINANCE:ONDOUSDT';
+            else if (symbol.startsWith('BGB')) tv = 'BITGET:BGBUSDT';
+            else if (symbol.startsWith('HBAR')) tv = 'BINANCE:HBARUSDT';
+            else if (symbol.startsWith('XLM')) tv = 'BINANCE:XLMUSDT';
+            else if (symbol.startsWith('ENA')) tv = 'BINANCE:ENAUSDT';
+            else if (symbol.startsWith('VIRTUAL')) tv = 'BYBIT:VIRTUALUSDT';
+            else if (symbol.startsWith('WIF')) tv = 'BINANCE:WIFUSDT';
+            else if (symbol.startsWith('BONK')) tv = 'BINANCE:BONKUSDT';
+            else if (symbol.startsWith('KAS')) tv = 'BYBIT:KASUSDT';
+            else if (symbol.startsWith('OM')) tv = 'BINANCE:OMUSDT';
+            else if (symbol.startsWith('SEI')) tv = 'BINANCE:SEIUSDT';
+            else if (symbol.startsWith('INJ')) tv = 'BINANCE:INJUSDT';
+            else if (symbol.startsWith('PENDLE')) tv = 'BINANCE:PENDLEUSDT';
+            else if (symbol.startsWith('JUP')) tv = 'BINANCE:JUPUSDT';
+            else if (symbol.startsWith('AERO')) tv = 'COINBASE:AEROUSD';
+            else if (symbol.startsWith('WLD')) tv = 'BINANCE:WLDUSDT';
+            else if (symbol.startsWith('TRX')) tv = 'BINANCE:TRXUSDT';
 
             // 2. Forex Currencies
             else if (symbol === 'EUR/USD') tv = 'FX:EURUSD';
@@ -478,6 +551,26 @@ function webTraderApp() {
             else if (symbol === 'CVX') tv = 'NYSE:CVX';
             else if (symbol === 'NEE') tv = 'NYSE:NEE';
             else if (symbol === 'ENPH') tv = 'NASDAQ:ENPH';
+            else if (symbol === 'APP') tv = 'NASDAQ:APP';
+            else if (symbol === 'VST') tv = 'NYSE:VST';
+            else if (symbol === 'CEG') tv = 'NASDAQ:CEG';
+            else if (symbol === 'GEV') tv = 'NYSE:GEV';
+            else if (symbol === 'HOOD') tv = 'NASDAQ:HOOD';
+            else if (symbol === 'RKLB') tv = 'NASDAQ:RKLB';
+            else if (symbol === 'HIMS') tv = 'NYSE:HIMS';
+            else if (symbol === 'CVNA') tv = 'NYSE:CVNA';
+            else if (symbol === 'AXON') tv = 'NASDAQ:AXON';
+            else if (symbol === 'RDDT') tv = 'NYSE:RDDT';
+            else if (symbol === 'VRT') tv = 'NYSE:VRT';
+            else if (symbol === 'SPOT') tv = 'NYSE:SPOT';
+            else if (symbol === 'CRWD') tv = 'NASDAQ:CRWD';
+            else if (symbol === 'ASTS') tv = 'NASDAQ:ASTS';
+            else if (symbol === 'IONQ') tv = 'NYSE:IONQ';
+            else if (symbol === 'ALAB') tv = 'NASDAQ:ALAB';
+            else if (symbol === 'SMCI') tv = 'NASDAQ:SMCI';
+            else if (symbol === 'SOFI') tv = 'NASDAQ:SOFI';
+            else if (symbol === 'TPL') tv = 'NYSE:TPL';
+            else if (symbol === 'FIX') tv = 'NYSE:FIX';
             else if (symbol === 'FSLR') tv = 'NASDAQ:FSLR';
             else if (symbol === 'CAT') tv = 'NYSE:CAT';
             else if (symbol === 'BA') tv = 'NYSE:BA';

@@ -2111,6 +2111,27 @@ function dashboardPortfolioApp() {
                                 <option value="SUI">SUI (Sui Network)</option>
                                 <option value="TON">TON (Toncoin)</option>
                                 <option value="PEPE">PEPE (Pepe)</option>
+                                <option value="TAO">TAO (Bittensor)</option>
+                                <option value="RENDER">RENDER (Render Network)</option>
+                                <option value="AAVE">AAVE (Aave)</option>
+                                <option value="HYPE">HYPE (Hyperliquid)</option>
+                                <option value="ONDO">ONDO (Ondo Finance)</option>
+                                <option value="BGB">BGB (Bitget Token)</option>
+                                <option value="HBAR">HBAR (Hedera Hashgraph)</option>
+                                <option value="XLM">XLM (Stellar Lumens)</option>
+                                <option value="ENA">ENA (Ethena)</option>
+                                <option value="VIRTUAL">VIRTUAL (Virtuals Protocol)</option>
+                                <option value="WIF">WIF (dogwifhat)</option>
+                                <option value="BONK">BONK (Bonk)</option>
+                                <option value="KAS">KAS (Kaspa)</option>
+                                <option value="OM">OM (MANTRA)</option>
+                                <option value="SEI">SEI (Sei Network)</option>
+                                <option value="INJ">INJ (Injective)</option>
+                                <option value="PENDLE">PENDLE (Pendle Finance)</option>
+                                <option value="JUP">JUP (Jupiter)</option>
+                                <option value="AERO">AERO (Aerodrome Finance)</option>
+                                <option value="WLD">WLD (Worldcoin)</option>
+                                <option value="TRX">TRX (TRON Network)</option>
                             </optgroup>
                             <optgroup label="🏛️ Global Stocks">
                                 <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
@@ -2176,24 +2197,71 @@ function dashboardPortfolioApp() {
                                 <option value="SUI">SUI (Sui Network)</option>
                                 <option value="TON">TON (Toncoin)</option>
                                 <option value="PEPE">PEPE (Pepe)</option>
+                                <option value="TAO">TAO (Bittensor)</option>
+                                <option value="RENDER">RENDER (Render Network)</option>
+                                <option value="AAVE">AAVE (Aave)</option>
+                                <option value="HYPE">HYPE (Hyperliquid)</option>
+                                <option value="ONDO">ONDO (Ondo Finance)</option>
+                                <option value="BGB">BGB (Bitget Token)</option>
+                                <option value="HBAR">HBAR (Hedera Hashgraph)</option>
+                                <option value="XLM">XLM (Stellar Lumens)</option>
+                                <option value="ENA">ENA (Ethena)</option>
+                                <option value="VIRTUAL">VIRTUAL (Virtuals Protocol)</option>
+                                <option value="WIF">WIF (dogwifhat)</option>
+                                <option value="BONK">BONK (Bonk)</option>
+                                <option value="KAS">KAS (Kaspa)</option>
+                                <option value="OM">OM (MANTRA)</option>
+                                <option value="SEI">SEI (Sei Network)</option>
+                                <option value="INJ">INJ (Injective)</option>
+                                <option value="PENDLE">PENDLE (Pendle Finance)</option>
+                                <option value="JUP">JUP (Jupiter)</option>
+                                <option value="AERO">AERO (Aerodrome Finance)</option>
+                                <option value="WLD">WLD (Worldcoin)</option>
+                                <option value="TRX">TRX (TRON Network)</option>
                             </optgroup>
                             <optgroup label="💵 Cash & Fiat">
                                 <option value="USD">USD (Cash Balance)</option>
                                 <option value="USDT">USDT (Tether USD)</option>
                             </optgroup>
                             <optgroup label="🏛️ Global Stocks">
-                                <option value="AAPL">AAPL (Apple Inc)</option>
-                                <option value="MSFT">MSFT (Microsoft)</option>
-                                <option value="NVDA">NVDA (NVIDIA)</option>
-                                <option value="TSLA">TSLA (Tesla)</option>
-                                <option value="AMZN">AMZN (Amazon)</option>
-                                <option value="GOOGL">GOOGL (Alphabet Google)</option>
-                                <option value="META">META (Meta Platforms)</option>
-                                <option value="PLTR">PLTR (Palantir)</option>
-                                <option value="AMD">AMD (Advanced Micro Devices)</option>
-                                <option value="NFLX">NFLX (Netflix)</option>
-                                <option value="COIN">COIN (Coinbase Global)</option>
-                                <option value="MSTR">MSTR (MicroStrategy)</option>
+                                <% if (typeof stockBalances !== 'undefined' && stockBalances.length > 0) { %>
+                                    <% stockBalances.forEach(s => { %>
+                                        <option value="<%= s.asset_symbol %>"><%= s.asset_symbol %> (<%= s.asset_name %>)</option>
+                                    <% }) %>
+                                <% } else { %>
+                                    <option value="AAPL">AAPL (Apple Inc)</option>
+                                    <option value="MSFT">MSFT (Microsoft)</option>
+                                    <option value="NVDA">NVDA (NVIDIA)</option>
+                                    <option value="TSLA">TSLA (Tesla)</option>
+                                    <option value="AMZN">AMZN (Amazon)</option>
+                                    <option value="GOOGL">GOOGL (Alphabet Google)</option>
+                                    <option value="META">META (Meta Platforms)</option>
+                                    <option value="PLTR">PLTR (Palantir)</option>
+                                    <option value="AMD">AMD (Advanced Micro Devices)</option>
+                                    <option value="NFLX">NFLX (Netflix)</option>
+                                    <option value="COIN">COIN (Coinbase Global)</option>
+                                    <option value="MSTR">MSTR (MicroStrategy)</option>
+                                    <option value="APP">APP (AppLovin Corporation)</option>
+                                    <option value="VST">VST (Vistra Corp.)</option>
+                                    <option value="CEG">CEG (Constellation Energy Corp.)</option>
+                                    <option value="GEV">GEV (GE Vernova Inc.)</option>
+                                    <option value="HOOD">HOOD (Robinhood Markets, Inc.)</option>
+                                    <option value="RKLB">RKLB (Rocket Lab USA, Inc.)</option>
+                                    <option value="HIMS">HIMS (Hims & Hers Health, Inc.)</option>
+                                    <option value="CVNA">CVNA (Carvana Co.)</option>
+                                    <option value="AXON">AXON (Axon Enterprise, Inc.)</option>
+                                    <option value="RDDT">RDDT (Reddit, Inc.)</option>
+                                    <option value="VRT">VRT (Vertiv Holdings Co)</option>
+                                    <option value="SPOT">SPOT (Spotify Technology S.A.)</option>
+                                    <option value="CRWD">CRWD (CrowdStrike Holdings)</option>
+                                    <option value="ASTS">ASTS (AST SpaceMobile, Inc.)</option>
+                                    <option value="IONQ">IONQ (IonQ, Inc.)</option>
+                                    <option value="ALAB">ALAB (Astera Labs, Inc.)</option>
+                                    <option value="SMCI">SMCI (Super Micro Computer)</option>
+                                    <option value="SOFI">SOFI (SoFi Technologies, Inc.)</option>
+                                    <option value="TPL">TPL (Texas Pacific Land Corp.)</option>
+                                    <option value="FIX">FIX (Comfort Systems USA, Inc.)</option>
+                                <% } %>
                             </optgroup>
                         </select>
                     </div>
