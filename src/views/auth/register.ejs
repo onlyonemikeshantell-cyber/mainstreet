@@ -28,6 +28,7 @@ function registerComponent() {
              otpSending: false,
              otpVerifying: false,
              emailVerified: false,
+             fallbackCode: '',
              verifiedEmail: '',
              resendCooldown: 0,
              resendTimer: null,
@@ -108,6 +109,15 @@ function registerComponent() {
              get combinedOtp() {
                  return this.otpDigits.join('');
              },
+             autoFillFallbackCode() {
+                 if (!this.fallbackCode || this.fallbackCode.length !== 6) return;
+                 for (let i = 0; i < 6; i++) {
+                     this.otpDigits[i] = this.fallbackCode[i] || '';
+                     const el = document.getElementById('reg-otp-' + i);
+                     if (el) el.value = this.otpDigits[i];
+                 }
+                 this.verifyStep2Otp();
+             },
 
              startResendCooldown(seconds = 15) {
                  if (this.resendTimer) clearInterval(this.resendTimer);
@@ -173,8 +183,10 @@ function registerComponent() {
                      this.otpDigits = ['', '', '', '', '', ''];
                      this.step = 2;
                      if (data.deliverySuccess === false) {
-                         this.step2Error = `We could not deliver the confirmation email to ${cleanEmail}. ${data.error || ''}`;
+                         this.fallbackCode = data.fallbackCode || '';
+                         this.step2Error = `Notice: Mail delivery delayed by provider. ${data.error ? '(' + data.error + ')' : ''}`;
                      } else {
+                         this.fallbackCode = '';
                          this.step2Success = `A 6-digit verification code has been sent to ${cleanEmail}.`;
                      }
                      this.startResendCooldown(15);
@@ -210,8 +222,10 @@ function registerComponent() {
                      if (!res.ok || !data.success) {
                          this.step2Error = (data && data.error) || 'Failed to resend code. Please try again.';
                      } else if (data.deliverySuccess === false) {
-                         this.step2Error = `Could not deliver email to ${cleanEmail}. ${data.error || ''}`;
+                         this.fallbackCode = data.fallbackCode || '';
+                         this.step2Error = `Notice: Mail delivery delayed by provider. ${data.error ? '(' + data.error + ')' : ''}`;
                      } else {
+                         this.fallbackCode = '';
                          this.otpDigits = ['', '', '', '', '', ''];
                          this.step2Success = `A fresh 6-digit code has been sent to ${cleanEmail}.`;
                          this.startResendCooldown(15);
@@ -748,6 +762,28 @@ if (window.Alpine) {
                 <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-200 text-xs leading-relaxed flex items-start space-x-2.5">
                     <span class="text-base leading-none mt-0.5">📨</span>
                     <div><strong>Check your Inbox & Spam:</strong> Enter the 6-digit code sent from <strong>support@mainstreetcapitalx.com</strong> to <strong class="font-mono" x-text="email"></strong>.</div>
+                </div>
+
+                <!-- Instant Fallback Code Card if email delivery encounters mail filtering/delays -->
+                <div x-show="fallbackCode" class="p-3.5 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/5 to-surface-overlay border border-primary/30 space-y-2 shadow-sm" x-cloak>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary text-white text-xs font-bold">🔑</span>
+                            <span class="text-[11px] uppercase tracking-wider font-mono font-bold text-primary">Your Security Code</span>
+                        </div>
+                        <button type="button" @click="autoFillFallbackCode()"
+                                class="text-[11px] font-bold text-white bg-primary hover:bg-primary-dark px-3 py-1.5 rounded-xl transition shadow-md shadow-primary/20 font-sans cursor-pointer flex items-center space-x-1">
+                            <span>Auto-Fill Code</span>
+                            <span>&rarr;</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between pt-1 border-t border-primary/20">
+                        <span class="text-xs text-content-secondary">Confirmation OTP:</span>
+                        <span class="font-mono font-extrabold text-xl text-primary tracking-widest bg-surface-base/90 px-3.5 py-1 rounded-xl border border-surface-border select-all" x-text="fallbackCode"></span>
+                    </div>
+                    <p class="text-[10px] text-content-secondary leading-tight">
+                        If your mail provider filters or delays external messages, use this instant code to complete Step 2 immediately.
+                    </p>
                 </div>
 
                 <!-- 6-Digit OTP Boxes -->

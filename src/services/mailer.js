@@ -84,7 +84,7 @@ const sendViaWebmailHttps = async ({ host, user, pass, to, subject, html, text }
       path,
       method,
       rejectUnauthorized: false,
-      timeout: 3500,
+      timeout: 8000,
       headers: {
         'Cookie': cookieHeader(),
         'User-Agent': 'Mozilla/5.0 (Mainstreet-Mailer/2.0)'

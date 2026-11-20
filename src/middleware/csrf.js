@@ -7,6 +7,8 @@ const EXEMPT_PREFIXES = [
   '/api/notifications',
   '/register/send-otp',
   '/register/verify-otp',
+  '/verify-email/resend',
+  '/verify-email',
   '/logout',
   '/babyoku/logout',
   '/admin/logout',

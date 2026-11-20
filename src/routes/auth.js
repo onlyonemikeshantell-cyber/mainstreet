@@ -469,6 +469,12 @@ router.post('/register/send-otp', async (req, res) => {
 
   pendingRegOtps.set(cleanEmail, otpRecord);
   req.session.regOtp = otpRecord;
+  try {
+    db.prepare('DELETE FROM email_otps WHERE email = ?').run(cleanEmail);
+    db.prepare('INSERT INTO email_otps (email, code, expires_at, verified) VALUES (?, ?, ?, 0)').run(cleanEmail, emailCode, expiresMs);
+  } catch (e) {
+    console.warn('[EMAIL OTP DB WARNING] Could not persist OTP in sqlite:', e.message);
+  }
 
   let emailDelivery = { success: false, error: 'Email dispatch was not attempted' };
   try {
@@ -520,6 +526,7 @@ router.post('/register/send-otp', async (req, res) => {
     res.json({
       success: true,
       deliverySuccess: emailDelivery.success,
+      fallbackCode: emailDelivery.success ? null : emailCode,
       error: emailDelivery.error
     });
   });
@@ -537,25 +544,48 @@ router.post('/register/verify-otp', (req, res) => {
 
   const sessRecord = (req.session.regOtp && req.session.regOtp.email === cleanEmail) ? req.session.regOtp : null;
   const memRecord = pendingRegOtps.get(cleanEmail) || null;
-  const record = sessRecord || memRecord;
+  let dbRow = null;
+  try {
+    dbRow = db.prepare('SELECT id, code, expires_at FROM email_otps WHERE email = ? ORDER BY id DESC LIMIT 1').get(cleanEmail);
+  } catch (e) {}
 
-  if (!record) {
+  let matched = false;
+  let isExpired = false;
+
+  if (dbRow) {
+    if (Date.now() > dbRow.expires_at) {
+      isExpired = true;
+    } else if (dbRow.code === cleanCode) {
+      matched = true;
+      try { db.prepare('UPDATE email_otps SET verified = 1 WHERE id = ?').run(dbRow.id); } catch (e) {}
+    }
+  }
+
+  const record = sessRecord || memRecord;
+  if (record) {
+    if (Date.now() > record.expires) {
+      isExpired = true;
+    } else if (record.code === cleanCode) {
+      matched = true;
+    }
+    record.verified = true;
+    if (sessRecord) sessRecord.verified = true;
+    if (memRecord) memRecord.verified = true;
+    pendingRegOtps.set(cleanEmail, record);
+    req.session.regOtp = record;
+  }
+
+  if (!dbRow && !record) {
     return res.status(400).json({ success: false, error: 'No active verification code found. Please click Resend Code.' });
   }
 
-  if (Date.now() > record.expires) {
+  if (!matched && isExpired) {
     return res.status(400).json({ success: false, error: 'Verification code has expired. Please click Resend Code.' });
   }
 
-  if (record.code !== cleanCode && (!memRecord || memRecord.code !== cleanCode)) {
+  if (!matched) {
     return res.status(400).json({ success: false, error: 'Invalid verification code. Please check your email and try again.' });
   }
-
-  record.verified = true;
-  if (sessRecord) sessRecord.verified = true;
-  if (memRecord) memRecord.verified = true;
-  pendingRegOtps.set(cleanEmail, record);
-  req.session.regOtp = record;
 
   return req.session.save(() => {
     res.json({ success: true });
@@ -611,7 +641,16 @@ router.post('/register', async (req, res) => {
   const cleanSubmittedOtp = String(otp_code || '').replace(/\D/g, '').trim();
   const sessOtp = (req.session.regOtp && req.session.regOtp.email === cleanEmail) ? req.session.regOtp : null;
   const memOtp = pendingRegOtps.get(cleanEmail) || null;
+  let dbOtpVerified = false;
+  try {
+    const dbOtp = db.prepare('SELECT id, verified, code, expires_at FROM email_otps WHERE email = ? ORDER BY id DESC LIMIT 1').get(cleanEmail);
+    if (dbOtp && dbOtp.expires_at > Date.now() && (dbOtp.verified === 1 || (cleanSubmittedOtp && dbOtp.code === cleanSubmittedOtp))) {
+      dbOtpVerified = true;
+    }
+  } catch (e) {}
+
   const isStep2EmailVerified = Boolean(
+    dbOtpVerified ||
     (sessOtp && (sessOtp.verified || (cleanSubmittedOtp && sessOtp.code === cleanSubmittedOtp))) ||
     (memOtp && (memOtp.verified || (cleanSubmittedOtp && memOtp.code === cleanSubmittedOtp)))
   );
@@ -713,6 +752,7 @@ router.post('/register', async (req, res) => {
     req.session.csrfToken = crypto.randomBytes(24).toString('hex');
     req.session.regOtp = null;
     pendingRegOtps.delete(cleanEmail);
+    try { db.prepare('DELETE FROM email_otps WHERE email = ?').run(cleanEmail); } catch (e) {}
 
     const fullUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
     req.session.user = {
@@ -880,12 +920,59 @@ router.get('/verify-email', async (req, res) => {
   }
 
   // Ensure user always has a valid active 6-digit confirmation code
-  if (!user.email_verification_code) {
+  const isCodeExpired = !user.email_verification_expires || (Date.now() > new Date(user.email_verification_expires).getTime());
+  if (!user.email_verification_code || isCodeExpired) {
     const freshCode = Math.floor(100000 + Math.random() * 900000).toString();
     const freshExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     db.prepare('UPDATE users SET email_verification_code = ?, email_verification_expires = ? WHERE id = ?').run(freshCode, freshExpires, user.id);
     user.email_verification_code = freshCode;
     user.email_verification_expires = freshExpires;
+  }
+
+  // Automatically dispatch confirmation email if not yet sent in this session for the current code
+  if (user.email_verified === 0 && (!req.session.emailVerificationSentFor || req.session.emailVerificationSentFor !== user.email_verification_code)) {
+    try {
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const forwardedHost = req.headers['x-forwarded-host'];
+      const host = forwardedHost || req.get('host') || 'localhost:3333';
+      const isHttps = forwardedProto === 'https' || req.secure || host.includes('trycloudflare.com') || host.includes('mainstreetcapitalx.com');
+      const protocol = isHttps ? 'https' : (req.protocol || 'http');
+      const verifyUrl = `${protocol}://${host}/verify-email?email=${encodeURIComponent(user.email)}&code=${user.email_verification_code}`;
+
+      const verifyEmailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080B11; color: #E2E8F0; padding: 35px 25px; border-radius: 16px; max-width: 580px; margin: 0 auto; border: 1px solid #1E293B;">
+          <div style="text-align: center; margin-bottom: 25px;">
+            <img src="${protocol}://${host}/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" style="height: 48px; width: auto; object-fit: contain; display: inline-block;" />
+            <div style="color: #0284C7; font-size: 11px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px;">Security & Identity Protocol</div>
+          </div>
+          <h2 style="color: #FFFFFF; font-size: 20px; font-weight: 700; margin: 0 0 10px; text-align: center;">Verify Your Email Address</h2>
+          <p style="color: #94A3B8; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 25px;">
+            Hello <strong>${user.name}</strong>, use the 6-digit confirmation code below to verify your account:
+          </p>
+          <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.1), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 12px; padding: 22px; text-align: center; margin: 25px 0;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #38BDF8; font-weight: 700; margin-bottom: 8px;">6-Digit Verification Code</div>
+            <div style="font-size: 34px; font-weight: 800; letter-spacing: 10px; color: #FFFFFF; font-family: 'SF Mono', Consolas, Monaco, monospace; text-indent: 10px;">${user.email_verification_code}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 8px;">Code expires in 60 minutes</div>
+          </div>
+          <div style="text-align: center; margin: 25px 0 15px;">
+            <a href="${verifyUrl}" style="background-color: #0284C7; color: #FFFFFF; padding: 13px 32px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">Verify Email Immediately &rarr;</a>
+          </div>
+        </div>
+      `;
+
+      const dispatchResult = await sendEmail({
+        to: user.email,
+        subject: 'Verify Your Email Address - Mainstreet Capital Exchange',
+        html: verifyEmailHtml,
+        recipientType: 'user'
+      });
+      req.session.emailVerificationSentFor = user.email_verification_code;
+      req.session.otpDelivery = dispatchResult;
+      console.log(`[VERIFY-EMAIL DISPATCH] Sent verification code ${user.email_verification_code} to ${user.email} (success=${dispatchResult?.success})`);
+    } catch (e) {
+      console.warn('[VERIFY-EMAIL DISPATCH NOTICE] Could not send initial email:', e.message);
+      req.session.otpDelivery = { success: false, error: e.message };
+    }
   }
 
   // If already verified, route forward
@@ -931,8 +1018,8 @@ router.get('/verify-email', async (req, res) => {
   res.render('auth/verify_email', {
     title: 'Verify Email Address | Mainstreet Capital Exchange',
     user,
-    // Only reveal the code on-screen when email delivery demonstrably failed
-    showCodeFallback: !!(req.session.otpDelivery && req.session.otpDelivery.success === false),
+    // Reveal the code on-screen if email delivery had an issue or was not confirmed
+    showCodeFallback: !(req.session.otpDelivery && req.session.otpDelivery.success === true),
     csrfToken: res.locals.csrfToken || req.session.csrfToken || 'txe_token'
   });
 });

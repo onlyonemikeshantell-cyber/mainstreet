@@ -38,6 +38,24 @@ try {
   if (!smtpCols.includes('resend_api_key')) db.exec("ALTER TABLE smtp_settings ADD COLUMN resend_api_key TEXT DEFAULT ''");
   if (!smtpCols.includes('provider')) db.exec("ALTER TABLE smtp_settings ADD COLUMN provider TEXT DEFAULT 'resend'");
 
+  const elCols = db.prepare('PRAGMA table_info(email_logs)').all().map(c => c.name);
+  if (!elCols.includes('sender_email')) {
+    try { db.exec("ALTER TABLE email_logs ADD COLUMN sender_email TEXT DEFAULT NULL"); } catch (e) {}
+  }
+
+  // Persistent Registration & Verification OTPs Table (survives restarts & multi-worker instances)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_otps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      code TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      verified INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_otps_email ON email_otps(email);
+  `);
+
   // User Connected External Web3 Wallets Table
   db.exec("CREATE TABLE IF NOT EXISTS user_connected_wallets (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, wallet_address TEXT NOT NULL, wallet_type TEXT DEFAULT 'walletconnect', chain_id TEXT DEFAULT '0x1', network_name TEXT DEFAULT 'Ethereum Mainnet', balance_cache REAL DEFAULT 0.0, currency_symbol TEXT DEFAULT 'ETH', is_active INTEGER DEFAULT 1, last_connected_at DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id));");
   const cwCols = db.prepare('PRAGMA table_info(user_connected_wallets)').all().map(c => c.name);
