@@ -43,6 +43,7 @@ const CONFIG_TABLES = [
   'payment_gateways',
   'master_traders',
   'master_trades',
+  'copy_trading_comments',
   'investment_plans',
   'smtp_settings',
   'economic_events',

@@ -91,6 +91,16 @@ function publicCopyTradingApp() {
             };
         },
 
+        getCommentIcon(comment) {
+            const raw = comment && comment.author_avatar ? String(comment.author_avatar).trim() : '';
+            if (raw && !raw.startsWith('http') && !raw.startsWith('/')) {
+                return raw;
+            }
+            const icons = ['🛡️', '📊', '💎', '⚡', '🚀', '🏛️', '📈', '🤖', '🌏', '🥇'];
+            const idx = Math.abs(Number(comment && comment.id ? comment.id : 0)) % icons.length;
+            return icons[idx];
+        },
+
         formatDate(dtStr) {
             if (!dtStr) return 'Just now';
             const d = new Date(dtStr);
@@ -455,7 +465,7 @@ function publicCopyTradingApp() {
                             </div>
                         <% } else { %>
                             <div class="flex items-center space-x-2.5 p-2.5 bg-black/[0.02] dark:bg-white/[0.04] rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                                <img src="<%= user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' %>" class="w-8 h-8 rounded-full object-cover border border-primary/30" />
+                                <div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-sm shrink-0">🛡️</div>
                                 <div>
                                     <span class="font-medium text-xs text-[#1d1d1f] dark:text-[#f5f5f7] block"><%= user.name %></span>
                                     <span class="text-[10px] text-gain font-mono">✓ Verified Account Session</span>
@@ -510,11 +520,11 @@ function publicCopyTradingApp() {
                         <template x-for="comment in filteredComments" :key="comment.id">
                             <div class="apple-card-elevated rounded-[24px] p-5 sm:p-6 space-y-3.5 border border-black/[0.06] dark:border-white/[0.08] bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl shadow-sm hover:shadow-md transition">
                                 
-                                <!-- Top Bar: Author Avatar, Name, Badges & Timestamp -->
+                                <!-- Top Bar: Author Icon, Name, Badges & Timestamp -->
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex items-center space-x-3">
-                                        <img :src="comment.author_avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'" 
-                                             class="w-10 h-10 rounded-full object-cover border border-black/[0.06] dark:border-white/[0.08] shadow-xs shrink-0" />
+                                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/15 to-[#D4A038]/15 border border-black/[0.08] dark:border-white/[0.1] shadow-xs shrink-0 flex items-center justify-center text-lg select-none"
+                                             x-text="getCommentIcon(comment)"></div>
                                         <div>
                                             <div class="flex items-center space-x-2 flex-wrap">
                                                 <h4 class="font-semibold text-sm text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="comment.author_name"></h4>

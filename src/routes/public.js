@@ -86,14 +86,15 @@ router.post('/api/copy-trading/comment', (req, res) => {
 
     const userId = req.session ? req.session.userId : null;
     let name = author_name ? author_name.trim() : '';
-    let avatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80';
+    const emojiPool = ['🛡️', '📊', '💎', '⚡', '🚀', '🏛️', '📈', '🤖', '🌏', '🥇'];
+    let avatar = emojiPool[Math.floor(Math.random() * emojiPool.length)];
     let badge = 'Verified Copier';
 
     if (userId) {
       const user = db.prepare('SELECT id, name, avatar FROM users WHERE id = ?').get(userId);
       if (user) {
         name = user.name || name || 'Verified Investor';
-        if (user.avatar) avatar = user.avatar;
+        avatar = emojiPool[(Number(user.id) || 0) % emojiPool.length];
         if (master_id) {
           const sub = db.prepare('SELECT id FROM copy_subscriptions WHERE user_id = ? AND master_id = ? AND status = "active"').get(userId, master_id);
           badge = sub ? 'Active Strategy Copier' : 'Verified Member';
