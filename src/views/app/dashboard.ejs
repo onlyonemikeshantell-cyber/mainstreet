@@ -47,7 +47,7 @@ function dashboardPortfolioApp() {
         selectedBasketKey: 'ai_titans',
         basketInvestAmount: 100,
         activeTab: 'holdings',
-        assetFilter: 'all', // 'all' | 'owned' | 'equity' | 'crypto'
+        assetFilter: 'owned', // 'owned' | 'all' | 'equity' | 'crypto'
         showOnboardingRoadmap: <%= (user.kyc_status === 'verified') ? 'false' : 'true' %>,
         onboardingExpanded: false,
         selectedAccountMode: (typeof window !== 'undefined' && (localStorage.getItem('txe_active_subaccount') || (window.location.hash === '#retirement' ? 'retirement' : 'standard'))),
@@ -1213,7 +1213,7 @@ function dashboardPortfolioApp() {
                     <div class="w-px h-6 bg-surface-border"></div>
                     <div>
                         <span class="text-content-tertiary text-[11px] block">Holdings</span>
-                        <strong class="text-content-primary font-bold text-sm"><%= ((typeof stockBalances !== 'undefined' && stockBalances ? stockBalances.length : 0) + (typeof cryptoBalances !== 'undefined' && cryptoBalances ? cryptoBalances.filter(b => b.asset_symbol !== 'USD').length : 0)) %> Assets</strong>
+                        <strong class="text-content-primary font-bold text-sm" x-text="ownedAssetsCount + ' Assets'"></strong>
                     </div>
                 </div>
 
@@ -1316,17 +1316,17 @@ function dashboardPortfolioApp() {
                                    class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-sans transition placeholder:text-content-tertiary" />
                         </div>
 
-                        <!-- Filter Chips: All | Owned | Stocks | Crypto -->
+                        <!-- Filter Chips: Owned | All | Stocks | Crypto -->
                         <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs font-medium">
-                            <button type="button" @click="assetFilter = 'all'" 
-                                    :class="assetFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
-                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
-                                All
-                            </button>
                             <button type="button" @click="assetFilter = 'owned'" 
                                     :class="assetFilter === 'owned' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                                     class="px-3 py-1 rounded-lg transition cursor-pointer">
                                 Owned
+                            </button>
+                            <button type="button" @click="assetFilter = 'all'" 
+                                    :class="assetFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
+                                All
                             </button>
                             <button type="button" @click="assetFilter = 'equity'" 
                                     :class="assetFilter === 'equity' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
