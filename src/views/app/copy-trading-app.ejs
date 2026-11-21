@@ -7,6 +7,7 @@ function copyTradingStationApp() {
         detailsModal: false,
         selectedMaster: {},
         masters: <%- safeJson(masters || []) %>,
+        masterTrades: <%- safeJson(typeof masterTrades !== 'undefined' && masterTrades ? masterTrades : []) %>,
         comments: <%- safeJson(typeof comments !== 'undefined' && comments ? comments : []) %>,
         commentFilter: 'all',
         newComment: {
@@ -97,6 +98,27 @@ function copyTradingStationApp() {
         masterComments(masterId) {
             if (!masterId) return [];
             return this.comments.filter(c => String(c.master_id) === String(masterId));
+        },
+
+        getTradesForMaster(masterId) {
+            if (!masterId) return [];
+            return (this.masterTrades || []).filter(t => String(t.master_id) === String(masterId));
+        },
+
+        getMasterTradeSummary(masterId) {
+            const list = this.getTradesForMaster(masterId);
+            const total = list.length;
+            let wins = 0;
+            let losses = 0;
+            let netPnl = 0;
+            for (const t of list) {
+                const pnl = Number(t.profit_loss || 0);
+                netPnl += pnl;
+                if (pnl > 0) wins++;
+                else losses++;
+            }
+            const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
+            return { total, wins, losses, netPnl, winRate };
         },
 
         formatDate(dtStr) {
@@ -647,7 +669,7 @@ function copyTradingStationApp() {
 
     <!-- 1. Audit / Strategy Details Modal -->
     <div x-show="detailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" x-cloak>
-        <div class="bg-surface-raised border border-surface-border max-w-lg w-full p-6 rounded-3xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" @click.away="detailsModal = false">
+        <div class="bg-surface-raised border border-surface-border max-w-2xl w-full p-6 rounded-3xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" @click.away="detailsModal = false">
             <div class="flex items-center justify-between border-b border-surface-border pb-3">
                 <div class="flex items-center space-x-3">
                     <img :src="selectedMaster.avatar" :alt="selectedMaster.name" class="w-10 h-10 rounded-xl object-cover border border-primary/40" />
@@ -709,6 +731,61 @@ function copyTradingStationApp() {
                     <span class="text-content-secondary">Estimated 30D Growth:</span>
                     <span class="text-gain font-bold text-sm" x-text="'≈ $' + Math.round(simulatorAmount * (1 + (Number(selectedMaster.total_roi) / 300))).toLocaleString()"></span>
                 </div>
+            </div>
+
+            <!-- Audited Master Quant Trade Execution History -->
+            <div class="p-3.5 bg-surface-overlay rounded-2xl border border-surface-border space-y-2.5 text-xs">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <span class="text-[10px] text-content-tertiary uppercase font-mono block font-bold">Audited Trade Execution History</span>
+                        <span class="text-[11px] text-content-secondary font-mono"
+                              x-text="getMasterTradeSummary(selectedMaster.id).total + ' Trades • ' + getMasterTradeSummary(selectedMaster.id).wins + 'W / ' + getMasterTradeSummary(selectedMaster.id).losses + 'L (' + getMasterTradeSummary(selectedMaster.id).winRate + '% Win)'"></span>
+                    </div>
+                    <div class="text-right font-mono">
+                        <span class="text-[10px] text-content-tertiary uppercase block">Cumulative Realized P&amp;L</span>
+                        <span class="text-sm font-bold"
+                              :class="getMasterTradeSummary(selectedMaster.id).netPnl >= 0 ? 'text-gain' : 'text-loss'"
+                              x-text="(getMasterTradeSummary(selectedMaster.id).netPnl >= 0 ? '+$' : '-$') + Math.abs(getMasterTradeSummary(selectedMaster.id).netPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                    </div>
+                </div>
+
+                <template x-if="getTradesForMaster(selectedMaster.id).length > 0">
+                    <div class="max-h-56 overflow-y-auto overflow-x-auto rounded-xl border border-surface-border bg-surface-base scrollbar-thin">
+                        <table class="w-full text-left font-mono text-[11px]">
+                            <thead class="bg-surface-overlay text-content-tertiary text-[10px] uppercase sticky top-0">
+                                <tr>
+                                    <th class="px-2.5 py-2">Date</th>
+                                    <th class="px-2.5 py-2">Instrument</th>
+                                    <th class="px-2.5 py-2">Side</th>
+                                    <th class="px-2.5 py-2">Lots</th>
+                                    <th class="px-2.5 py-2">Entry &rarr; Exit</th>
+                                    <th class="px-2.5 py-2 text-right">Realized P&amp;L</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-border">
+                                <template x-for="tr in getTradesForMaster(selectedMaster.id)" :key="tr.id">
+                                    <tr class="hover:bg-surface-overlay/60">
+                                        <td class="px-2.5 py-1.5 text-content-tertiary whitespace-nowrap" x-text="(tr.closed_at || tr.opened_at || '').slice(0, 10)"></td>
+                                        <td class="px-2.5 py-1.5 font-bold text-content-primary whitespace-nowrap" x-text="tr.symbol"></td>
+                                        <td class="px-2.5 py-1.5 whitespace-nowrap">
+                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                                                  :class="(tr.type || '').toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain' : 'bg-loss/15 text-loss'"
+                                                  x-text="(tr.type || 'BUY').toUpperCase()"></span>
+                                        </td>
+                                        <td class="px-2.5 py-1.5 text-content-secondary whitespace-nowrap" x-text="tr.lot_size"></td>
+                                        <td class="px-2.5 py-1.5 text-content-secondary whitespace-nowrap" x-text="Number(tr.open_price).toLocaleString() + ' → ' + Number(tr.close_price || tr.current_price || tr.open_price).toLocaleString()"></td>
+                                        <td class="px-2.5 py-1.5 text-right font-bold whitespace-nowrap"
+                                            :class="Number(tr.profit_loss) >= 0 ? 'text-gain' : 'text-loss'"
+                                            x-text="(Number(tr.profit_loss) >= 0 ? '+$' : '-$') + Math.abs(Number(tr.profit_loss)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+                <template x-if="getTradesForMaster(selectedMaster.id).length === 0">
+                    <p class="text-[11px] text-content-tertiary italic">No closed master trade blotter entries recorded yet for this strategy.</p>
+                </template>
             </div>
 
             <!-- Verified Copier Reviews for this specific Master Trader -->

@@ -36,10 +36,16 @@ router.get('/copy-trading', (req, res) => {
     ORDER BY c.is_pinned DESC, c.id DESC
   `).all();
 
+  const masterTrades = db.prepare(`
+    SELECT * FROM master_trades
+    ORDER BY COALESCE(closed_at, opened_at) DESC, id DESC
+  `).all();
+
   res.render('public/copy-trading', {
     title: 'Verified Copy Trading & Strategy Marketplace | MAINSTREET CAPITAL EXCHANGE',
     masters,
-    comments
+    comments,
+    masterTrades
   });
 });
 

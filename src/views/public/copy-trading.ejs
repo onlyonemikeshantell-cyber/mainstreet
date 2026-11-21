@@ -6,7 +6,10 @@ function publicCopyTradingApp() {
         selectedCategory: 'all',
         sortBy: 'roi',
         searchQuery: '',
+        historyModal: false,
+        selectedMaster: {},
         masters: <%- safeJson(typeof masters !== 'undefined' && masters && masters.length > 0 ? masters : []) %>,
+        masterTrades: <%- safeJson(typeof masterTrades !== 'undefined' && masterTrades ? masterTrades : []) %>,
         comments: <%- safeJson(typeof comments !== 'undefined' && comments ? comments : []) %>,
         commentFilter: 'all',
         newComment: {
@@ -107,6 +110,32 @@ function publicCopyTradingApp() {
             this.newComment.master_id = String(masterId);
             const el = document.getElementById('copy-trading-discussion');
             if (el) el.scrollIntoView({ behavior: 'smooth' });
+        },
+
+        openHistoryModal(master) {
+            this.selectedMaster = master || {};
+            this.historyModal = true;
+        },
+
+        getTradesForMaster(masterId) {
+            if (!masterId) return [];
+            return (this.masterTrades || []).filter(t => String(t.master_id) === String(masterId));
+        },
+
+        getMasterTradeSummary(masterId) {
+            const list = this.getTradesForMaster(masterId);
+            const total = list.length;
+            let wins = 0;
+            let losses = 0;
+            let netPnl = 0;
+            for (const t of list) {
+                const pnl = Number(t.profit_loss || 0);
+                netPnl += pnl;
+                if (pnl > 0) wins++;
+                else losses++;
+            }
+            const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
+            return { total, wins, losses, netPnl, winRate };
         },
 
         async submitComment() {
@@ -324,6 +353,9 @@ function publicCopyTradingApp() {
 
                         <!-- Action Button (Apple Pill) -->
                         <div class="space-y-2 pt-2">
+                            <button type="button" @click="openHistoryModal(master)" class="w-full py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/[0.08] dark:border-white/[0.1] font-medium text-xs text-center transition cursor-pointer">
+                                📑 View Audited Trade History (<span x-text="getTradesForMaster(master.id).length"></span>)
+                            </button>
                             <a href="/copy-trading/app" class="w-full block py-3 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-xs text-center shadow-[0_2px_8px_rgba(0,113,227,0.3)] transition active:scale-[0.98] cursor-pointer">
                                 Copy Strategy &rarr;
                             </a>
@@ -556,6 +588,85 @@ function publicCopyTradingApp() {
 
         </div>
     </section>
+
+    <!-- Audited Master Quant Trade History Modal -->
+    <div x-show="historyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" x-cloak>
+        <div class="bg-white dark:bg-[#161617] border border-black/[0.08] dark:border-white/[0.1] max-w-3xl w-full p-6 rounded-3xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" @click.away="historyModal = false">
+            <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3.5">
+                <div class="flex items-center space-x-3">
+                    <img :src="selectedMaster.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'" :alt="selectedMaster.name" class="w-11 h-11 rounded-2xl object-cover border border-primary/40" />
+                    <div>
+                        <h3 class="text-base font-bold text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="(selectedMaster.name || '') + ' — Audited Trade History'"></h3>
+                        <p class="text-xs text-[#D4A038] font-mono" x-text="selectedMaster.strategy_name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="historyModal = false" class="text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+            </div>
+
+            <!-- Summary Metrics -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
+                    <span class="text-[10px] text-[#86868b] uppercase block">Total Trades</span>
+                    <strong class="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7]" x-text="getMasterTradeSummary(selectedMaster.id).total"></strong>
+                </div>
+                <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
+                    <span class="text-[10px] text-[#86868b] uppercase block">Win / Loss</span>
+                    <strong class="text-sm font-bold text-gain" x-text="getMasterTradeSummary(selectedMaster.id).wins + 'W / ' + getMasterTradeSummary(selectedMaster.id).losses + 'L (' + getMasterTradeSummary(selectedMaster.id).winRate + '%)'"></strong>
+                </div>
+                <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
+                    <span class="text-[10px] text-[#86868b] uppercase block">Historical ROI</span>
+                    <strong class="text-sm font-bold text-gain" x-text="'+' + Number(selectedMaster.total_roi || 0).toFixed(1) + '%'"></strong>
+                </div>
+                <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
+                    <span class="text-[10px] text-[#86868b] uppercase block">Net Realized P&amp;L</span>
+                    <strong class="text-sm font-bold"
+                            :class="getMasterTradeSummary(selectedMaster.id).netPnl >= 0 ? 'text-gain' : 'text-loss'"
+                            x-text="(getMasterTradeSummary(selectedMaster.id).netPnl >= 0 ? '+$' : '-$') + Math.abs(getMasterTradeSummary(selectedMaster.id).netPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></strong>
+                </div>
+            </div>
+
+            <!-- Trade Blotter Table -->
+            <template x-if="getTradesForMaster(selectedMaster.id).length > 0">
+                <div class="max-h-80 overflow-y-auto overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.08]">
+                    <table class="w-full text-left font-mono text-xs">
+                        <thead class="bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b] text-[10px] uppercase sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2.5">Date</th>
+                                <th class="px-3 py-2.5">Instrument</th>
+                                <th class="px-3 py-2.5">Side</th>
+                                <th class="px-3 py-2.5">Lots</th>
+                                <th class="px-3 py-2.5">Entry &rarr; Exit</th>
+                                <th class="px-3 py-2.5 text-right">Realized P&amp;L</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                            <template x-for="tr in getTradesForMaster(selectedMaster.id)" :key="tr.id">
+                                <tr class="hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+                                    <td class="px-3 py-2 text-[#86868b] whitespace-nowrap" x-text="(tr.closed_at || tr.opened_at || '').slice(0, 10)"></td>
+                                    <td class="px-3 py-2 font-bold text-[#1d1d1f] dark:text-[#f5f5f7] whitespace-nowrap" x-text="tr.symbol"></td>
+                                    <td class="px-3 py-2 whitespace-nowrap">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                                              :class="(tr.type || '').toUpperCase() === 'BUY' ? 'bg-gain/15 text-gain' : 'bg-loss/15 text-loss'"
+                                              x-text="(tr.type || 'BUY').toUpperCase()"></span>
+                                    </td>
+                                    <td class="px-3 py-2 text-[#86868b] whitespace-nowrap" x-text="tr.lot_size"></td>
+                                    <td class="px-3 py-2 text-[#86868b] whitespace-nowrap" x-text="Number(tr.open_price).toLocaleString() + ' → ' + Number(tr.close_price || tr.current_price || tr.open_price).toLocaleString()"></td>
+                                    <td class="px-3 py-2 text-right font-bold whitespace-nowrap"
+                                        :class="Number(tr.profit_loss) >= 0 ? 'text-gain' : 'text-loss'"
+                                        x-text="(Number(tr.profit_loss) >= 0 ? '+$' : '-$') + Math.abs(Number(tr.profit_loss)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-black/[0.06] dark:border-white/[0.08]">
+                <button type="button" @click="historyModal = false" class="px-4 py-2 rounded-full text-xs font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer">Close</button>
+                <a href="/copy-trading/app" class="px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white text-xs font-semibold shadow-sm">Copy This Strategy &rarr;</a>
+            </div>
+        </div>
+    </div>
 
 </div>
 
