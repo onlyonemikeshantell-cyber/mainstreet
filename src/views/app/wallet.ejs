@@ -21,20 +21,14 @@ function getTokenBgColor(sym) {
     return colors[sym] || '#475569';
 }
 
+const OFFICIAL_CRYPTO_LOGOS = new Set(['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'DOT', 'LINK', 'UNI', 'NEAR', 'LTC', 'MATIC', 'SUI', 'APT', 'TON', 'TAO', 'RENDER', 'FET', 'AAVE', 'ARB', 'OP', 'PEPE', 'SHIB', 'HYPE', 'ONDO', 'BGB', 'HBAR', 'XLM', 'ENA', 'VIRTUAL', 'WIF', 'BONK', 'KAS', 'OM', 'SEI', 'INJ', 'PENDLE', 'JUP', 'AERO', 'WLD', 'TRX']);
+
 function renderTokenSvg(sym) {
-    if (sym === 'BTC') {
-        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M23.184 14.288c.35-2.33-1.428-3.582-3.86-4.417l.79-3.167-1.928-.48-.77 3.084c-.507-.126-1.028-.246-1.547-.364l.775-3.104-1.927-.482-.79 3.168c-.42-.096-.83-.19-1.23-.287l.002-.007-2.66-.664-.513 2.06s1.43.328 1.4.348c.78.195.922.712.898 1.122l-.9 3.606c.054.014.124.034.202.065-.064-.016-.133-.034-.204-.052l-1.26 5.055c-.096.237-.338.594-.886.458.02.028-1.4-.35-1.4-.35l-.958 2.21 2.51.626c.467.117.925.238 1.378.355l-.8 3.21 1.926.48.79-3.17c.526.143 1.037.275 1.536.4l-.787 3.15 1.928.48.8-3.208c3.287.622 5.76.37 6.8-2.602.838-2.392-.042-3.772-1.77-4.668 1.258-.29 2.206-1.118 2.46-2.827zm-4.402 6.182c-.596 2.394-4.627 1.1-5.934.774l1.06-4.246c1.306.326 5.495.972 4.874 3.472zm.596-6.223c-.544 2.18-3.905.1.074-4.993l.96-3.85c1.09.272 4.595.78 4.033 3.776z"/></svg>';
-    } else if (sym === 'ETH') {
-        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M16 3l-8 13.5 8 4.5 8-4.5L16 3zm0 19.5l-8-4.5 8 11 8-11-8 4.5z" opacity="0.9"/></svg>';
-    } else if (sym === 'SOL') {
-        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M6 21l3-3h17l-3 3H6zm0-7l3-3h17l-3 3H6zm3-7l-3 3h17l3-3H9z"/></svg>';
-    } else if (sym === 'USDT' || sym === 'USDC') {
-        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M18 16.5v8h-4v-8H6v-3h8v-3h4v3h8v3h-8z"/></svg>';
-    } else if (sym === 'BNB') {
-        return '<svg class="w-5 h-5 text-white" viewBox="0 0 32 32" fill="currentColor"><path d="M16 5l4 4-4 4-4-4 4-4zm-7 7l4 4-4 4-4-4 4-4zm14 0l4 4-4 4-4-4 4-4zm-7 7l4 4-4 4-4-4 4-4z"/></svg>';
-    } else {
-        return '<span class="text-white font-bold text-xs">' + sym.substr(0, 3) + '</span>';
+    const clean = String(sym || '').trim().toUpperCase();
+    if (OFFICIAL_CRYPTO_LOGOS.has(clean)) {
+        return '<img src="/img/crypto/' + clean.toLowerCase() + '.png" alt="' + clean + '" loading="lazy" class="w-full h-full object-contain rounded-full" onerror="this.onerror=null;this.outerHTML=\'<span class=\\\'text-white font-bold text-xs\\\'>' + clean.substr(0, 3) + '</span>\';" />';
     }
+    return '<span class="text-white font-bold text-xs">' + clean.substr(0, 3) + '</span>';
 }
 
 function generateSvgPath(sparkline) {
@@ -244,7 +238,7 @@ function generateSvgPath(sparkline) {
                                     <div class="flex items-center space-x-3">
                                         <!-- SVG Token Logo -->
                                         <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs border border-slate-200/60 dark:border-slate-700/60"
-                                             style="background-color: <%- getTokenBgColor(sym) %>;">
+                                             style="background-color: rgba(148,163,184,0.12); overflow: hidden;">
                                             <%- renderTokenSvg(sym) %>
                                         </div>
                                         <div>
@@ -318,7 +312,7 @@ function generateSvgPath(sparkline) {
                     <div class="flex items-start justify-between">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"
-                                 style="background-color: <%- getTokenBgColor(sym) %>;">
+                                 style="background-color: rgba(148,163,184,0.12); overflow: hidden;">
                                 <%- renderTokenSvg(sym) %>
                             </div>
                             <div>

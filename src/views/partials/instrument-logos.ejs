@@ -368,9 +368,21 @@
      * @param {string} [extraClass] - Tailwind classes for container, defaults to "w-7 h-7"
      * @returns {string} HTML string of SVG or high-end squircle emblem
      */
+    // Official High-Resolution Local Crypto Logos (/public/img/crypto/*.png)
+    const CRYPTO_IMG_SET = new Set(['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'DOT', 'LINK', 'UNI', 'NEAR', 'LTC', 'MATIC', 'SUI', 'APT', 'TON', 'TAO', 'RENDER', 'FET', 'AAVE', 'ARB', 'OP', 'PEPE', 'SHIB', 'HYPE', 'ONDO', 'BGB', 'HBAR', 'XLM', 'ENA', 'VIRTUAL', 'WIF', 'BONK', 'KAS', 'OM', 'SEI', 'INJ', 'PENDLE', 'JUP', 'AERO', 'WLD', 'TRX']);
+
     window.getInstrumentLogo = function(rawSymbol, category = '', extraClass = 'w-7 h-7') {
         if (!rawSymbol) return '';
         const sym = String(rawSymbol).trim().toUpperCase();
+        const base = sym.split('/')[0].split('-')[0].trim();
+        const cat = String(category || '').toLowerCase();
+        const isForexOrStock = (cat === 'forex' || cat === 'stocks' || cat === 'etf' || cat === 'reit' || cat === 'indices' || cat === 'commodities');
+
+        // Official high-resolution local PNG logo for all 45 supported crypto assets (with instant inline SVG fallback)
+        if (!isForexOrStock && CRYPTO_IMG_SET.has(base)) {
+            const imgSrc = '/img/crypto/' + base.toLowerCase() + '.png';
+            return `<div class="${extraClass} shrink-0 flex items-center justify-center rounded-full overflow-hidden shadow-xs select-none bg-white/5"><img src="${imgSrc}" alt="${base}" loading="lazy" class="w-full h-full object-contain" onerror="this.onerror=null;var p=this.parentElement;if(p&&window.getInstrumentSvg){p.innerHTML=window.getInstrumentSvg('${base}')||'${base.slice(0,3)}';}" /></div>`;
+        }
         
         // Exact match
         if (LOGOS[sym]) {
@@ -378,7 +390,6 @@
         }
 
         // Stripped /USD or /USDT match (e.g. BTC/USD -> BTC)
-        const base = sym.split('/')[0].split('-')[0].trim();
         if (LOGOS[base]) {
             return `<div class="${extraClass} shrink-0 flex items-center justify-center rounded-xl overflow-hidden shadow-xs select-none">${LOGOS[base]}</div>`;
         }
