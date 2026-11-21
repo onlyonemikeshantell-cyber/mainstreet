@@ -43,12 +43,11 @@ function initLiquidationWorker(db, intervalMs = 2500) {
 
       openTrades.forEach(trade => {
         if (!trade || !trade.symbol) return;
-        const sym = (trade.symbol || '').toUpperCase();
+        const sym = (trade.symbol || '').toUpperCase().trim();
+        const cleanSym = sym.replace('/USDT', '').replace('/USD', '').trim();
         let currentPrice = trade.current_price;
-        if (sym.includes('BTC') && prices['BTC']) currentPrice = prices['BTC'].price;
-        else if (sym.includes('ETH') && prices['ETH']) currentPrice = prices['ETH'].price;
-        else if (sym.includes('SOL') && prices['SOL']) currentPrice = prices['SOL'].price;
-        else if (sym.includes('BNB') && prices['BNB']) currentPrice = prices['BNB'].price;
+        if (prices[sym] && prices[sym].price) currentPrice = prices[sym].price;
+        else if (prices[cleanSym] && prices[cleanSym].price) currentPrice = prices[cleanSym].price;
 
         // Update current price in DB
         db.prepare('UPDATE trades SET current_price = ? WHERE id = ?').run(currentPrice, trade.id);
@@ -76,34 +75,39 @@ function initLiquidationWorker(db, intervalMs = 2500) {
 
         if (shouldClose) {
           const diff = trade.type === 'BUY' ? (currentPrice - trade.open_price) : (trade.open_price - currentPrice);
-          const multiplier = sym.includes('EUR') || sym.includes('GBP') ? 100000 : 1;
+          const isForex = sym.includes('/') && !sym.includes('BTC') && !sym.includes('ETH') && !sym.includes('SOL') && !sym.includes('XAU') && !sym.includes('XAG');
+          const multiplier = isForex ? 100000 : 1;
           const finalPnL = +(diff * trade.lot_size * multiplier).toFixed(2);
 
-          // Settle Trade atomically
-          db.prepare(`
+          // Settle Trade atomically with status='OPEN' guard
+          const settleRes = db.prepare(`
             UPDATE trades 
             SET status = 'CLOSED', close_price = ?, profit_loss = ?, closed_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            WHERE id = ? AND status = 'OPEN'
           `).run(currentPrice, finalPnL, trade.id);
 
-          // Update User Balance and Equity
-          const u = db.prepare('SELECT balance, equity FROM users WHERE id = ?').get(trade.user_id);
-          if (u) {
-            const newBal = u.balance + finalPnL;
-            db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, trade.user_id);
+          if (settleRes.changes > 0) {
+            // Update User Balance and Equity
+            const u = db.prepare('SELECT balance, equity FROM users WHERE id = ?').get(trade.user_id);
+            if (u) {
+              const newBal = u.balance + finalPnL;
+              const newEq = (u.equity || u.balance) + finalPnL;
+              db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, trade.user_id);
+              db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance + ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(finalPnL, trade.user_id);
+            }
+
+            // Insert real-time notification
+            try {
+              const isTp = closeReason === 'TAKE_PROFIT_TRIGGER';
+              const notifTitle = isTp ? 'Take-Profit Executed' : 'Stop-Loss Triggered';
+              const sign = finalPnL >= 0 ? '+$' : '-$';
+              const notifMsg = `Trade #${trade.id} (${trade.symbol} ${trade.type}) auto-settled @ $${currentPrice}. Realized P&L: ${sign}${Math.abs(finalPnL).toFixed(2)} USD.`;
+              db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
+                .run(trade.user_id, notifTitle, notifMsg, 'trade');
+            } catch (ne) {}
+
+            console.log(`[TP/SL Engine] Auto-closed Trade #${trade.id} (${trade.symbol} ${trade.type}) @ $${currentPrice} [${closeReason}] -> P&L: $${finalPnL}`);
           }
-
-          // Insert real-time notification
-          try {
-            const isTp = closeReason === 'TAKE_PROFIT_TRIGGER';
-            const notifTitle = isTp ? 'Take-Profit Executed' : 'Stop-Loss Triggered';
-            const sign = finalPnL >= 0 ? '+$' : '-$';
-            const notifMsg = `Trade #${trade.id} (${trade.symbol} ${trade.type}) auto-settled @ $${currentPrice}. Realized P&L: ${sign}${Math.abs(finalPnL).toFixed(2)} USD.`;
-            db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
-              .run(trade.user_id, notifTitle, notifMsg, 'trade');
-          } catch (ne) {}
-
-          console.log(`[TP/SL Engine] Auto-closed Trade #${trade.id} (${trade.symbol} ${trade.type}) @ $${currentPrice} [${closeReason}] -> P&L: $${finalPnL}`);
         }
       });
     } catch (err) {

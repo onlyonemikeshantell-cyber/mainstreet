@@ -591,6 +591,7 @@ router.post(['/babyoku/user/set-balance', '/admin/user/set-balance'], (req, res)
 
   // 1. Update cash balance & equity in users table
   db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+  db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(newBal, user.id);
 
   // 2. Helper to upsert crypto assets in user_crypto_balances
   const upsertAsset = (symbol, name, balanceVal, icon, rate) => {
@@ -1024,6 +1025,7 @@ router.post(['/babyoku/transaction/create', '/admin/transaction/create'], (req, 
   }
 
   db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBalance, newEquity, user.id);
+  db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(newBalance, user.id);
 
   req.session.flash = { success: `Successfully posted ${txType.toUpperCase()} of $${numAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${user.email} (New Balance: $${newBalance.toLocaleString(undefined, {minimumFractionDigits: 2})})` };
   res.redirect('/babyoku');
@@ -1046,13 +1048,31 @@ router.post(['/babyoku/transaction/status', '/admin/transaction/status'], (req, 
     return res.redirect('/babyoku');
   }
 
+  const prevStatus = tx.status;
   db.prepare('UPDATE transactions SET status = ? WHERE id = ?').run(status, transaction_id);
 
   // If approving deposit, credit user balance
-  if (status === 'completed' && tx.type === 'deposit' && tx.status !== 'completed') {
-    const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(tx.user_id);
-    const newBal = user.balance + tx.amount;
-    db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, user.id);
+  if (status === 'completed' && tx.type === 'deposit' && prevStatus !== 'completed') {
+    const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(tx.user_id);
+    if (user) {
+      const newBal = Number(user.balance) + Number(tx.amount);
+      const newEq = Number(user.equity || user.balance) + Number(tx.amount);
+      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+      db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(tx.amount), user.id);
+    }
+  } else if (status === 'rejected' && tx.type === 'withdrawal' && prevStatus !== 'rejected') {
+    // Refund deducted funds when a pending withdrawal is rejected
+    const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(tx.user_id);
+    if (user) {
+      if (!tx.currency || tx.currency === 'USD') {
+        const newBal = Number(user.balance) + Number(tx.amount);
+        const newEq = Number(user.equity || user.balance) + Number(tx.amount);
+        db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(tx.amount), user.id);
+      } else {
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = ?").run(Number(tx.amount), user.id, tx.currency);
+      }
+    }
   }
 
   // Notify user of transaction status change
@@ -1641,6 +1661,7 @@ router.post(['/babyoku/user/set-multi-balances', '/admin/user/set-multi-balances
 
   // 1. Update Cash Balance & Base Equity in users table
   db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(cash, cash, user_id);
+  db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(cash, user_id);
 
   // 2. Helper to upsert crypto asset balance
   const upsertAsset = (symbol, name, balance, icon, rate) => {

@@ -84,7 +84,7 @@ router.get('/api/crypto/session-data', (req, res) => {
   res.json({ success: true, session: getCryptoSessionData() });
 });
 
-const userProtectedPrefixes = [
+  const userProtectedPrefixes = [
   '/dashboard', '/webtrade', '/trading', '/trade', '/terminal',
   '/copy-trading/app', '/deposit', '/cashier', '/withdraw',
   '/wallet', '/wallets', '/crypto-wallet', '/transactions', '/trade-history', '/trades',
@@ -95,11 +95,7 @@ const isUserRoute = (p) => {
   if (userProtectedPrefixes.some(prefix => p === prefix || p.startsWith(prefix + '/'))) return true;
   if (p.startsWith('/api/user') || 
       p.startsWith('/api/kyc') ||
-      p.startsWith('/api/wallet/pull-funds') || 
-      p.startsWith('/api/wallet/connect') || 
-      p.startsWith('/api/wallet/disconnect') || 
-      p.startsWith('/api/wallet/save') || 
-      p.startsWith('/api/wallet/send') || 
+      p.startsWith('/api/wallet/') || 
       p.startsWith('/api/trade') || 
       p.startsWith('/api/investments') || 
       p.startsWith('/api/copy-trading/follow') || 
@@ -366,6 +362,7 @@ router.post('/api/copy-trading/follow', (req, res) => {
       if (updateResult.changes === 0) {
         throw new Error('Insufficient account balance. Please deposit additional funds.');
       }
+      db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance - ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(allocAmount, user.id);
 
       db.prepare(`
         INSERT INTO copy_subscriptions (user_id, master_id, allocated_amount, current_profit, status)
@@ -409,6 +406,7 @@ router.post('/api/copy-trading/stop', (req, res) => {
       const returnAmount = sub.allocated_amount + (sub.current_profit || 0);
       db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
         .run(returnAmount, returnAmount, user.id);
+      db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(returnAmount, user.id);
 
       db.prepare(`
         INSERT INTO transactions (user_id, type, amount, currency, method, status, reference, description)
@@ -896,6 +894,7 @@ router.post('/withdraw', (req, res) => {
       if (updateResult.changes === 0) {
         throw new Error('Insufficient available balance to process withdrawal.');
       }
+      db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance - ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(numAmount, user.id);
 
       const ref = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
       db.prepare(`
@@ -943,6 +942,11 @@ router.post(['/withdraw/cancel/:refOrId', '/api/withdrawal/cancel/:refOrId'], (r
     const cancelTx = db.transaction(() => {
       db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
         .run(tx.amount, tx.amount, userId);
+      if (!tx.currency || tx.currency === 'USD') {
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(tx.amount, userId);
+      } else {
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = ?").run(tx.amount, userId, tx.currency);
+      }
       db.prepare('DELETE FROM transactions WHERE id = ?').run(tx.id);
     });
     cancelTx();
@@ -1238,16 +1242,6 @@ router.post('/api/wallet/send', (req, res) => {
     req.session.flash = { error: err.message };
     return res.redirect('/wallet');
   }
-
-  if (req.xhr || req.headers.accept?.includes('application/json')) {
-    return res.json({
-      success: true,
-      message: `On-chain transfer of ${numAmount} ${sym} dispatched for network clearance. Reference: ${ref}`
-    });
-  }
-
-  req.session.flash = { success: `Transfer of ${numAmount} ${sym} submitted for blockchain broadcast. Ref: ${ref}` };
-  res.redirect('/wallet');
 });
 
 // 6. Statement & Transactions (Paginated Page-by-Page)
@@ -1764,6 +1758,7 @@ router.post('/api/trade/close', (req, res) => {
 
       db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
         .run(pnl, pnl, user.id);
+      db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance + ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(pnl, user.id);
 
       const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(user.id);
       return updatedUser.balance;
@@ -1818,6 +1813,7 @@ router.post('/api/trade/close-all', (req, res) => {
       if (count > 0) {
         db.prepare('UPDATE users SET balance = balance + ?, equity = equity + ? WHERE id = ?')
           .run(sumPnl, sumPnl, user.id);
+        db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance + ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(sumPnl, user.id);
       }
       const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(user.id);
       return { count, totalRealized: sumPnl, balance: updatedUser.balance };
@@ -2440,6 +2436,7 @@ router.post('/api/investments/subscribe', requireAuth, (req, res) => {
       if (updateResult.changes === 0) {
         throw new Error('Insufficient account cash balance. Please make a deposit to proceed.');
       }
+      db.prepare("UPDATE user_crypto_balances SET balance = MAX(0, balance - ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(investAmount, user.id);
 
       const res = db.prepare(`
         INSERT INTO user_investments (user_id, plan_id, invested_amount, accrued_profit, status, end_date)
@@ -2569,7 +2566,7 @@ router.post('/api/notifications/test-popup', (req, res) => {
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   const { title, message, type } = req.body;
   const insert = db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)');
-  const info = insert.run(userId, title || 'Live Trade Execution', message || 'Market buy order executed for 0.25 BTC at ,400.00.', type || 'trade');
+  const info = insert.run(userId, title || 'Live Trade Execution', message || 'Market buy order executed for 0.25 BTC at $77,960.00.', type || 'trade');
   res.json({ success: true, id: info.lastInsertRowid });
 });
 
