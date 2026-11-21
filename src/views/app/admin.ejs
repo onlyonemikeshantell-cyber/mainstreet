@@ -96,216 +96,210 @@
     <style>
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #0B0F19; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #0071E3; }
+        ::-webkit-scrollbar-track { background: #09090B; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
 
         body {
             position: relative;
-            background-color: #0B0F19;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(0, 113, 227, 0.10) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 40%),
-                radial-gradient(at 50% 100%, rgba(52, 199, 89, 0.04) 0px, transparent 50%);
-            background-size: 100% 100%;
-            color: #F5F5F7;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+            background-color: #09090B !important;
+            background-image: none !important;
+            color: #F4F4F5;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+            letter-spacing: -0.01em;
         }
 
-        /* Apple VisionOS Luxury Glass Surfaces */
+        /* Minimalist Flat Surfaces */
         .luxury-glass-panel,
         .apple-card-elevated {
-            background: rgba(22, 22, 23, 0.82);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+            background: #121215 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border: 1px solid #222228 !important;
+            border-radius: 12px !important;
+            box-shadow: none !important;
         }
 
         .luxury-glass-card {
-            background: rgba(22, 22, 23, 0.72);
-            backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 22px;
-            box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.35);
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #121215 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border: 1px solid #222228 !important;
+            border-radius: 12px !important;
+            box-shadow: none !important;
+            transition: border-color 0.15s ease;
             position: relative;
         }
         .luxury-glass-card:hover {
-            border-color: rgba(255, 255, 255, 0.16);
-            box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 113, 227, 0.14);
-            transform: translateY(-2px);
+            border-color: #3F3F46 !important;
+            box-shadow: none !important;
+            transform: none !important;
         }
 
         .hub-nav-card {
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
         .hub-nav-card:hover {
-            transform: translateX(2px);
+            transform: none;
         }
 
         .metallic-text {
-            background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #86868B 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #FAFAFA !important;
+            background: none !important;
+            -webkit-text-fill-color: #FAFAFA !important;
         }
 
-        /* Apple Status Pills */
+        /* Minimalist Status Pills */
         .pill-emerald {
             display: inline-flex;
             align-items: center;
-            gap: 0.375rem;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            gap: 0.35rem;
+            padding: 0.18rem 0.55rem;
+            border-radius: 6px;
             font-size: 0.6875rem;
-            font-weight: 600;
-            color: #30D158;
-            background: rgba(52, 199, 89, 0.12);
-            border: 1px solid rgba(52, 199, 89, 0.24);
+            font-weight: 500;
+            color: #34D399;
+            background: rgba(16, 185, 129, 0.10);
+            border: 1px solid rgba(16, 185, 129, 0.22);
         }
         .pill-rose {
             display: inline-flex;
             align-items: center;
-            gap: 0.375rem;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            gap: 0.35rem;
+            padding: 0.18rem 0.55rem;
+            border-radius: 6px;
             font-size: 0.6875rem;
-            font-weight: 600;
-            color: #FF453A;
-            background: rgba(255, 59, 48, 0.12);
-            border: 1px solid rgba(255, 59, 48, 0.24);
+            font-weight: 500;
+            color: #F87171;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.22);
         }
         .pill-amber {
             display: inline-flex;
             align-items: center;
-            gap: 0.375rem;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            gap: 0.35rem;
+            padding: 0.18rem 0.55rem;
+            border-radius: 6px;
             font-size: 0.6875rem;
-            font-weight: 600;
-            color: #FF9F0A;
-            background: rgba(255, 159, 10, 0.12);
-            border: 1px solid rgba(255, 159, 10, 0.24);
+            font-weight: 500;
+            color: #FBBF24;
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px solid rgba(245, 158, 11, 0.22);
         }
         .pill-sky {
             display: inline-flex;
             align-items: center;
-            gap: 0.375rem;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            gap: 0.35rem;
+            padding: 0.18rem 0.55rem;
+            border-radius: 6px;
             font-size: 0.6875rem;
-            font-weight: 600;
-            color: #2997FF;
-            background: rgba(0, 113, 227, 0.12);
-            border: 1px solid rgba(0, 113, 227, 0.24);
+            font-weight: 500;
+            color: #38BDF8;
+            background: rgba(14, 165, 233, 0.10);
+            border: 1px solid rgba(14, 165, 233, 0.22);
         }
 
-        /* Apple Interactive Buttons */
+        /* Minimalist Interactive Buttons */
         .btn-cyber {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.375rem;
-            padding: 0.45rem 1rem;
-            border-radius: 9999px;
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
             font-size: 0.75rem;
-            font-weight: 600;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-weight: 500;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
             cursor: pointer;
+            box-shadow: none !important;
         }
         .btn-cyber-primary {
-            background: #0071E3;
-            color: #FFFFFF;
-            box-shadow: 0 2px 10px rgba(0, 113, 227, 0.35);
+            background: #FAFAFA;
+            color: #09090B;
+            border: 1px solid #FAFAFA;
         }
         .btn-cyber-primary:hover {
-            background: #0077ED;
-            box-shadow: 0 4px 16px rgba(0, 113, 227, 0.45);
-            transform: translateY(-1px);
+            background: #E4E4E7;
+            transform: none;
         }
         .btn-cyber-emerald {
-            background: rgba(52, 199, 89, 0.16);
-            color: #30D158;
-            border: 1px solid rgba(52, 199, 89, 0.3);
+            background: rgba(16, 185, 129, 0.12);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
         }
         .btn-cyber-emerald:hover {
-            background: #34C759;
+            background: #10B981;
             color: #FFFFFF;
-            transform: translateY(-1px);
+            transform: none;
         }
         .btn-cyber-rose {
-            background: rgba(255, 59, 48, 0.16);
-            color: #FF453A;
-            border: 1px solid rgba(255, 59, 48, 0.3);
+            background: rgba(239, 68, 68, 0.12);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
         }
         .btn-cyber-rose:hover {
-            background: #FF3B30;
+            background: #EF4444;
             color: #FFFFFF;
-            transform: translateY(-1px);
+            transform: none;
         }
         .btn-cyber-ghost {
-            background: rgba(255, 255, 255, 0.05);
-            color: #F5F5F7;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #18181B;
+            color: #E4E4E7;
+            border: 1px solid #27272A;
         }
         .btn-cyber-ghost:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
+            background: #27272A;
+            border-color: #3F3F46;
+            transform: none;
         }
 
-        /* Apple VisionOS Tables */
+        /* Minimalist Clean Data Tables */
         .cyber-table-container {
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(22, 22, 23, 0.72);
-            backdrop-filter: blur(20px);
+            border-radius: 10px !important;
+            border: 1px solid #222228 !important;
+            background: #121215 !important;
+            backdrop-filter: none !important;
             overflow-x: auto;
             overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+            box-shadow: none !important;
         }
         .cyber-table thead th {
             font-size: 0.6875rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #86868B;
+            letter-spacing: 0.04em;
+            color: #71717A;
             font-weight: 600;
-            padding: 0.9rem 1.1rem;
-            background: rgba(255, 255, 255, 0.02);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0.7rem 1rem;
+            background: #16161A;
+            border-bottom: 1px solid #222228;
         }
         .cyber-table tbody tr {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            transition: background 0.15s ease;
+            border-bottom: 1px solid #1C1C21;
+            transition: background 0.12s ease;
         }
         .cyber-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.035);
+            background: #18181C;
         }
         .cyber-table tbody td {
-            padding: 0.9rem 1.1rem;
+            padding: 0.7rem 1rem;
             font-size: 0.8125rem;
-            color: #F5F5F7;
+            color: #E4E4E7;
         }
 
         .quant-card-cyber {
-            background: rgba(22, 22, 23, 0.78);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            backdrop-filter: blur(24px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #121215 !important;
+            border: 1px solid #222228 !important;
+            border-radius: 12px !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+            transition: border-color 0.15s ease;
             overflow: hidden;
         }
         .quant-card-cyber:hover {
-            border-color: rgba(255, 255, 255, 0.16);
-            transform: translateY(-2px);
-            box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 113, 227, 0.15);
+            border-color: #3F3F46 !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -526,549 +520,321 @@
          @click="mobileMenu = false" 
          class="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm" x-cloak></div>
 
-    <!-- Sidebar Container -->
+    <!-- Sidebar Container (Minimalist) -->
     <aside :class="mobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-           class="fixed top-0 bottom-0 left-0 w-64 z-50 bg-[#161617]/95 border-r border-white/[0.08] backdrop-blur-3xl transition-transform duration-300 ease-in-out flex flex-col justify-between">
+           class="fixed top-0 bottom-0 left-0 w-56 z-50 bg-[#0C0C0E] border-r border-[#222228] transition-transform duration-200 ease-in-out flex flex-col justify-between">
         
         <!-- Brand Header -->
-        <div class="h-16 px-5 flex items-center justify-between border-b border-white/[0.08]">
-            <a href="/babyoku" class="flex items-center space-x-3 group">
-                <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="w-9 h-9 object-contain drop-shadow-[0_0_10px_rgba(2,132,199,0.3)] group-hover:scale-105 transition" />
+        <div class="h-14 px-4 flex items-center justify-between border-b border-[#222228]">
+            <a href="/babyoku" class="flex items-center space-x-2.5">
+                <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="w-6 h-6 object-contain" />
                 <div>
-                    <span class="font-serif font-extrabold text-sm text-white tracking-wide block">MAINSTREET CAPITAL</span>
-                    <span class="text-[9px] font-mono font-bold text-sky-400 tracking-wider uppercase block">PRIME EXECUTIVE</span>
+                    <span class="font-semibold text-xs text-zinc-100 tracking-tight block">Mainstreet</span>
+                    <span class="text-[10px] font-mono text-zinc-500 block">Admin Console</span>
                 </div>
             </a>
-            <button @click="mobileMenu = false" class="lg:hidden text-gray-400 hover:text-white p-1">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button @click="mobileMenu = false" class="lg:hidden text-zinc-400 hover:text-white p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
 
-        <!-- OPERATIONAL HUBS NAVIGATION (STREAMLINED INSTITUTIONAL SIDEBAR) -->
-        <div class="flex-1 overflow-y-auto px-3 py-4 space-y-5 font-sans select-none">
+        <!-- Minimalist Sidebar Navigation -->
+        <div class="flex-1 overflow-y-auto px-2.5 py-3 space-y-4 font-sans select-none">
 
-            <!-- HUB 1: TRADING OPERATIONS -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1.5 flex items-center justify-between">
-                    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Trading Operations</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">DESK 01</span>
+            <div class="space-y-0.5">
+                <div class="px-2.5 pb-1">
+                    <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Trading</span>
                 </div>
-                <div class="space-y-0.5">
-                    <!-- Overview -->
-                    <button type="button" @click="activeTab = 'overview'; mobileMenu = false"
-                            :class="activeTab === 'overview' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'overview' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                            </svg>
-                            <span class="truncate">Executive Matrix</span>
-                        </div>
-                        <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'overview' ? 'bg-sky-400' : 'bg-transparent'"></span>
-                    </button>
+                <button type="button" @click="activeTab = 'overview'; mobileMenu = false"
+                        :class="activeTab === 'overview' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'overview' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                        </svg>
+                        <span class="truncate">Overview</span>
+                    </div>
+                </button>
 
-                    <!-- STP Book -->
-                    <button type="button" @click="activeTab = 'trades'; mobileMenu = false"
-                            :class="activeTab === 'trades' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'trades' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                            </svg>
-                            <span class="truncate">STP Order Book</span>
-                        </div>
-                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                            <%= openTrades.length %>
-                        </span>
-                    </button>
+                <button type="button" @click="activeTab = 'trades'; mobileMenu = false"
+                        :class="activeTab === 'trades' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'trades' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                        <span class="truncate">Orders</span>
+                    </div>
+                    <span class="text-[11px] font-mono text-zinc-500"><%= openTrades.length %></span>
+                </button>
 
-                    <!-- Master Quants -->
-                    <button type="button" @click="activeTab = 'copy'; mobileMenu = false"
-                            :class="activeTab === 'copy' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'copy' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                            </svg>
-                            <span class="truncate">Master Quants</span>
-                        </div>
-                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white/[0.06] text-slate-300">
-                            <%= masterTraders.length %>
-                        </span>
-                    </button>
+                <button type="button" @click="activeTab = 'copy'; mobileMenu = false"
+                        :class="activeTab === 'copy' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'copy' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="truncate">Copy Quants</span>
+                    </div>
+                    <span class="text-[11px] font-mono text-zinc-500"><%= masterTraders.length %></span>
+                </button>
 
-                    <!-- Market Feeds -->
-                    <button type="button" @click="activeTab = 'markets'; mobileMenu = false"
-                            :class="activeTab === 'markets' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'markets' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                            </svg>
-                            <span class="truncate">Market Assets</span>
-                        </div>
-                        <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'markets' ? 'bg-sky-400' : 'bg-transparent'"></span>
-                    </button>
-                </div>
+                <button type="button" @click="activeTab = 'markets'; mobileMenu = false"
+                        :class="activeTab === 'markets' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'markets' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                        </svg>
+                        <span class="truncate">Markets</span>
+                    </div>
+                </button>
             </div>
 
-            <!-- HUB 2: CLIENT & COMPLIANCE -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1.5 flex items-center justify-between">
-                    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Client & Compliance</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">DESK 02</span>
+            <div class="space-y-0.5">
+                <div class="px-2.5 pb-1">
+                    <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Clients</span>
                 </div>
-                <div class="space-y-0.5">
-                    <!-- Trader Accounts -->
-                    <button type="button" @click="activeTab = 'users'; mobileMenu = false"
-                            :class="activeTab === 'users' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'users' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                            </svg>
-                            <span class="truncate">Trader Accounts</span>
-                        </div>
-                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white/[0.06] text-slate-300">
-                            <%= users.length %>
-                        </span>
-                    </button>
+                <button type="button" @click="activeTab = 'users'; mobileMenu = false"
+                        :class="activeTab === 'users' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'users' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                        <span class="truncate">Users</span>
+                    </div>
+                    <span class="text-[11px] font-mono text-zinc-500"><%= users.length %></span>
+                </button>
 
-                    <!-- KYC Verification -->
-                    <button type="button" @click="activeTab = 'kyc'; mobileMenu = false"
-                            :class="activeTab === 'kyc' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'kyc' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                            </svg>
-                            <span class="truncate">KYC Verification</span>
-                        </div>
-                        <% if (totalStats.pendingKyc > 0) { %>
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse">
-                                <%= totalStats.pendingKyc %> Review
-                            </span>
-                        <% } else { %>
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                Clear
-                            </span>
-                        <% } %>
-                    </button>
+                <button type="button" @click="activeTab = 'kyc'; mobileMenu = false"
+                        :class="activeTab === 'kyc' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'kyc' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <span class="truncate">KYC Verification</span>
+                    </div>
+                    <% if (totalStats.pendingKyc > 0) { %>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-rose-500/15 text-rose-400"><%= totalStats.pendingKyc %></span>
+                    <% } %>
+                </button>
 
-                    <!-- Audit & Reports -->
-                    <button type="button" @click="activeTab = 'reports'; mobileMenu = false"
-                            :class="activeTab === 'reports' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'reports' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            <span class="truncate">Audit & Reports</span>
-                        </div>
-                        <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'reports' ? 'bg-sky-400' : 'bg-transparent'"></span>
-                    </button>
-                </div>
+                <button type="button" @click="activeTab = 'reports'; mobileMenu = false"
+                        :class="activeTab === 'reports' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'reports' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="truncate">Reports</span>
+                    </div>
+                </button>
             </div>
 
-            <!-- HUB 3: TREASURY & CUSTODY -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1.5 flex items-center justify-between">
-                    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Treasury & Custody</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">DESK 03</span>
+            <div class="space-y-0.5">
+                <div class="px-2.5 pb-1">
+                    <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Treasury</span>
                 </div>
-                <div class="space-y-0.5">
-                    <!-- Financial Ledger -->
-                    <button type="button" @click="activeTab = 'transactions'; mobileMenu = false"
-                            :class="activeTab === 'transactions' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'transactions' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                            </svg>
-                            <span class="truncate">Financial Ledger</span>
-                        </div>
-                        <% if (totalStats.pendingWithdrawals > 0) { %>
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-                                <%= totalStats.pendingWithdrawals %> Pending
-                            </span>
-                        <% } else { %>
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                Nominal
-                            </span>
-                        <% } %>
-                    </button>
+                <button type="button" @click="activeTab = 'transactions'; mobileMenu = false"
+                        :class="activeTab === 'transactions' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'transactions' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                        </svg>
+                        <span class="truncate">Transactions</span>
+                    </div>
+                    <% if (totalStats.pendingWithdrawals > 0) { %>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/15 text-amber-400"><%= totalStats.pendingWithdrawals %></span>
+                    <% } %>
+                </button>
 
-                    <!-- Retirement Vaults -->
-                    <button type="button" @click="activeTab = 'retirement'; mobileMenu = false"
-                            :class="activeTab === 'retirement' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'retirement' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            </svg>
-                            <span class="truncate">Retirement Vaults</span>
-                        </div>
-                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <%= totalStats.totalRetirementAccounts %>
-                        </span>
-                    </button>
-                </div>
+                <button type="button" @click="activeTab = 'retirement'; mobileMenu = false"
+                        :class="activeTab === 'retirement' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'retirement' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        <span class="truncate">Retirement IRAs</span>
+                    </div>
+                    <span class="text-[11px] font-mono text-zinc-500"><%= totalStats.totalRetirementAccounts %></span>
+                </button>
             </div>
 
-            <!-- HUB 4: SYSTEM & PROTOCOL -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1.5 flex items-center justify-between">
-                    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">System & Protocol</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">DESK 04</span>
+            <div class="space-y-0.5">
+                <div class="px-2.5 pb-1">
+                    <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">System</span>
                 </div>
-                <div class="space-y-0.5">
-                    <!-- Console Settings -->
-                    <button type="button" @click="activeTab = 'settings'; mobileMenu = false"
-                            :class="activeTab === 'settings' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'settings' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <span class="truncate">Console Settings</span>
-                        </div>
-                        <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'settings' ? 'bg-sky-400' : 'bg-transparent'"></span>
-                    </button>
+                <button type="button" @click="activeTab = 'settings'; mobileMenu = false"
+                        :class="activeTab === 'settings' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'settings' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="truncate">Settings</span>
+                    </div>
+                </button>
 
-                    <!-- Broadcast Mailer -->
-                    <button type="button" @click="activeTab = 'mailer'; mobileMenu = false"
-                            :class="activeTab === 'mailer' ? 'bg-primary text-white font-medium shadow-[0_2px_12px_rgba(0,113,227,0.35)] rounded-2xl px-3.5 py-2.5' : 'text-[#86868B] hover:text-[#F5F5F7] hover:bg-white/[0.05] rounded-2xl px-3.5 py-2.5 transition-all duration-200'"
-                            class="w-full flex items-center justify-between text-xs transition-all duration-150 group cursor-pointer">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <svg class="w-4 h-4 flex-shrink-0 transition group-hover:scale-110" :class="activeTab === 'mailer' ? 'text-sky-400' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                            </svg>
-                            <span class="truncate">Broadcast Mailer</span>
-                        </div>
-                        <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'mailer' ? 'bg-sky-400' : 'bg-transparent'"></span>
-                    </button>
-                </div>
+                <button type="button" @click="activeTab = 'mailer'; mobileMenu = false"
+                        :class="activeTab === 'mailer' ? 'bg-zinc-800/90 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'"
+                        class="w-full flex items-center justify-between text-xs rounded-lg px-2.5 py-2 transition cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'mailer' ? 'text-white' : 'text-zinc-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="truncate">Mailer</span>
+                    </div>
+                </button>
             </div>
 
         </div>
 
         <!-- Sidebar Footer -->
-        <div class="p-3 border-t border-white/[0.08] bg-black/20 space-y-2 text-xs">
-            <div class="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between font-mono text-[10px]">
-                <span class="text-gray-400 flex items-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>Live Nodes</span>
-                </span>
-                <span class="text-emerald-400 font-bold">ETH/BTC RPC</span>
-            </div>
-
-            <div class="flex items-center justify-between px-2 pt-1">
-                <div class="flex items-center space-x-2 overflow-hidden">
-                    <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center flex-shrink-0 text-xs">
-                        <%= (typeof user !== 'undefined' && user) ? user.name[0] : 'A' %>
-                    </div>
-                    <span class="font-medium text-gray-300 truncate text-[11px]"><%= (typeof user !== 'undefined' && user) ? user.name : 'Master Admin' %></span>
+        <div class="p-3 border-t border-[#222228] flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2 overflow-hidden">
+                <div class="w-6 h-6 rounded-md bg-zinc-800 text-zinc-300 font-medium flex items-center justify-center flex-shrink-0 text-[11px]">
+                    <%= (typeof user !== 'undefined' && user) ? user.name[0] : 'A' %>
                 </div>
-                <a href="/logout" title="Sign Out" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                </a>
+                <span class="font-medium text-zinc-400 truncate text-xs"><%= (typeof user !== 'undefined' && user) ? user.name : 'Admin' %></span>
             </div>
+            <a href="/logout" title="Sign Out" class="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </a>
         </div>
 
     </aside>
 
     <!-- ============================================================================== -->
-    <!-- 2. EXECUTIVE TOP COMMAND BAR                                                    -->
+    <!-- 2. MINIMALIST TOP BAR                                                           -->
     <!-- ============================================================================== -->
-    <header class="sticky top-0 z-30 h-16 bg-[#161617]/85 border-b border-white/[0.08] backdrop-blur-2xl lg:pl-64 flex items-center justify-between px-4 sm:px-8">
+    <header class="sticky top-0 z-30 h-14 bg-[#09090B]/95 border-b border-[#222228] backdrop-blur-md lg:pl-56 flex items-center justify-between px-4 sm:px-6">
         
-        <div class="flex items-center space-x-2 sm:space-x-3">
-            <!-- Mobile Sidebar Hamburger -->
-            <button @click="mobileMenu = !mobileMenu" class="lg:hidden p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer" title="Toggle Navigation Menu">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <div class="flex items-center space-x-2.5">
+            <button @click="mobileMenu = !mobileMenu" class="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition cursor-pointer" title="Toggle Navigation Menu">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
 
-            <!-- Breadcrumbs / Active Tab Title -->
-            <div class="flex items-center space-x-1.5 sm:space-x-2 text-xs font-mono">
-                <span class="text-gray-500 hidden sm:inline">Admin Desk</span>
-                <span class="text-gray-600 hidden sm:inline">/</span>
-                <span class="text-sky-400 font-bold uppercase tracking-wider text-xs sm:text-sm" x-text="activeTab"></span>
+            <div class="flex items-center space-x-2 text-xs">
+                <span class="text-zinc-500 hidden sm:inline">Console</span>
+                <span class="text-zinc-700 hidden sm:inline">/</span>
+                <span class="text-zinc-100 font-semibold capitalize text-sm" x-text="activeTab"></span>
             </div>
         </div>
 
-        <!-- Center: Search Input -->
-        <div class="hidden md:flex items-center max-w-md w-full mx-4">
+        <div class="hidden md:flex items-center max-w-sm w-full mx-4">
             <div class="relative w-full">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="text" x-model="searchQuery" placeholder="Filter records or users..." 
-                       class="w-full pl-8 pr-4 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-slate-500 outline-none focus:border-sky-500/60 focus:bg-white/[0.06] transition font-sans" />
+                <input type="text" x-model="searchQuery" placeholder="Search records or users..." 
+                       class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#121215] border border-[#222228] text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-zinc-600 transition font-sans" />
             </div>
         </div>
 
-        <!-- Right: Telemetry & Actions -->
-        <div class="flex items-center space-x-2 sm:space-x-3 font-mono text-xs">
-            
-            <!-- Telemetry Pill -->
-            <div class="hidden xl:flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>SYSTEM NOMINAL &bull; 95 FEEDS LIVE</span>
-            </div>
+        <div class="flex items-center space-x-2.5 text-xs">
+            <div class="hidden sm:block px-2.5 py-1 rounded-md bg-[#121215] border border-[#222228] text-[11px] text-zinc-400 font-mono" x-text="utcClock"></div>
 
-            <!-- Real-time UTC Clock -->
-            <div class="hidden sm:block px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[11px] text-gray-300 font-bold" x-text="utcClock"></div>
-
-            <!-- Quick Action Dropdown -->
             <div class="relative" x-data="{ open: false }" @click.outside="open = false">
                 <button type="button" @click="open = !open"
-                        class="px-4 py-2 rounded-full bg-primary hover:bg-primary-dark text-white font-medium text-xs flex items-center space-x-2 shadow-[0_2px_10px_rgba(0,113,227,0.3)] hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)] active:scale-[0.98] transition-all cursor-pointer">
-                    <svg class="w-3.5 h-3.5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span class="hidden sm:inline">Quick Actions</span>
-                    <span class="sm:hidden">Action</span>
-                    <svg class="w-3 h-3 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-medium text-xs flex items-center space-x-1.5 transition cursor-pointer">
+                    <span>Actions</span>
+                    <svg class="w-3 h-3 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div x-show="open" 
                      x-transition:enter="transition ease-out duration-100"
                      x-transition:enter-start="transform opacity-0 scale-95"
                      x-transition:enter-end="transform opacity-100 scale-100"
-                     class="absolute right-0 mt-2 w-56 rounded-[26px] bg-[#161617]/95 border border-white/10 backdrop-blur-2xl shadow-2xl p-2 space-y-1 z-50 text-xs font-sans" x-cloak>
-                    <button type="button" @click="open = false; injectTradeModal = true" class="w-full text-left px-3 py-2 rounded-xl text-slate-200 hover:bg-white/[0.08] hover:text-white flex items-center space-x-2.5 transition cursor-pointer">
-                        <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                        <span>Inject STP Trade</span>
+                     class="absolute right-0 mt-1.5 w-48 rounded-xl bg-[#121215] border border-[#27272A] shadow-xl p-1.5 space-y-0.5 z-50 text-xs font-sans" x-cloak>
+                    <button type="button" @click="open = false; injectTradeModal = true" class="w-full text-left px-2.5 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 hover:text-white transition cursor-pointer block">
+                        Inject STP Trade
                     </button>
-                    <button type="button" @click="open = false; createMasterModal = true" class="w-full text-left px-3 py-2 rounded-xl text-slate-200 hover:bg-white/[0.08] hover:text-white flex items-center space-x-2.5 transition cursor-pointer">
-                        <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        <span>Create Master Quant</span>
+                    <button type="button" @click="open = false; createMasterModal = true" class="w-full text-left px-2.5 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 hover:text-white transition cursor-pointer block">
+                        Create Master Quant
                     </button>
-                    <button type="button" @click="open = false; pnlGeneratorModal = true" class="w-full text-left px-3 py-2 rounded-xl text-slate-200 hover:bg-white/[0.08] hover:text-white flex items-center space-x-2.5 transition cursor-pointer">
-                        <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        <span>PnL Batch Generator</span>
+                    <button type="button" @click="open = false; pnlGeneratorModal = true" class="w-full text-left px-2.5 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 hover:text-white transition cursor-pointer block">
+                        PnL Batch Generator
                     </button>
                     <form action="<%= adminBasePath %>/retirement/trigger-drip" method="POST" class="block w-full">
                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
-                        <button type="submit" @click="open = false" class="w-full text-left px-3 py-2 rounded-xl text-emerald-400 hover:bg-emerald-500/10 flex items-center space-x-2.5 transition font-semibold cursor-pointer">
-                            <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            <span>Trigger Global DRIP</span>
+                        <button type="submit" @click="open = false" class="w-full text-left px-2.5 py-2 rounded-lg text-emerald-400 hover:bg-zinc-800 transition cursor-pointer block">
+                            Trigger Global DRIP
                         </button>
                     </form>
                 </div>
             </div>
-
         </div>
 
     </header>
 
-    <!-- MOBILE QUICK-TAB PILL BAR (Horizontal swipeable strip) -->
-    <div class="lg:hidden sticky top-14 sm:top-16 z-25 bg-[#161617]/95 border-b border-white/[0.08] backdrop-blur-2xl px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-2 text-xs select-none shadow-sm">
+    <!-- MOBILE QUICK-TAB PILL BAR -->
+    <div class="lg:hidden sticky top-14 z-25 bg-[#09090B] border-b border-[#222228] px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-1.5 text-xs select-none">
         <button type="button" @click="activeTab = 'overview'" 
-                :class="activeTab === 'overview' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Overview</span>
+                :class="activeTab === 'overview' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Overview
         </button>
         <button type="button" @click="activeTab = 'users'" 
-                :class="activeTab === 'users' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Traders (<%= users.length %>)</span>
+                :class="activeTab === 'users' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Users (<%= users.length %>)
         </button>
         <button type="button" @click="activeTab = 'transactions'" 
-                :class="activeTab === 'transactions' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Ledger</span>
+                :class="activeTab === 'transactions' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
+            <span>Transactions</span>
             <% if (totalStats.pendingWithdrawals > 0) { %>
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
             <% } %>
         </button>
         <button type="button" @click="activeTab = 'kyc'" 
-                :class="activeTab === 'kyc' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
+                :class="activeTab === 'kyc' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
             <span>KYC</span>
             <% if (totalStats.pendingKyc > 0) { %>
-                <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
             <% } %>
         </button>
         <button type="button" @click="activeTab = 'trades'" 
-                :class="activeTab === 'trades' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Orders (<%= openTrades.length %>)</span>
+                :class="activeTab === 'trades' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Orders (<%= openTrades.length %>)
         </button>
         <button type="button" @click="activeTab = 'copy'" 
-                :class="activeTab === 'copy' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Quants (<%= masterTraders.length %>)</span>
+                :class="activeTab === 'copy' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Quants (<%= masterTraders.length %>)
         </button>
         <button type="button" @click="activeTab = 'markets'" 
-                :class="activeTab === 'markets' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Markets</span>
+                :class="activeTab === 'markets' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Markets
         </button>
         <button type="button" @click="activeTab = 'retirement'" 
-                :class="activeTab === 'retirement' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Retirement (<%= totalStats.totalRetirementAccounts %>)</span>
+                :class="activeTab === 'retirement' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Retirement (<%= totalStats.totalRetirementAccounts %>)
         </button>
         <button type="button" @click="activeTab = 'settings'" 
-                :class="activeTab === 'settings' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Settings</span>
+                :class="activeTab === 'settings' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Settings
         </button>
         <button type="button" @click="activeTab = 'mailer'" 
-                :class="activeTab === 'mailer' ? 'bg-primary text-white font-medium shadow-[0_2px_10px_rgba(0,113,227,0.35)]' : 'bg-white/[0.04] text-slate-300 border border-white/[0.08]'" 
-                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5">
-            <span>Mailer</span>
+                :class="activeTab === 'mailer' ? 'bg-zinc-100 text-zinc-900 font-medium' : 'bg-[#121215] text-zinc-400 border border-[#222228]'" 
+                class="px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer">
+            Mailer
         </button>
     </div>
 
-    <!-- REAL-TIME INSTITUTIONAL TICKER RIBBON -->
-    <div class="h-10 bg-[#161617]/60 border-b border-white/[0.08] backdrop-blur-md lg:pl-64 flex items-center justify-between px-3 sm:px-6 text-[10px] sm:text-[11px] font-mono select-none z-20 overflow-x-auto no-scrollbar shadow-inner">
-        <div class="flex items-center space-x-4 sm:space-x-6 whitespace-nowrap">
-            <div class="flex items-center space-x-1.5 sm:space-x-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]"></span>
-                <span class="text-sky-400 font-bold uppercase tracking-wider text-[9px] sm:text-[10px]">Feeds:</span>
-            </div>
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                <span class="text-gray-400 font-semibold">BTC</span>
-                <span class="text-white font-bold tabular-nums" x-text="'$' + Number(rates['BTC']?.price || 84500).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                <span class="font-bold text-[9px] sm:text-[10px] tabular-nums" :class="rates['BTC']?.direction === 'down' ? 'text-rose-400' : 'text-emerald-400'" x-text="(rates['BTC']?.direction === 'down' ? '▼ ' : '▲ +') + Math.abs(rates['BTC']?.change24h || 2.85) + '%'"></span>
-            </div>
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                <span class="text-gray-400 font-semibold">ETH</span>
-                <span class="text-white font-bold tabular-nums" x-text="'$' + Number(rates['ETH']?.price || 2450).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                <span class="font-bold text-[9px] sm:text-[10px] tabular-nums" :class="rates['ETH']?.direction === 'down' ? 'text-rose-400' : 'text-emerald-400'" x-text="(rates['ETH']?.direction === 'down' ? '▼ ' : '▲ +') + Math.abs(rates['ETH']?.change24h || 1.94) + '%'"></span>
-            </div>
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                <span class="text-gray-400 font-semibold">SOL</span>
-                <span class="text-white font-bold tabular-nums" x-text="'$' + Number(rates['SOL']?.price || 148).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
-                <span class="font-bold text-[9px] sm:text-[10px] tabular-nums" :class="rates['SOL']?.direction === 'down' ? 'text-rose-400' : 'text-emerald-400'" x-text="(rates['SOL']?.direction === 'down' ? '▼ ' : '▲ +') + Math.abs(rates['SOL']?.change24h || 4.32) + '%'"></span>
-            </div>
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                <span class="text-gray-400 font-semibold">EUR/USD</span>
-                <span class="text-white font-bold tabular-nums" x-text="Number(rates['EUR/USD']?.price || 1.0864).toFixed(4)"></span>
-                <span class="font-bold text-[9px] sm:text-[10px] tabular-nums" :class="rates['EUR/USD']?.direction === 'down' ? 'text-rose-400' : 'text-emerald-400'" x-text="(rates['EUR/USD']?.direction === 'down' ? '▼ ' : '▲ +') + Math.abs(rates['EUR/USD']?.change24h || 0.18) + '%'"></span>
-            </div>
-        </div>
-        <div class="hidden xl:flex items-center space-x-4 pl-4 text-gray-400 text-[10px]">
-            <span class="flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><strong class="text-white">Bridge: MEXC/ECB</strong></span>
-            <span>LATENCY: <strong class="text-emerald-400 font-bold">11ms</strong></span>
-        </div>
-    </div>
-
-    <!-- ============================================================================== -->
-    <!-- MOBILE FIXED BOTTOM DOCK (Native App Feel)                                     -->
-    <!-- ============================================================================== -->
-    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#161617]/95 border-t border-white/[0.08] backdrop-blur-2xl px-2 py-1.5 flex items-center justify-around text-[10px] font-medium select-none shadow-2xl">
-        <!-- Overview / Dashboard -->
-        <button type="button" @click="activeTab = 'overview'" 
-                :class="activeTab === 'overview' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'"
-                class="flex flex-col items-center justify-center py-1 px-2 transition cursor-pointer">
-            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-            <span>Overview</span>
-        </button>
-
-        <!-- Traders -->
-        <button type="button" @click="activeTab = 'users'" 
-                :class="activeTab === 'users' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'"
-                class="flex flex-col items-center justify-center py-1 px-2 transition cursor-pointer">
-            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            <span>Traders</span>
-        </button>
-
-        <!-- Transactions (with alert badge) -->
-        <button type="button" @click="activeTab = 'transactions'" 
-                :class="activeTab === 'transactions' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'"
-                class="relative flex flex-col items-center justify-center py-1 px-2 transition cursor-pointer">
-            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-            <span>Ledger</span>
-            <% if (totalStats.pendingWithdrawals > 0) { %>
-                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#0B0F19] animate-pulse"></span>
-            <% } %>
-        </button>
-
-        <!-- KYC (with alert badge) -->
-        <button type="button" @click="activeTab = 'kyc'" 
-                :class="activeTab === 'kyc' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'"
-                class="relative flex flex-col items-center justify-center py-1 px-2 transition cursor-pointer">
-            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            <span>KYC</span>
-            <% if (totalStats.pendingKyc > 0) { %>
-                <span class="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 ring-2 ring-[#0B0F19] animate-pulse"></span>
-            <% } %>
-        </button>
-
-        <!-- More Sheet Trigger -->
-        <button type="button" @click="mobileMoreSheet = true" 
-                class="flex flex-col items-center justify-center py-1 px-2 text-slate-400 hover:text-slate-200 transition cursor-pointer">
-            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-            <span>More</span>
-        </button>
-    </nav>
-
-    <!-- MOBILE MORE SLIDE-UP SHEET -->
-    <div x-show="mobileMoreSheet" 
-         class="fixed inset-0 z-50 lg:hidden flex flex-col justify-end" x-cloak>
-        <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="mobileMoreSheet = false"></div>
-        <div class="relative bg-[#161617] border-t border-white/10 rounded-t-3xl p-5 space-y-4 max-h-[82vh] overflow-y-auto shadow-2xl">
-            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-1"></div>
-            <div class="flex items-center justify-between border-b border-white/10 pb-3">
-                <span class="font-serif font-extrabold text-sm text-white">All Desks & Features</span>
-                <button @click="mobileMoreSheet = false" class="text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-xs font-medium">
-                <button @click="activeTab = 'trades'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-sky-400 text-lg">📈</span>
-                    <div>
-                        <div class="text-white font-bold">STP Orders</div>
-                        <div class="text-[10px] text-slate-400"><%= openTrades.length %> Active</div>
-                    </div>
-                </button>
-                <button @click="activeTab = 'copy'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-emerald-400 text-lg">🤖</span>
-                    <div>
-                        <div class="text-white font-bold">Master Quants</div>
-                        <div class="text-[10px] text-slate-400"><%= masterTraders.length %> Masters</div>
-                    </div>
-                </button>
-                <button @click="activeTab = 'markets'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-purple-400 text-lg">🌐</span>
-                    <div>
-                        <div class="text-white font-bold">Market Assets</div>
-                        <div class="text-[10px] text-slate-400">Spreads & Symbols</div>
-                    </div>
-                </button>
-                <button @click="activeTab = 'retirement'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-amber-400 text-lg">🏛️</span>
-                    <div>
-                        <div class="text-white font-bold">Retirement Vaults</div>
-                        <div class="text-[10px] text-slate-400"><%= totalStats.totalRetirementAccounts %> Accounts</div>
-                    </div>
-                </button>
-                <button @click="activeTab = 'settings'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-blue-400 text-lg">⚙️</span>
-                    <div>
-                        <div class="text-white font-bold">Settings</div>
-                        <div class="text-[10px] text-slate-400">Crypto & Gateways</div>
-                    </div>
-                </button>
-                <button @click="activeTab = 'mailer'; mobileMoreSheet = false" class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-left flex items-center space-x-2.5 transition">
-                    <span class="text-pink-400 text-lg">✉️</span>
-                    <div>
-                        <div class="text-white font-bold">Broadcast Mailer</div>
-                        <div class="text-[10px] text-slate-400">Logs & Send</div>
-                    </div>
-                </button>
-            </div>
-            <div class="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-                <div class="text-slate-400 font-mono text-[11px] truncate max-w-[180px]">Admin: <%= (typeof user !== 'undefined' && user) ? user.name : 'Super Admin' %></div>
-                <a href="/logout" class="text-rose-400 font-bold px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition">Sign Out</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================================== -->
     <!-- 3. MAIN EXECUTIVE DESK CONTENT CANVAS                                          -->
     <!-- ============================================================================== -->
-    <main class="lg:pl-64 min-h-[calc(100vh-4rem)] p-3 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full pb-28 lg:pb-8">
+    <main class="lg:pl-56 min-h-[calc(100vh-3.5rem)] p-3 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full pb-28 lg:pb-8">
 
         <!-- PENDING ATTENTION STRIP (Only shown when pending actions exist) -->
         <% if (totalStats.pendingWithdrawals > 0 || totalStats.pendingKyc > 0) { %>
@@ -1115,9 +881,46 @@
         <% } %>
 
         <!-- ============================================================================== -->
-        <!-- TAB: EXECUTIVE MATRIX OVERVIEW (Recent Activity & Open Book)                   -->
+        <!-- TAB: EXECUTIVE MATRIX OVERVIEW (Minimalist KPI Strip & Recent Activity)        -->
         <!-- ============================================================================== -->
-        <div x-show="activeTab === 'overview'" class="space-y-8" x-cloak>
+        <div x-show="activeTab === 'overview'" class="space-y-6" x-cloak>
+
+            <!-- Minimalist 4-Metric KPI Row -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="luxury-glass-panel p-4 flex flex-col justify-between">
+                    <span class="text-[11px] text-zinc-500 font-medium">Total Users</span>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <strong class="text-xl font-semibold text-zinc-100 font-mono"><%= totalStats.totalUsers %></strong>
+                        <button type="button" @click="activeTab = 'users'" class="text-[11px] text-zinc-400 hover:text-white cursor-pointer">View &rarr;</button>
+                    </div>
+                </div>
+                <div class="luxury-glass-panel p-4 flex flex-col justify-between">
+                    <span class="text-[11px] text-zinc-500 font-medium">Total Client Cash Balance</span>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <strong class="text-xl font-semibold text-zinc-100 font-mono">$<%= Number(totalStats.totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></strong>
+                        <span class="text-[11px] text-emerald-400 font-mono">USD</span>
+                    </div>
+                </div>
+                <div class="luxury-glass-panel p-4 flex flex-col justify-between">
+                    <span class="text-[11px] text-zinc-500 font-medium">Total Deposits / Withdrawals</span>
+                    <div class="mt-2 flex items-baseline justify-between font-mono text-xs">
+                        <span class="text-emerald-400 font-semibold">+$<%= Number(totalStats.totalDeposits || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) %></span>
+                        <span class="text-rose-400 font-semibold">-$<%= Number(totalStats.totalWithdrawals || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) %></span>
+                    </div>
+                </div>
+                <div class="luxury-glass-panel p-4 flex flex-col justify-between">
+                    <span class="text-[11px] text-zinc-500 font-medium">Pending Reviews</span>
+                    <div class="mt-2 flex items-center space-x-3 font-mono text-xs">
+                        <button type="button" @click="activeTab = 'kyc'" class="hover:underline cursor-pointer <%= totalStats.pendingKyc > 0 ? 'text-rose-400 font-semibold' : 'text-zinc-400' %>">
+                            <%= totalStats.pendingKyc %> KYC
+                        </button>
+                        <span class="text-zinc-700">&bull;</span>
+                        <button type="button" @click="activeTab = 'transactions'" class="hover:underline cursor-pointer <%= totalStats.pendingWithdrawals > 0 ? 'text-amber-400 font-semibold' : 'text-zinc-400' %>">
+                            <%= totalStats.pendingWithdrawals %> Payouts
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Two-Column Activity: Pending Tasks & Recent Transactions -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

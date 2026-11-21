@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= typeof title !== 'undefined' ? title : 'Mainstreet Capital Exchange | Executive Control Console Login' %></title>
+    <title><%= typeof title !== 'undefined' ? title : 'Admin Login | Mainstreet Capital Exchange' %></title>
     <link rel="shortcut icon" href="/img/brand/favicon-32.png" type="image/png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,150 +16,83 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        primary: { DEFAULT: '#0284C7', hover: '#0369A1', dark: '#075985' },
-                        gain: '#10B981',
-                        loss: '#EF4444',
-                    },
                     fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                        serif: ['"Outfit"', 'sans-serif']
+                        sans: ['"Inter"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
                     }
                 }
             }
         }
     </script>
-    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
-    
     <style>
         [x-cloak] { display: none !important; }
-        body {
-            background-color: #030712;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.22) 0px, transparent 55%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.16) 0px, transparent 48%),
-                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.14) 0px, transparent 52%),
-                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-        }
-        .luxury-glass-card {
-            background: linear-gradient(135deg, rgba(14, 22, 42, 0.88) 0%, rgba(7, 12, 24, 0.96) 100%);
-            backdrop-filter: blur(32px);
-            -webkit-backdrop-filter: blur(32px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.95), 0 0 40px rgba(2, 132, 199, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            position: relative;
-        }
-        .luxury-glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 15%;
-            right: 15%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.7), transparent);
-        }
+        body { background-color: #09090B; color: #F4F4F5; }
     </style>
 </head>
-<body class="h-full text-slate-100 flex flex-col justify-between font-sans selection:bg-sky-500/30 selection:text-white"
-      x-data="{
-          email: '',
-          password: '',
-          showPass: false,
-          utcClock: '',
-          initClock() {
-              const u = () => { this.utcClock = new Date().toISOString().slice(11, 19) + ' UTC'; };
-              u();
-              setInterval(u, 1000);
-          }
-      }"
-      x-init="initClock()">
+<body class="h-full flex flex-col justify-between font-sans antialiased"
+      x-data="{ email: '', password: '', showPass: false }">
 
-    <!-- Top Security Header -->
-    <header class="p-5 sm:p-6 flex items-center justify-between border-b border-white/[0.08] backdrop-blur-xl bg-black/30">
-        <div class="flex items-center space-x-3.5">
-            <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(2,132,199,0.3)]" />
-            <div>
-                <span class="font-serif font-extrabold text-base text-white tracking-wide block leading-tight">MAINSTREET CAPITAL</span>
-                <span class="font-mono text-[9px] text-sky-400 font-bold uppercase tracking-widest block">EXECUTIVE PRIME DESK</span>
-            </div>
-        </div>
-        
-        
+    <!-- Minimal Header -->
+    <header class="h-14 px-6 flex items-center justify-between border-b border-zinc-800/80">
+        <a href="/" class="flex items-center space-x-2.5">
+            <img src="/img/brand/mainstreet-logo.png" alt="Mainstreet Capital Exchange" class="w-7 h-7 object-contain" />
+            <span class="font-semibold text-xs text-zinc-100 tracking-tight">Mainstreet Capital</span>
+            <span class="text-zinc-600 text-xs">/</span>
+            <span class="font-mono text-[11px] text-zinc-400">Admin</span>
+        </a>
     </header>
 
-    <!-- Center Card -->
-    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 my-6">
-        <div class="max-w-md w-full luxury-glass-card rounded-3xl p-8 sm:p-10 space-y-7">
-            
-            <div class="text-center space-y-3">
-                
-                <h1 class="text-2xl sm:text-3xl font-black text-white font-serif tracking-tight">Executive Console</h1>
-                
+    <!-- Minimal Center Login Card -->
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="max-w-sm w-full bg-[#121215] border border-zinc-800 rounded-xl p-6 sm:p-7 space-y-5">
+            <div class="space-y-1">
+                <h1 class="text-lg font-semibold text-zinc-100 tracking-tight">Admin Console</h1>
+                <p class="text-xs text-zinc-500">Sign in with your administrator credentials</p>
             </div>
 
             <% if (typeof flash !== 'undefined' && flash && flash.error) { %>
-                <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs font-semibold flex items-center space-x-2.5 shadow-lg">
-                    <span>⚠️</span>
-                    <span><%= flash.error %></span>
+                <div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                    <%= flash.error %>
                 </div>
             <% } %>
 
             <% if (typeof flash !== 'undefined' && flash && flash.success) { %>
-                <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs font-semibold flex items-center space-x-2.5 shadow-lg">
-                    <span>✓</span>
-                    <span><%= flash.success %></span>
+                <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">
+                    <%= flash.success %>
                 </div>
             <% } %>
 
-            <form action="<%= (typeof loginAction !== 'undefined' && loginAction) ? loginAction : '/babyoku/login' %>" method="POST" class="space-y-4 font-mono text-xs">
+            <form action="<%= (typeof loginAction !== 'undefined' && loginAction) ? loginAction : '/babyoku/login' %>" method="POST" class="space-y-4 text-xs">
                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
 
                 <div class="space-y-1.5">
-                    <label class="block uppercase font-bold text-slate-400 font-sans text-[11px] tracking-wider">Administrator Identity *</label>
-                    <input type="email" name="email" x-model="email" required placeholder="Administrator email" autocomplete="username" 
-                           class="w-full bg-black/50 border border-white/[0.12] text-white rounded-xl px-4 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 shadow-inner font-sans text-sm transition" />
+                    <label class="block font-medium text-zinc-400">Email</label>
+                    <input type="email" name="email" x-model="email" required placeholder="admin@mainstreetcapitalx.com" autocomplete="username" 
+                           class="w-full bg-[#09090B] border border-zinc-800 text-zinc-100 rounded-lg px-3.5 py-2.5 outline-none focus:border-zinc-500 transition" />
                 </div>
 
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <label class="block uppercase font-bold text-slate-400 font-sans text-[11px] tracking-wider">Master Keyphrase *</label>
-                        <button type="button" @click="showPass = !showPass" class="text-[10px] text-sky-400 hover:text-sky-300 font-mono flex items-center space-x-1 cursor-pointer" title="Reveal Password">
-                            <span x-text="showPass ? '🙈 Mask' : '👁️ View Key'"></span>
+                        <label class="block font-medium text-zinc-400">Password</label>
+                        <button type="button" @click="showPass = !showPass" class="text-[11px] text-zinc-500 hover:text-zinc-300 cursor-pointer">
+                            <span x-text="showPass ? 'Hide' : 'Show'"></span>
                         </button>
                     </div>
-                    <div class="relative">
-                        <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required placeholder="••••••••••••" 
-                               class="w-full bg-black/50 border border-white/[0.12] text-white rounded-xl pl-4 pr-11 py-3 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 shadow-inner font-sans text-sm transition" />
-                        <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-sky-400 transition" title="Toggle visibility">
-                            <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                            <svg x-show="showPass" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
-                        </button>
-                    </div>
+                    <input :type="showPass ? 'text' : 'password'" name="password" x-model="password" required placeholder="••••••••" 
+                           class="w-full bg-[#09090B] border border-zinc-800 text-zinc-100 rounded-lg px-3.5 py-2.5 outline-none focus:border-zinc-500 transition" />
                 </div>
 
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-primary hover:from-sky-400 hover:to-primary-hover text-white font-extrabold text-xs shadow-xl shadow-sky-500/30 transition transform hover:-translate-y-0.5 font-sans tracking-wide cursor-pointer flex items-center justify-center space-x-2">
-                    <span>Sign In</span>
-                    <span>&rarr;</span>
+                <button type="submit" class="w-full py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-semibold text-xs transition cursor-pointer">
+                    Sign In
                 </button>
             </form>
-
-            
-
         </div>
     </main>
 
-    <!-- Executive Security Footer -->
-    <footer class="p-6 text-center text-[11px] text-slate-500 font-mono border-t border-white/[0.08] backdrop-blur-xl bg-black/40">
-        <div class="max-w-4xl mx-auto flex items-center justify-center">
-            <div>
-                &copy; <%= new Date().getFullYear() %> Mainstreet Capital Exchange Inc. &bull; Executive Command Console
-            </div>
-            
-        </div>
+    <!-- Minimal Footer -->
+    <footer class="h-12 px-6 flex items-center justify-center text-[11px] text-zinc-600 border-t border-zinc-800/80">
+        &copy; <%= new Date().getFullYear() %> Mainstreet Capital Exchange
     </footer>
 
 </body>
