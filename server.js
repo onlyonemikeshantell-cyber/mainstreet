@@ -159,6 +159,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Graceful shutdown: flush SQLite WAL and push final snapshot to Cloud Vault before Render kills the process
+const { syncToCloudVault } = require('./src/services/cloudPersistenceService');
+let isShuttingDown = false;
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[Shutdown] Received ${signal}. Flushing database to Cloud Vault before exit...`);
+  try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) {}
+  try { await syncToCloudVault(db); } catch (e) {}
+  process.exit(0);
+};
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // Mount application routes
 app.use('/', publicRoutes);
 app.use('/', authRoutes);

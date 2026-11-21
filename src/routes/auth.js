@@ -769,6 +769,10 @@ router.post('/register', async (req, res) => {
       equity: fullUser.equity
     };
 
+    // Immediately checkpoint SQLite and persist new user to Cloud Vault before redirecting
+    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+    try { await syncToCloudVault(db); } catch (e) {}
+
     if (isStep2EmailVerified) {
       await sendWelcomeEmail({
         userId: newUserId,

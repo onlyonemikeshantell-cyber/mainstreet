@@ -425,8 +425,10 @@ async function syncToCloudVault(db) {
         const selAfter = await cmd(`SELECT ${VAULT_MAILBOX}`);
         const countMatch = /\* (\d+) EXISTS/.exec(selAfter.raw);
         const total = countMatch ? parseInt(countMatch[1], 10) : 1;
-        if (total > 1) {
-          await cmd(`STORE 1:${total - 1} +FLAGS (\\Deleted)`);
+        // Keep the 10 most recent snapshots as rolling disaster-recovery history
+        const MAX_SNAPSHOTS_TO_KEEP = 10;
+        if (total > MAX_SNAPSHOTS_TO_KEEP) {
+          await cmd(`STORE 1:${total - MAX_SNAPSHOTS_TO_KEEP} +FLAGS (\\Deleted)`);
           await cmd('EXPUNGE');
         }
       }
@@ -480,14 +482,18 @@ async function restoreFromCloudVault(db) {
 
     // Guard: Compare local mutation time vs remote snapshot timestamp
     const localMutationTime = getLocalMutationTime(db);
-    let localUsers = 0;
+    let localUsers = [];
     try {
-      localUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
+      localUsers = db.prepare('SELECT id, email FROM users').all();
     } catch (e) {}
+    const remoteUsers = Array.isArray(snapshot.tables && snapshot.tables.users) ? snapshot.tables.users : [];
+    const remoteEmails = new Set(remoteUsers.map(u => String(u.email || '').toLowerCase()));
+    const localOnlyUsers = localUsers.filter(u => !remoteEmails.has(String(u.email || '').toLowerCase()));
 
     // If local database has active user data and was modified strictly AFTER the remote snapshot was created,
     // NEVER overwrite local data with stale remote snapshot. Instead, upload local state to Cloud Vault.
-    if (localUsers > 0 && localMutationTime > 0 && snapshot.timestamp && localMutationTime > (snapshot.timestamp + 5000)) {
+    // Even if timestamps are close, NEVER drop users that exist locally unless explicitly deleted!
+    if (localUsers.length > 0 && localMutationTime > 0 && snapshot.timestamp && localMutationTime > (snapshot.timestamp + 5000)) {
       console.log(`[CloudVault] Local database is newer than remote snapshot (${new Date(localMutationTime).toISOString()} vs ${snapshot.isoDate}). Protecting local data and updating Cloud Vault with latest state...`);
       isRestored = true;
       await syncToCloudVault(db);
@@ -501,6 +507,10 @@ async function restoreFromCloudVault(db) {
       const traderCount = snapshot.tables && snapshot.tables.master_traders ? snapshot.tables.master_traders.length : 0;
       const gwCount = snapshot.tables && snapshot.tables.payment_gateways ? snapshot.tables.payment_gateways.length : 0;
       console.log(`[CloudVault] Restored ${userCount} user(s), ${traderCount} copy trader(s), ${gwCount} gateway(s) from Cloud Vault (${snapshot.isoDate}).`);
+      if (localOnlyUsers.length > 0) {
+        console.log(`[CloudVault] Preserved ${localOnlyUsers.length} local-only user(s) during merge and syncing back to Cloud Vault.`);
+        await syncToCloudVault(db);
+      }
     }
     return ok;
   } catch (err) {
