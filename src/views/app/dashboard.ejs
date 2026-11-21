@@ -1316,21 +1316,26 @@ function dashboardPortfolioApp() {
                                    class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-sans transition placeholder:text-content-tertiary" />
                         </div>
 
-                        <!-- Filter Chips: All | Stocks | Crypto -->
+                        <!-- Filter Chips: Owned | All | Stocks | Crypto -->
                         <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs font-medium">
+                            <button type="button" @click="assetFilter = 'owned'" 
+                                    :class="assetFilter === 'owned' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
+                                Owned
+                            </button>
                             <button type="button" @click="assetFilter = 'all'" 
                                     :class="assetFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
-                                    class="px-3 py-1 rounded-lg transition">
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
                                 All
                             </button>
                             <button type="button" @click="assetFilter = 'equity'" 
                                     :class="assetFilter === 'equity' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
-                                    class="px-3 py-1 rounded-lg transition">
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
                                 Stocks
                             </button>
                             <button type="button" @click="assetFilter = 'crypto'" 
                                     :class="assetFilter === 'crypto' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
-                                    class="px-3 py-1 rounded-lg transition">
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
                                 Crypto
                             </button>
                         </div>
@@ -1394,7 +1399,7 @@ function dashboardPortfolioApp() {
                                         const isStock = (asset.asset_type === 'stock');
                                     %>
                                         <tr x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
-                                                    ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
+                                                    (<%= JSON.stringify(asset.asset_name.toLowerCase()) %>.includes(searchQuery.toLowerCase()) || <%= JSON.stringify(asset.asset_symbol.toLowerCase()) %>.includes(searchQuery.toLowerCase()))"
                                             class="hover:bg-surface-overlay/40 transition">
                                             
                                             <!-- Asset Name & Brand Logo -->
@@ -1453,6 +1458,11 @@ function dashboardPortfolioApp() {
 
                                         </tr>
                                     <% }) %>
+                                    <tr x-show="assetFilter === 'owned' && ownedAssetsCount === 0" x-cloak>
+                                        <td colspan="6" class="py-12 text-center text-content-tertiary font-sans text-xs">
+                                            No spot assets currently owned. Click <button type="button" @click="assetFilter = 'all'" class="text-primary font-bold hover:underline cursor-pointer">All</button>, <button type="button" @click="assetFilter = 'equity'" class="text-primary font-bold hover:underline cursor-pointer">Stocks</button>, or <button type="button" @click="assetFilter = 'crypto'" class="text-primary font-bold hover:underline cursor-pointer">Crypto</button> to browse and buy assets.
+                                        </td>
+                                    </tr>
                                 <% } else { %>
                                     <tr>
                                         <td colspan="6" class="py-12 text-center text-content-tertiary font-sans text-xs">
@@ -1472,7 +1482,7 @@ function dashboardPortfolioApp() {
                             const isStock = (asset.asset_type === 'stock');
                         %>
                             <div x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
-                                         ('<%= asset.asset_name.toLowerCase() %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase() %>'.includes(searchQuery.toLowerCase()))"
+                                         (<%= JSON.stringify(asset.asset_name.toLowerCase()) %>.includes(searchQuery.toLowerCase()) || <%= JSON.stringify(asset.asset_symbol.toLowerCase()) %>.includes(searchQuery.toLowerCase()))"
                                  class="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-surface-border shadow-xs hover:border-primary/40 transition flex flex-col justify-between space-y-3">
                                 
                                 <!-- Card Header: Logo, Name, Symbol, 24h Change -->
@@ -1524,6 +1534,10 @@ function dashboardPortfolioApp() {
                                 </div>
                             </div>
                         <% }) %>
+                        <div x-show="assetFilter === 'owned' && ownedAssetsCount === 0" class="col-span-full py-12 text-center bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border p-8 space-y-2" x-cloak>
+                            <h4 class="text-sm font-bold text-content-primary">No Spot Assets Currently Owned</h4>
+                            <p class="text-xs text-content-secondary max-w-sm mx-auto">Switch to <button type="button" @click="assetFilter = 'all'" class="text-primary font-bold hover:underline cursor-pointer">All</button>, <button type="button" @click="assetFilter = 'equity'" class="text-primary font-bold hover:underline cursor-pointer">Stocks</button>, or <button type="button" @click="assetFilter = 'crypto'" class="text-primary font-bold hover:underline cursor-pointer">Crypto</button> to explore available assets.</p>
+                        </div>
                     <% } else { %>
                         <div class="col-span-full py-12 text-center bg-white dark:bg-neutral-900 rounded-2xl border border-surface-border p-8 space-y-3">
                             <span class="text-4xl">💼</span>
