@@ -2601,7 +2601,7 @@ function dashboardPortfolioApp() {
             <!-- Action Buttons -->
             <div class="space-y-2 pt-1 font-sans">
                 <button type="button" 
-                        @click="confirmLiquidateAll()" 
+                        @click="liquidateAllAssets()" 
                         :disabled="hazardCountdown > 0 || liquidatingAll"
                         :class="hazardCountdown > 0 || liquidatingAll ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border border-surface-border' : 'bg-loss hover:bg-loss/90 text-white shadow-lg shadow-loss/25 animate-pulse'"
                         class="w-full py-3.5 rounded-2xl font-bold text-xs transition flex items-center justify-center space-x-2">
