@@ -688,7 +688,7 @@ router.post('/register', async (req, res) => {
 
     // Process and store ID documents & live biometric verification
     const resolveDocPath = (img, prefix, fallback) => {
-      if (img && typeof img === String(img) && img.startsWith('/')) return img;
+      if (img && typeof img === 'string' && img.startsWith('/')) return img;
       return saveBase64Media(img, prefix, newUserId) || fallback;
     };
 
@@ -1251,8 +1251,11 @@ router.post('/forgot-password', async (req, res) => {
   return req.session.save(() => res.redirect('/forgot-password'));
 });
 
-// GET /api/dev/reset-token (Helper for testing and dev diagnostics)
+// GET /api/dev/reset-token (Disabled in production to protect password reset tokens)
 router.get('/api/dev/reset-token', (req, res) => {
+  if (process.env.NODE_ENV === 'production' || !req.session || !req.session.adminId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   const latest = db.prepare('SELECT email, token, expires_at, created_at FROM password_resets ORDER BY id DESC LIMIT 1').get();
   return res.json(latest || { error: 'No recent reset requests' });
 });
