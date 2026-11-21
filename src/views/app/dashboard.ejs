@@ -47,7 +47,7 @@ function dashboardPortfolioApp() {
         selectedBasketKey: 'ai_titans',
         basketInvestAmount: 100,
         activeTab: 'holdings',
-        assetFilter: 'owned', // 'owned' | 'all' | 'equity' | 'crypto'
+        assetFilter: 'all', // 'all' | 'owned' | 'equity' | 'crypto'
         showOnboardingRoadmap: <%= (user.kyc_status === 'verified') ? 'false' : 'true' %>,
         onboardingExpanded: false,
         selectedAccountMode: (typeof window !== 'undefined' && (localStorage.getItem('txe_active_subaccount') || (window.location.hash === '#retirement' ? 'retirement' : 'standard'))),
@@ -1316,17 +1316,17 @@ function dashboardPortfolioApp() {
                                    class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-overlay border border-surface-border text-xs text-content-primary outline-none focus:border-primary font-sans transition placeholder:text-content-tertiary" />
                         </div>
 
-                        <!-- Filter Chips: Owned | All | Stocks | Crypto -->
+                        <!-- Filter Chips: All | Owned | Stocks | Crypto -->
                         <div class="inline-flex items-center p-0.5 bg-surface-overlay rounded-xl border border-surface-border text-xs font-medium">
-                            <button type="button" @click="assetFilter = 'owned'" 
-                                    :class="assetFilter === 'owned' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
-                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
-                                Owned
-                            </button>
                             <button type="button" @click="assetFilter = 'all'" 
                                     :class="assetFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
                                     class="px-3 py-1 rounded-lg transition cursor-pointer">
                                 All
+                            </button>
+                            <button type="button" @click="assetFilter = 'owned'" 
+                                    :class="assetFilter === 'owned' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
+                                    class="px-3 py-1 rounded-lg transition cursor-pointer">
+                                Owned
                             </button>
                             <button type="button" @click="assetFilter = 'equity'" 
                                     :class="assetFilter === 'equity' ? 'bg-white dark:bg-neutral-800 text-content-primary font-bold shadow-xs' : 'text-content-secondary hover:text-content-primary'" 
@@ -1399,7 +1399,7 @@ function dashboardPortfolioApp() {
                                         const isStock = (asset.asset_type === 'stock');
                                     %>
                                         <tr x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
-                                                    (<%= JSON.stringify(asset.asset_name.toLowerCase()) %>.includes(searchQuery.toLowerCase()) || <%= JSON.stringify(asset.asset_symbol.toLowerCase()) %>.includes(searchQuery.toLowerCase()))"
+                                                    ('<%= asset.asset_name.toLowerCase().replace(/'/g, "\\'") %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase().replace(/'/g, "\\'") %>'.includes(searchQuery.toLowerCase()))"
                                             class="hover:bg-surface-overlay/40 transition">
                                             
                                             <!-- Asset Name & Brand Logo -->
@@ -1482,7 +1482,7 @@ function dashboardPortfolioApp() {
                             const isStock = (asset.asset_type === 'stock');
                         %>
                             <div x-show="(assetFilter === 'all' || (assetFilter === 'owned' && isAssetOwned('<%= asset.asset_symbol %>')) || (assetFilter === 'equity' && '<%= asset.asset_type %>' === 'stock') || (assetFilter === 'crypto' && '<%= asset.asset_type %>' !== 'stock')) && 
-                                         (<%= JSON.stringify(asset.asset_name.toLowerCase()) %>.includes(searchQuery.toLowerCase()) || <%= JSON.stringify(asset.asset_symbol.toLowerCase()) %>.includes(searchQuery.toLowerCase()))"
+                                         ('<%= asset.asset_name.toLowerCase().replace(/'/g, "\\'") %>'.includes(searchQuery.toLowerCase()) || '<%= asset.asset_symbol.toLowerCase().replace(/'/g, "\\'") %>'.includes(searchQuery.toLowerCase()))"
                                  class="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-surface-border shadow-xs hover:border-primary/40 transition flex flex-col justify-between space-y-3">
                                 
                                 <!-- Card Header: Logo, Name, Symbol, 24h Change -->
