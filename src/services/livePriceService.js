@@ -487,9 +487,11 @@ async function syncAllRealFeeds() {
   ]);
 }
 
-// Run full real sync immediately on boot, then every 15 seconds
-syncAllRealFeeds();
-setInterval(syncAllRealFeeds, 15000);
+// Defer first external real-feed sync by 3s so server boot is non-blocking, then sync every 15s
+setTimeout(() => {
+  syncAllRealFeeds().catch(() => {});
+  setInterval(() => { syncAllRealFeeds().catch(() => {}); }, 15000).unref();
+}, 3000).unref();
 
 // ==============================================================================
 // 4. SUB-SECOND HIGH-FREQUENCY TICK JITTER ENGINE (Ornstein-Uhlenbeck Process)
@@ -803,10 +805,10 @@ const persistMarketAndCheckOrders = () => {
 };
 
 // Global Standard 1-Second (1,000ms) Live Market Tick Heartbeat
-setInterval(tickMarketPrices, 1000);
+setInterval(tickMarketPrices, 1000).unref();
 
 // Throttled Database & Order Check: 5,000ms
-setInterval(persistMarketAndCheckOrders, 5000);
+setInterval(persistMarketAndCheckOrders, 5000).unref();
 
 const getLivePrices = () => {
   const fullMap = { ...assetPrices };

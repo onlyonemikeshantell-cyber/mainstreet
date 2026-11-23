@@ -92,7 +92,7 @@ function getLocalMutationTime(db) {
 /**
  * Low-level promise-based IMAP client over TLS (zero external dependencies)
  */
-function runImapSession(handler) {
+function runImapSession(handler, timeoutMs = 12000) {
   return new Promise((resolve, reject) => {
     const socket = tls.connect(IMAP_PORT, IMAP_HOST, { rejectUnauthorized: false });
     let buffer = '';
@@ -107,7 +107,7 @@ function runImapSession(handler) {
         try { socket.destroy(); } catch (e) {}
         reject(new Error('IMAP session timeout'));
       }
-    }, 20000);
+    }, timeoutMs);
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -468,7 +468,7 @@ async function restoreFromCloudVault(db) {
       const markerMatch = /MAINSTREET_SNAPSHOT_START:([A-Za-z0-9+/=\r\n]+):MAINSTREET_SNAPSHOT_END/.exec(fetchRes.raw);
       if (!markerMatch) return null;
       return markerMatch[1].replace(/[\r\n\s]/g, '');
-    });
+    }, 8000);
 
     if (!payload) {
       console.log('[CloudVault] No existing remote snapshot found; initializing Cloud Vault from local mainstreet.db...');

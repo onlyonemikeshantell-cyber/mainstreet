@@ -33,6 +33,11 @@ const PORT = process.env.PORT || 3333;
 
 app.disable('x-powered-by');
 
+// Lightweight zero-DB health check endpoint for instant Render port detection & uptime pings
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true, uptime: Math.round(process.uptime()) });
+});
+
 // HTTP Security Headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -173,6 +178,22 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// Bind port immediately for fast Render boot; restore Cloud Vault snapshot concurrently in background
+let vaultReadyPromise = null;
+
+// Gate state-mutating requests briefly until initial Cloud Vault restore finishes so writes are never lost
+app.use(async (req, res, next) => {
+  if (vaultReadyPromise && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    try {
+      await Promise.race([
+        vaultReadyPromise,
+        new Promise(r => setTimeout(r, 6000))
+      ]);
+    } catch (e) {}
+  }
+  next();
+});
+
 // Mount application routes
 app.use('/', publicRoutes);
 app.use('/', authRoutes);
@@ -193,11 +214,15 @@ app.use((err, req, res, next) => {
   res.status(500).send('Internal Server Error');
 });
 
-// Restore permanent live users & state from Cloud Vault before accepting traffic
-(async () => {
-  await restoreFromCloudVault(db);
-  startWorkers(db);
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);
-  });
-})();
+// Start HTTP listener immediately so Render marks the service Live in ~1s
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Mainstreet Capital Exchange platform is live at http://localhost:${PORT}`);
+
+  // Restore permanent live users & state from Cloud Vault in the background
+  vaultReadyPromise = restoreFromCloudVault(db)
+    .catch(err => console.error('[CloudVault] Background restore error:', err.message))
+    .finally(() => {
+      vaultReadyPromise = null;
+      startWorkers(db);
+    });
+});
