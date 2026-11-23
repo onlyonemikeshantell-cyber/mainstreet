@@ -198,7 +198,7 @@
 <!-- ============================================================================== -->
 <!-- 2. HERO SECTION: 3D INTERACTIVE PARTICLE CANVAS & APPLE KEYNOTE PRODUCT HERO   -->
 <!-- ============================================================================== -->
-<section class="relative overflow-hidden pt-14 pb-24 lg:pt-24 lg:pb-32 bg-[#f5f5f7] dark:bg-[#000000] transition-colors duration-200">
+<section class="relative overflow-hidden pt-10 pb-14 lg:pt-24 lg:pb-32 bg-[#f5f5f7] dark:bg-[#000000] transition-colors duration-200">
     <!-- 3D WebGL Canvas Layer -->
     <div id="three-hero-container" class="canvas-3d-hero opacity-60"></div>
 
@@ -714,14 +714,16 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             handleTouchStart(e) {
                 if (e.touches && e.touches[0]) {
+                    this.touchStartX = e.touches[0].clientX;
                     this.touchStartY = e.touches[0].clientY;
                 }
             },
             handleTouchEnd(e) {
                 if (e.changedTouches && e.changedTouches[0]) {
-                    var deltaY = e.changedTouches[0].clientY - this.touchStartY;
-                    if (Math.abs(deltaY) > 30) {
-                        if (deltaY < 0) {
+                    var deltaX = e.changedTouches[0].clientX - (this.touchStartX || 0);
+                    var deltaY = e.changedTouches[0].clientY - (this.touchStartY || 0);
+                    if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                        if (deltaX < 0) {
                             this.nextDesk();
                         } else {
                             this.prevDesk();
@@ -733,7 +735,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 </script>
 
+<script>
+    function mobileSliderState(count) {
+        return {
+            activeSlide: 0,
+            totalSlides: count || 1,
+            onTrackScroll(el) {
+                if (!el) return;
+                var maxScroll = el.scrollWidth - el.clientWidth;
+                if (maxScroll <= 0) { this.activeSlide = 0; return; }
+                var ratio = el.scrollLeft / maxScroll;
+                this.activeSlide = Math.min(this.totalSlides - 1, Math.max(0, Math.round(ratio * (this.totalSlides - 1))));
+            },
+            goToSlide(el, idx) {
+                if (!el) return;
+                var children = Array.from(el.children).filter(function(c) { return c.tagName !== 'TEMPLATE'; });
+                if (children[idx]) {
+                    children[idx].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    this.activeSlide = idx;
+                }
+            }
+        };
+    }
+</script>
+
 <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .mobile-snap-track { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
     .iso-stage-perspective {
         perspective: 1400px;
         perspective-origin: 50% 35%;
@@ -757,13 +786,13 @@ document.addEventListener('DOMContentLoaded', () => {
 </style>
 
 <section id="institutional-suite-showcase" 
-         class="py-24 bg-white dark:bg-[#161617] border-y border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200" 
+         class="py-14 md:py-24 bg-white dark:bg-[#161617] border-y border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200" 
          x-data="multiCardStackApp()">
     
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
         
         <!-- Apple Section Header -->
-        <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+        <div class="text-center space-y-3 mb-10 md:mb-16 max-w-2xl mx-auto">
             <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider">Institutional Architecture</span>
             <h2 class="text-3xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">One Prime Account. Endless Alpha.</h2>
             <p class="text-base text-[#86868b] dark:text-[#a1a1a6] font-normal">Explore 5 specialized institutional desks unified within an Apple-grade multi-asset execution environment.</p>
@@ -1087,10 +1116,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 </div>
 
-                <!-- Interactive Floating Hint Pill -->
-                <div class="mt-4 inline-flex items-center space-x-2 px-4 py-1.5 rounded-full apple-glass border border-black/[0.06] dark:border-white/[0.1] text-[11px] text-[#86868b] dark:text-[#a1a1a6] shadow-xs">
-                    <svg class="w-3.5 h-3.5 animate-bounce text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
-                    <span>Scroll or click cards to shuffle 3D stack</span>
+                <!-- Interactive Floating Hint Pill with Mobile Swipe / Tap Controls -->
+                <div class="mt-4 inline-flex items-center space-x-2 px-2.5 py-1 rounded-full apple-glass border border-black/[0.06] dark:border-white/[0.1] text-[11px] text-[#86868b] dark:text-[#a1a1a6] shadow-xs">
+                    <button type="button" @click="prevDesk()" aria-label="Previous desk" class="w-6 h-6 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-primary/15 hover:text-primary flex items-center justify-center transition active:scale-90">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <span class="px-1.5 hidden sm:inline">Scroll or click cards to shuffle 3D stack</span>
+                    <span class="px-1.5 sm:hidden">Swipe or tap to switch desks</span>
+                    <button type="button" @click="nextDesk()" aria-label="Next desk" class="w-6 h-6 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-primary/15 hover:text-primary flex items-center justify-center transition active:scale-90">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
                 </div>
 
             </div>
@@ -1106,8 +1141,17 @@ document.addEventListener('DOMContentLoaded', () => {
                        x-text="desks[selectedDesk].desc"></p>
                 </div>
 
-                <!-- 5 Interactive Desk Selector Cards (Apple Style with Wheel & Scroll Interactivity) -->
-                <div class="space-y-2 text-xs" 
+                <!-- Mobile Swipe Hint for Desk Selectors -->
+                <div class="flex lg:hidden items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] -mb-3">
+                    <span class="uppercase tracking-wider font-semibold text-[10px]">5 Institutional Desks</span>
+                    <span class="inline-flex items-center space-x-1 text-primary dark:text-primary-light font-medium">
+                        <span>Swipe</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </span>
+                </div>
+
+                <!-- 5 Interactive Desk Selector Cards (Horizontal Swipe on Mobile, Stacked on Desktop) -->
+                <div class="flex lg:block gap-3 lg:gap-0 lg:space-y-2 overflow-x-auto lg:overflow-visible snap-x snap-mandatory pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar mobile-snap-track text-xs" 
                      @wheel.prevent="handleWheel($event)">
                     
                     <!-- Desk 1: Fractional Equities -->
@@ -1115,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          @mouseenter="selectDesk('equities')"
                          data-desk-option="equities"
                          :class="selectedDesk === 'equities' ? 'border-primary dark:border-primary-light bg-primary/5 dark:bg-primary/10 shadow-sm' : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'"
-                         class="desk-option-btn p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
+                         class="desk-option-btn min-w-[78vw] sm:min-w-[300px] lg:min-w-0 shrink-0 snap-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary transition-all duration-200" :class="selectedDesk === 'equities' ? 'opacity-100' : 'opacity-0'"></div>
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-primary/10 text-primary dark:text-primary-light flex items-center justify-center shrink-0">
@@ -1134,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          @mouseenter="selectDesk('crypto')"
                          data-desk-option="crypto"
                          :class="selectedDesk === 'crypto' ? 'border-amber-500 bg-amber-500/5 shadow-sm' : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'"
-                         class="desk-option-btn p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
+                         class="desk-option-btn min-w-[78vw] sm:min-w-[300px] lg:min-w-0 shrink-0 snap-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 transition-all duration-200" :class="selectedDesk === 'crypto' ? 'opacity-100' : 'opacity-0'"></div>
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 font-medium text-xs">
@@ -1153,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          @mouseenter="selectDesk('copy')"
                          data-desk-option="copy"
                          :class="selectedDesk === 'copy' ? 'border-[#D4A038] bg-[#D4A038]/5 shadow-sm' : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'"
-                         class="desk-option-btn p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
+                         class="desk-option-btn min-w-[78vw] sm:min-w-[300px] lg:min-w-0 shrink-0 snap-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#D4A038] transition-all duration-200" :class="selectedDesk === 'copy' ? 'opacity-100' : 'opacity-0'"></div>
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-[#D4A038]/10 text-[#D4A038] flex items-center justify-center shrink-0">
@@ -1172,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          @mouseenter="selectDesk('baskets')"
                          data-desk-option="baskets"
                          :class="selectedDesk === 'baskets' ? 'border-gain bg-gain/5 shadow-sm' : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'"
-                         class="desk-option-btn p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
+                         class="desk-option-btn min-w-[78vw] sm:min-w-[300px] lg:min-w-0 shrink-0 snap-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-gain transition-all duration-200" :class="selectedDesk === 'baskets' ? 'opacity-100' : 'opacity-0'"></div>
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-gain/10 text-gain flex items-center justify-center shrink-0">
@@ -1191,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          @mouseenter="selectDesk('webtrade')"
                          data-desk-option="webtrade"
                          :class="selectedDesk === 'webtrade' ? 'border-indigo-500 bg-indigo-500/5 shadow-sm' : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'"
-                         class="desk-option-btn p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
+                         class="desk-option-btn min-w-[78vw] sm:min-w-[300px] lg:min-w-0 shrink-0 snap-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group active:scale-[0.99] relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transition-all duration-200" :class="selectedDesk === 'webtrade' ? 'opacity-100' : 'opacity-0'"></div>
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
@@ -1226,13 +1270,13 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ============================================================================== -->
 <!-- 3B. THEMATIC STOCK BASKETS & DIVIDEND PORTFOLIOS PREVIEW                       -->
 <!-- ============================================================================== -->
-<section class="py-24 bg-[#f5f5f7] dark:bg-[#000000] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200" x-data="{
+<section class="py-14 md:py-24 bg-[#f5f5f7] dark:bg-[#000000] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200" x-data="{
     activeBasket: 'ai_titans',
     baskets: window.__MAINSTREET_STOCK_BASKETS__ || {}
 }">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
         
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 md:mb-14">
             <div class="space-y-3 max-w-2xl">
                 <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider">Algorithmic Diversification</span>
                 <h2 class="text-3xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -1244,7 +1288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <!-- Apple Segmented Pills Switcher -->
-            <div class="p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-1 font-sans text-xs overflow-x-auto">
+            <div class="p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-1 font-sans text-xs overflow-x-auto no-scrollbar">
                 <template x-for="(b, key) in baskets" :key="key">
                     <button type="button" @click="activeBasket = key"
                             :class="activeBasket === key ? 'bg-white dark:bg-[#1d1d1f] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium shadow-sm' : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]'"
@@ -1289,15 +1333,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <!-- Basket Holdings Visual Progress Bars -->
+                <!-- Basket Holdings Visual Progress Bars (Horizontal Swipe on Mobile) -->
                 <div class="space-y-3">
-                    <span class="text-[11px] font-sans uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] tracking-wider block">
-                        Constituent Stock Holdings &amp; Target Allocations
-                    </span>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] font-sans uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] tracking-wider block">
+                            Constituent Stock Holdings &amp; Target Allocations
+                        </span>
+                        <span class="md:hidden inline-flex items-center space-x-1 text-[11px] text-primary dark:text-primary-light font-medium shrink-0">
+                            <span>Swipe</span>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </span>
+                    </div>
                     
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                    <div class="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-2 md:pb-0 -mx-1 px-1 no-scrollbar mobile-snap-track text-xs">
                         <template x-for="h in baskets[activeBasket].holdings" :key="h.symbol">
-                            <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] hover:border-primary/30 transition flex items-center justify-between">
+                            <div class="min-w-[68vw] sm:min-w-[230px] md:min-w-0 shrink-0 snap-start p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] hover:border-primary/30 transition flex items-center justify-between">
                                 <div class="flex items-center space-x-3 min-w-0">
                                     <span class="shrink-0" x-html="getInstrumentLogo(h.symbol, 'stocks', 'w-8 h-8')"></span>
                                     <div class="min-w-0">
@@ -1534,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <section id="copy-trading-spotlight" 
          x-data="copyTradingApp()" 
-         class="py-24 bg-[#fafafc] dark:bg-[#121214] border-t border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200">
+         class="py-14 md:py-24 bg-[#fafafc] dark:bg-[#121214] border-t border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200">
     
     <!-- Subtle Ambient Quant Glow Blobs -->
     <div class="absolute -top-32 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-primary/15 via-indigo-500/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
@@ -1853,20 +1903,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- MASTER TRADERS LIST HEADER -->
                 <div class="flex items-center justify-between text-[#86868b] dark:text-[#a1a1a6] text-xs">
                     <span class="uppercase tracking-wider font-semibold text-[11px]">Choose Quant Master Strategy</span>
-                    <span class="text-gain font-medium flex items-center space-x-1 text-[11px]">
+                    <span class="hidden lg:flex text-gain font-medium items-center space-x-1 text-[11px]">
                         <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
                         <span>Click to Preview Telemetry</span>
                     </span>
+                    <span class="lg:hidden inline-flex items-center space-x-1 text-primary dark:text-primary-light font-medium text-[11px]">
+                        <span>Swipe masters</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </span>
                 </div>
 
-                <!-- Quant Master Cards List -->
-                <div class="space-y-3">
+                <!-- Quant Master Cards List (Horizontal Swipe Carousel on Mobile, Vertical Stack on Desktop) -->
+                <div x-data="mobileSliderState(traders.length)">
+                <div x-ref="mastersTrack"
+                     @scroll.passive="onTrackScroll($refs.mastersTrack)"
+                     class="flex lg:flex-col gap-3 lg:gap-0 lg:space-y-3 overflow-x-auto lg:overflow-visible snap-x snap-mandatory pb-3 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar mobile-snap-track">
                     <template x-for="(m, idx) in traders" :key="m.id">
                         <div @click="selectTrader(idx)" 
                              :class="activeTraderIdx === idx 
                                 ? 'ring-2 ring-primary border-transparent bg-white dark:bg-[#1c1c1e] shadow-[0_10px_25px_rgba(0,113,227,0.12)]' 
                                 : 'border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-[#1c1c1e]/70 hover:border-black/[0.15] dark:hover:border-white/[0.2] hover:bg-white dark:hover:bg-[#1c1c1e]'"
-                             class="p-4 rounded-2xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 cursor-pointer group">
+                             class="min-w-[84vw] sm:min-w-[340px] lg:min-w-0 shrink-0 snap-center p-4 rounded-2xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 cursor-pointer group">
                             
                             <div class="flex items-center space-x-3.5 min-w-0">
                                 <!-- Trader Avatar with Verified Badge -->
@@ -1918,8 +1975,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </template>
                 </div>
-
-                
+                <!-- Mobile Slide Dots for Quant Masters -->
+                <div class="flex lg:hidden items-center justify-center space-x-1.5 pt-2">
+                    <template x-for="(m, idx) in traders" :key="'dot-' + m.id">
+                        <button type="button"
+                                @click="goToSlide($refs.mastersTrack, idx); selectTrader(idx)"
+                                :aria-label="'View ' + m.name"
+                                :class="activeSlide === idx ? 'w-5 bg-primary' : 'w-1.5 bg-black/15 dark:bg-white/20'"
+                                class="h-1.5 rounded-full transition-all duration-300"></button>
+                    </template>
+                </div>
+                </div>
 
                 <!-- Additional Navigation Links -->
                 <div class="flex flex-col sm:flex-row items-center gap-3 pt-2">
@@ -2071,11 +2137,11 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ============================================================================== -->
 <!-- 4B. GENERATIONAL WEALTH: TAX-ADVANTAGED RETIREMENT TRADING IRAs                -->
 <!-- ============================================================================== -->
-<section class="py-24 bg-[#f5f5f7] dark:bg-[#000000] border-t border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200">
+<section class="py-14 md:py-24 bg-[#f5f5f7] dark:bg-[#000000] border-t border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200" x-data="mobileSliderState(2)">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         
         <!-- Section Header / Copywriting -->
-        <div class="text-center space-y-3 mb-16 max-w-3xl mx-auto">
+        <div class="text-center space-y-3 mb-8 md:mb-16 max-w-3xl mx-auto">
             <span class="px-3.5 py-1 rounded-full bg-gain/10 text-gain text-xs font-semibold uppercase tracking-wider inline-flex items-center space-x-2">
                 <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
                 <span>Tax-Advantaged Wealth Preservation</span>
@@ -2088,11 +2154,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </p>
         </div>
 
-        <!-- 2-Column Showcase (Apple Squircle & Lifestyle) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        <!-- Mobile Swipe Cue for IRA Showcase -->
+        <div class="flex lg:hidden items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] mb-3">
+            <span class="uppercase tracking-wider font-semibold text-[10px]">Tax-Free IRA Showcase</span>
+            <span class="inline-flex items-center space-x-1 text-gain font-medium">
+                <span>Swipe card</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </span>
+        </div>
+
+        <!-- 2-Column Showcase (Horizontal Swipe on Mobile, 2-Col Grid on Desktop) -->
+        <div x-ref="iraTrack"
+             @scroll.passive="onTrackScroll($refs.iraTrack)"
+             class="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-8 items-stretch lg:items-center overflow-x-auto lg:overflow-visible snap-x snap-mandatory pb-3 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar mobile-snap-track">
             
             <!-- Left 6 Cols: Apple Squircle Levitating Card -->
-            <div class="lg:col-span-6 order-2 lg:order-1 flex flex-col items-center lg:items-start justify-center">
+            <div class="min-w-[88vw] sm:min-w-[460px] lg:min-w-0 shrink-0 snap-center lg:col-span-6 order-1 flex flex-col items-center lg:items-start justify-center">
                 
                 <div class="w-full max-w-[480px] py-4">
                     <!-- Apple Card Floating Container -->
@@ -2227,12 +2304,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <!-- Right 6 Cols: Lifestyle Photo with Apple Frosted Overlays -->
-            <div class="lg:col-span-6 order-1 lg:order-2 relative">
-                <div class="relative rounded-[28px] overflow-hidden border border-black/[0.08] dark:border-white/[0.1] shadow-2xl group">
+            <div class="min-w-[88vw] sm:min-w-[460px] lg:min-w-0 shrink-0 snap-center lg:col-span-6 order-2 relative flex items-center">
+                <div class="relative w-full rounded-[28px] overflow-hidden border border-black/[0.08] dark:border-white/[0.1] shadow-2xl group">
                     
                     <img src="/images/happy_aged_retiree.jpg" 
                          alt="Happy Aged Retiree Enjoying Life with Mainstreet Capital Exchange Tax-Free Retirement IRA" 
-                         class="w-full h-[520px] object-cover object-top rounded-[28px] transform group-hover:scale-102 transition duration-700 ease-out" />
+                         class="w-full h-[380px] sm:h-[460px] lg:h-[520px] object-cover object-top rounded-[28px] transform group-hover:scale-102 transition duration-700 ease-out" />
                     
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-70 group-hover:opacity-55 transition duration-500"></div>
 
@@ -2266,6 +2343,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         </div>
 
+        <!-- Mobile Slide Dots for IRA Showcase -->
+        <div class="flex lg:hidden items-center justify-center space-x-2 pt-3">
+            <button type="button" @click="goToSlide($refs.iraTrack, 0)" aria-label="View IRA Vault Card" :class="activeSlide === 0 ? 'w-6 bg-gain' : 'w-2 bg-black/15 dark:bg-white/20'" class="h-1.5 rounded-full transition-all duration-300"></button>
+            <button type="button" @click="goToSlide($refs.iraTrack, 1)" aria-label="View Retirement Lifestyle" :class="activeSlide === 1 ? 'w-6 bg-gain' : 'w-2 bg-black/15 dark:bg-white/20'" class="h-1.5 rounded-full transition-all duration-300"></button>
+        </div>
+
     </div>
 </section>
 
@@ -2273,18 +2356,29 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ============================================================================== -->
 <!-- 6. GLOBAL TIER-1 SECURITY & CUSTODY INFRASTRUCTURE                             -->
 <!-- ============================================================================== -->
-<section class="py-24 bg-[#f5f5f7] dark:bg-[#000000] border-t border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200">
+<section class="py-14 md:py-24 bg-[#f5f5f7] dark:bg-[#000000] border-t border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200" x-data="mobileSliderState(4)">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
         
-        <div class="text-center space-y-3 mb-16 max-w-2xl mx-auto">
+        <div class="text-center space-y-3 mb-8 md:mb-16 max-w-2xl mx-auto">
             <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider inline-block">Institutional Trust</span>
             <h2 class="text-3xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">Engineered for Maximum Security &amp; Speed</h2>
             <p class="text-base text-[#86868b] dark:text-[#a1a1a6]">Every layer of Mainstreet Capital Exchange adheres to strict global regulatory compliance, segregated banking, and military-grade encryption.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Mobile Swipe Cue for Security Pillars -->
+        <div class="flex md:hidden items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] mb-3">
+            <span class="uppercase tracking-wider font-semibold text-[10px]">4 Institutional Pillars</span>
+            <span class="inline-flex items-center space-x-1 text-primary dark:text-primary-light font-medium">
+                <span>Swipe</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </span>
+        </div>
+
+        <div x-ref="pillarsTrack"
+             @scroll.passive="onTrackScroll($refs.pillarsTrack)"
+             class="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-3 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar mobile-snap-track">
             <!-- Pillar 1: Latency -->
-            <div class="apple-glass rounded-3xl p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-sky-500/40 shadow-sm hover:shadow-md transition">
+            <div class="min-w-[82vw] max-w-[320px] md:min-w-0 md:max-w-none shrink-0 snap-center apple-glass rounded-3xl p-6 md:p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-sky-500/40 shadow-sm hover:shadow-md transition">
                 <div class="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                 </div>
@@ -2293,7 +2387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <!-- Pillar 2: Custody -->
-            <div class="apple-glass rounded-3xl p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-gain/40 shadow-sm hover:shadow-md transition">
+            <div class="min-w-[82vw] max-w-[320px] md:min-w-0 md:max-w-none shrink-0 snap-center apple-glass rounded-3xl p-6 md:p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-gain/40 shadow-sm hover:shadow-md transition">
                 <div class="w-12 h-12 rounded-2xl bg-gain/10 text-gain flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
@@ -2302,7 +2396,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <!-- Pillar 3: Copy Trading -->
-            <div class="apple-glass rounded-3xl p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-amber-500/40 shadow-sm hover:shadow-md transition">
+            <div class="min-w-[82vw] max-w-[320px] md:min-w-0 md:max-w-none shrink-0 snap-center apple-glass rounded-3xl p-6 md:p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-amber-500/40 shadow-sm hover:shadow-md transition">
                 <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                 </div>
@@ -2311,7 +2405,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <!-- Pillar 4: Pricing -->
-            <div class="apple-glass rounded-3xl p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-cyan-500/40 shadow-sm hover:shadow-md transition">
+            <div class="min-w-[82vw] max-w-[320px] md:min-w-0 md:max-w-none shrink-0 snap-center apple-glass rounded-3xl p-6 md:p-7 space-y-4 border border-black/[0.06] dark:border-white/[0.08] hover:border-cyan-500/40 shadow-sm hover:shadow-md transition">
                 <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
                 </div>
@@ -2320,13 +2414,24 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
 
+        <!-- Mobile Slide Dots for Security Pillars -->
+        <div class="flex md:hidden items-center justify-center space-x-2 pt-3">
+            <template x-for="idx in [0, 1, 2, 3]" :key="idx">
+                <button type="button"
+                        @click="goToSlide($refs.pillarsTrack, idx)"
+                        :aria-label="'View pillar ' + (idx + 1)"
+                        :class="activeSlide === idx ? 'w-6 bg-primary' : 'w-2 bg-black/15 dark:bg-white/20'"
+                        class="h-1.5 rounded-full transition-all duration-300"></button>
+            </template>
+        </div>
+
     </div>
 </section>
 
 <!-- ============================================================================== -->
 <!-- 7. FREQUENTLY ASKED QUESTIONS (APPLE ACCORDION)                                -->
 <!-- ============================================================================== -->
-<section class="py-24 bg-white dark:bg-[#161617] border-t border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200" x-data="{ activeFaq: null }">
+<section class="py-14 md:py-24 bg-white dark:bg-[#161617] border-t border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200" x-data="{ activeFaq: null }">
     <div class="max-w-3xl mx-auto px-4 sm:px-6 space-y-12">
         <div class="text-center space-y-3">
             <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider inline-block">Support</span>
@@ -2385,7 +2490,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ============================================================================== -->
 <!-- 8. FINAL HIGH-CONVERTING KEYNOTE CALL TO ACTION                                -->
 <!-- ============================================================================== -->
-<section class="py-28 bg-[#000000] text-white relative overflow-hidden border-t border-white/[0.08]">
+<section class="py-16 md:py-28 bg-[#000000] text-white relative overflow-hidden border-t border-white/[0.08]">
     <!-- Ambient Apple Glow -->
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
 
