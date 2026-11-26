@@ -199,8 +199,8 @@
 <!-- 2. HERO SECTION: 3D INTERACTIVE PARTICLE CANVAS & APPLE KEYNOTE PRODUCT HERO   -->
 <!-- ============================================================================== -->
 <section class="relative overflow-hidden pt-10 pb-14 lg:pt-24 lg:pb-32 bg-[#f5f5f7] dark:bg-[#000000] transition-colors duration-200">
-    <!-- 3D WebGL Canvas Layer -->
-    <div id="three-hero-container" class="canvas-3d-hero opacity-60"></div>
+    <!-- 3D WebGL Canvas Layer (Subtle) -->
+    <div id="three-hero-container" class="canvas-3d-hero opacity-30"></div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -210,11 +210,11 @@
                 
                 <!-- Main Hero Typography (Apple Keynote Display) -->
                 <h1 class="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-[-0.035em] text-[#1d1d1f] dark:text-[#f5f5f7] leading-[1.06]">
-                    Trade Equities, Crypto &amp; Portfolios with <span class="text-primary dark:text-primary-light">Institutional Clarity.</span>
+                    One Unified Account for <span class="text-primary dark:text-primary-light">Modern Investing.</span>
                 </h1>
 
                 <p class="text-base sm:text-lg text-[#86868b] dark:text-[#a1a1a6] leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal tracking-[-0.01em]">
-                    Experience fractional stock ownership, deep 24/7 institutional cryptocurrency liquidity, automated dividend compounding, and 1-click PAMM strategy copy trading.
+                    Invest in fractional US equities, spot digital assets, curated portfolios, and tax-advantaged retirement accounts—all from a single transparent workspace.
                 </p>
 
                 <!-- Call to Action Buttons (Apple Pills) -->
@@ -255,8 +255,8 @@
                         <p class="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">Retirement IRAs</p>
                     </div>
                     <div>
-                        <p class="text-2xl sm:text-3xl lg:text-4xl font-bold font-numeral tracking-tight text-amber-500">96.5%</p>
-                        <p class="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">Quant Win Rate</p>
+                        <p class="text-2xl sm:text-3xl lg:text-4xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">$0</p>
+                        <p class="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">Stock Commissions</p>
                     </div>
                 </div>
 
@@ -269,7 +269,11 @@
                 init() {
                     setInterval(() => {
                         fetch('/api/market/prices').then(r => r.json()).then(d => {
-                            if (d && d.prices) this.rates = d.prices;
+                            if (d && d.prices) {
+                                this.rates = d.prices;
+                                window.__MAINSTREET_LIVE_PRICES__ = d.prices;
+                                window.dispatchEvent(new CustomEvent('mainstreet:prices', { detail: d.prices }));
+                            }
                         }).catch(e => {});
                     }, 9000);
                 }
@@ -577,87 +581,92 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedDesk: 'equities',
             deskKeys: ['equities', 'crypto', 'copy', 'baskets', 'webtrade'],
             lastWheelTime: 0,
+            touchStartX: 0,
             touchStartY: 0,
+            rates: window.__MAINSTREET_LIVE_PRICES__ || {},
+            init() {
+                var self = this;
+                window.addEventListener('mainstreet:prices', function(ev) {
+                    if (ev && ev.detail) self.rates = ev.detail;
+                });
+            },
+            formatLivePrice(sym, fallback) {
+                var p = (this.rates && this.rates[sym] && this.rates[sym].price) ? Number(this.rates[sym].price) : fallback;
+                return '$' + p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+            formatLiveChange(sym, fallback) {
+                var c = (this.rates && this.rates[sym] && typeof this.rates[sym].change24h === 'number') ? this.rates[sym].change24h : fallback;
+                return (c >= 0 ? '+' : '') + Number(c).toFixed(2) + '%';
+            },
+            isPositiveChange(sym, fallback) {
+                var c = (this.rates && this.rates[sym] && typeof this.rates[sym].change24h === 'number') ? this.rates[sym].change24h : fallback;
+                return c >= 0;
+            },
             desks: {
                 equities: {
                     key: 'equities',
                     title: 'Fractional Equities',
-                    tag: 'Blue-Chip Wall Street Stocks',
-                    stat: '0 Commission &bull; 1.5% Yield',
+                    tag: 'US Listed Equities',
+                    stat: '$0 Commission &bull; Fractional Shares',
                     highlight: 'AAPL, NVDA, MSFT, AMZN',
-                    desc: 'Acquire high-performing US equities for as little as $10 with automated quarterly dividend yield compounding and zero custodial friction.',
+                    desc: 'Invest in US equities starting from $10 with automated quarterly dividend reinvestment and transparent order routing.',
                     ctaText: 'Invest in Stocks &rarr;',
                     ctaLink: '/register',
-                    glowColor: 'rgba(0, 113, 227, 0.35)',
+                    glowColor: 'rgba(0, 113, 227, 0.25)',
                     badgeBg: 'bg-primary/10 text-primary dark:text-primary-light border-primary/20',
-                    chipGradient: 'from-amber-300 via-amber-100 to-amber-400 border-amber-500/40',
-                    liveRate: '$224.20',
-                    rateSymbol: 'AAPL Spot',
-                    change: '+1.45%'
+                    chipGradient: 'from-amber-300 via-amber-100 to-amber-400 border-amber-500/40'
                 },
                 crypto: {
                     key: 'crypto',
-                    title: '24/7 Prime Crypto Desk',
-                    tag: 'Deep Institutional Liquidity',
-                    stat: '0.0 Spread &bull; Instant Settlement',
+                    title: '24/7 Spot Crypto Desk',
+                    tag: 'Aggregated Liquidity',
+                    stat: 'Tight Spreads &bull; 24/7 Execution',
                     highlight: 'BTC, ETH, SOL, AVAX',
-                    desc: 'Direct optical connectivity into global order books. Trade spot or prime crypto derivatives with sub-second execution and multi-sig cold vault custody.',
+                    desc: 'Access major digital assets around the clock with aggregated exchange liquidity, transparent spreads, and multi-sig cold storage.',
                     ctaText: 'Trade Crypto &rarr;',
                     ctaLink: '/register',
-                    glowColor: 'rgba(245, 158, 11, 0.35)',
+                    glowColor: 'rgba(245, 158, 11, 0.25)',
                     badgeBg: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-                    chipGradient: 'from-amber-400 via-yellow-200 to-amber-600 border-amber-500/50',
-                    liveRate: '$68,650.00',
-                    rateSymbol: 'BTC/USD Spot',
-                    change: '+3.85%'
+                    chipGradient: 'from-amber-400 via-yellow-200 to-amber-600 border-amber-500/50'
                 },
                 copy: {
                     key: 'copy',
-                    title: 'Copy Trading Alpha',
-                    tag: 'Verified Quant Replication',
-                    stat: '96.5% Win Rate &bull; +510% ROI',
-                    highlight: 'Sophia Vanguard, Alpha Quantum',
-                    desc: 'Automate your wealth creation by mirroring top-tier proprietary hedge fund managers with automated lot scaling and instant profit payouts.',
-                    ctaText: 'Explore Masters &rarr;',
+                    title: 'Managed Copy Strategies',
+                    tag: 'Audited Track Records',
+                    stat: '68.4% Avg Win Rate &bull; +34.8% 1Y',
+                    highlight: 'Systematic &amp; Multi-Asset Portfolios',
+                    desc: 'Allocate capital alongside vetted portfolio managers with proportional position sizing, configurable stop-loss limits, and full custody control.',
+                    ctaText: 'Explore Strategies &rarr;',
                     ctaLink: '/copy-trading',
-                    glowColor: 'rgba(212, 160, 56, 0.35)',
+                    glowColor: 'rgba(212, 160, 56, 0.25)',
                     badgeBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-                    chipGradient: 'from-yellow-400 via-amber-200 to-[#D4A038] border-[#D4A038]/50',
-                    liveRate: '+510.0%',
-                    rateSymbol: 'Peak Quant ROI',
-                    change: 'Audited'
+                    chipGradient: 'from-yellow-400 via-amber-200 to-[#D4A038] border-[#D4A038]/50'
                 },
                 baskets: {
                     key: 'baskets',
                     title: 'Thematic ETF Baskets',
-                    tag: 'Curated Thematic Portfolios',
-                    stat: '+38.4% Ann. Return',
+                    tag: 'Curated Portfolios',
+                    stat: '+21.6% 3Y Ann. Target',
                     highlight: 'AI Titans, Mag 7, Dividend Aristocrats',
-                    desc: 'One-click thematic diversification into specialized baskets designed by quantitative research analysts for superior compound risk-adjusted growth.',
+                    desc: 'Diversify across curated sector themes in a single order with scheduled rebalancing and automatic dividend accrual.',
                     ctaText: 'View Baskets &rarr;',
                     ctaLink: '/register',
-                    glowColor: 'rgba(52, 199, 89, 0.35)',
+                    glowColor: 'rgba(52, 199, 89, 0.25)',
                     badgeBg: 'bg-gain/10 text-gain border-gain/20',
-                    chipGradient: 'from-emerald-300 via-teal-100 to-emerald-500 border-emerald-500/40',
-                    liveRate: '+38.4%',
-                    rateSymbol: 'AI Titans Return',
-                    change: 'Annualized'
+                    chipGradient: 'from-emerald-300 via-teal-100 to-emerald-500 border-emerald-500/40'
                 },
                 webtrade: {
                     key: 'webtrade',
-                    title: 'WebTrader Prime Terminal',
-                    tag: 'Ultra Low-Latency ECN STP',
-                    stat: '< 10ms Latency &bull; 1:100 Leverage',
-                    highlight: 'TradingView Engine &bull; Cross-Connects',
-                    desc: 'Institutional browser-based execution terminal equipped with 100+ technical indicators, depth-of-market ladder, and optical fiber cross-connects.',
+                    title: 'WebTrader Terminal',
+                    tag: 'Multi-Asset Execution',
+                    stat: '< 15ms Avg Routing &bull; 100+ Indicators',
+                    highlight: 'TradingView Charts &bull; Order Book',
+                    desc: 'Browser-based charting and execution workspace featuring TradingView indicators, multi-asset watchlists, and bracket risk orders.',
                     ctaText: 'Launch WebTrader &rarr;',
                     ctaLink: '/webtrade',
-                    glowColor: 'rgba(99, 102, 241, 0.35)',
+                    glowColor: 'rgba(99, 102, 241, 0.25)',
                     badgeBg: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-                    chipGradient: 'from-indigo-300 via-purple-100 to-indigo-500 border-indigo-500/40',
-                    liveRate: '< 8.4ms',
-                    rateSymbol: 'NY4 Optical Connect',
-                    change: 'Live Fiber'
+                    chipGradient: 'from-indigo-300 via-purple-100 to-indigo-500 border-indigo-500/40'
                 }
             },
             get activeIndex() {
@@ -863,21 +872,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <span x-html="getInstrumentLogo('AAPL', 'stocks', 'w-4 h-4')"></span>
                                         <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">AAPL SPOT</span>
                                     </div>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-gain/15 text-gain font-numeral">+1.45%</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold font-numeral"
+                                          :class="isPositiveChange('AAPL', 1.45) ? 'bg-gain/15 text-gain' : 'bg-loss/15 text-loss'"
+                                          x-text="formatLiveChange('AAPL', 1.45)">+1.45%</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">$224.20</span>
-                                    <span class="text-[11px] font-medium text-primary dark:text-primary-light">0 Commission &bull; 1.5% Yield</span>
+                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]"
+                                          x-text="formatLivePrice('AAPL', 224.20)">$224.20</span>
+                                    <span class="text-[11px] font-medium text-primary dark:text-primary-light">$0 Commission &bull; Fractional</span>
                                 </div>
                             </div>
 
                             <!-- Card Footer -->
                             <div class="pt-3.5 flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] border-t border-black/[0.06] dark:border-white/[0.08] mt-3.5">
                                 <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                                    <span>Zero Counterparty Risk</span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                    <span>Segregated Custody</span>
                                 </div>
-                                <span>Tier-1 Custody Vaults</span>
+                                <span>Live Market Quote</span>
                             </div>
 
                         </div>
@@ -926,21 +938,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <span x-html="getInstrumentLogo('BTC', 'crypto', 'w-4 h-4')"></span>
                                         <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">BTC/USD SPOT</span>
                                     </div>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-gain/15 text-gain font-numeral">+3.85%</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold font-numeral"
+                                          :class="isPositiveChange('BTC', 2.15) ? 'bg-gain/15 text-gain' : 'bg-loss/15 text-loss'"
+                                          x-text="formatLiveChange('BTC', 2.15)">+2.15%</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">$68,650.00</span>
-                                    <span class="text-[11px] font-medium text-amber-500">0.0 Spread &bull; Instant Settle</span>
+                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]"
+                                          x-text="formatLivePrice('BTC', 68650.00)">$68,650.00</span>
+                                    <span class="text-[11px] font-medium text-amber-500">Tight Spreads &bull; 24/7 Spot</span>
                                 </div>
                             </div>
 
                             <!-- Card Footer -->
                             <div class="pt-3.5 flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] border-t border-black/[0.06] dark:border-white/[0.08] mt-3.5">
                                 <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                     <span>Multi-Sig Cold Storage</span>
                                 </div>
-                                <span>Sub-Second Optical Route</span>
+                                <span>Live Market Quote</span>
                             </div>
 
                         </div>
@@ -977,22 +992,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- Holographic Metrics Telemetry Box -->
                             <div class="p-3.5 bg-black/[0.02] dark:bg-white/[0.04] rounded-2xl border border-black/[0.05] dark:border-white/[0.06] shadow-xs space-y-2 text-xs">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">PEAK QUANT ROI</span>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gain/15 text-gain font-sans">Audited</span>
+                                    <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">1Y AUDITED RETURN</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gain/15 text-gain font-sans">Verified</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">+510.0%</span>
-                                    <span class="text-[11px] font-medium text-[#D4A038]">96.5% Win Rate &bull; Instant Split</span>
+                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">+34.8%</span>
+                                    <span class="text-[11px] font-medium text-[#D4A038]">68.4% Win Rate &bull; Risk Controls</span>
                                 </div>
                             </div>
 
                             <!-- Card Footer -->
                             <div class="pt-3.5 flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] border-t border-black/[0.06] dark:border-white/[0.08] mt-3.5">
                                 <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                                    <span>Mirror Top 1% Masters</span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                    <span>Proportional Allocation</span>
                                 </div>
-                                <span>Zero Management Fee</span>
+                                <span>Pause Anytime</span>
                             </div>
 
                         </div>
@@ -1044,18 +1059,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gain/15 text-gain font-sans">Annualized</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">+38.4%</span>
-                                    <span class="text-[11px] font-medium text-gain">Automated Rebalancing</span>
+                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">+21.6%</span>
+                                    <span class="text-[11px] font-medium text-gain">Scheduled Rebalancing</span>
                                 </div>
                             </div>
 
                             <!-- Card Footer -->
                             <div class="pt-3.5 flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] border-t border-black/[0.06] dark:border-white/[0.08] mt-3.5">
                                 <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                                    <span>Algorithmic Weighting</span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                    <span>Automatic Weighting</span>
                                 </div>
-                                <span>SIP Direct Custody</span>
+                                <span>Quarterly Dividends</span>
                             </div>
 
                         </div>
@@ -1092,22 +1107,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- Holographic Metrics Telemetry Box -->
                             <div class="p-3.5 bg-black/[0.02] dark:bg-white/[0.04] rounded-2xl border border-black/[0.05] dark:border-white/[0.06] shadow-xs space-y-2 text-xs">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">NY4 OPTICAL CONNECT</span>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-500/15 text-indigo-500 font-numeral">Live Fiber</span>
+                                    <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] uppercase font-sans font-medium tracking-wide">ORDER ROUTING</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-500/15 text-indigo-500 font-numeral">Direct STP</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">&lt; 8.4ms</span>
-                                    <span class="text-[11px] font-medium text-indigo-500">100+ Indicators &bull; 1:100 Lev</span>
+                                    <span class="text-xl sm:text-2xl font-bold font-numeral tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">&lt; 15ms</span>
+                                    <span class="text-[11px] font-medium text-indigo-500">100+ Indicators &bull; Bracket Orders</span>
                                 </div>
                             </div>
 
                             <!-- Card Footer -->
                             <div class="pt-3.5 flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#a1a1a6] border-t border-black/[0.06] dark:border-white/[0.08] mt-3.5">
                                 <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                                     <span>Depth of Market Ladder</span>
                                 </div>
-                                <span>Equinix NY4 Connect</span>
+                                <span>TradingView Engine</span>
                             </div>
 
                         </div>
@@ -1204,8 +1219,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                             </div>
                             <div>
-                                <h4 class="font-medium text-sm text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">Copy Trading Alpha</h4>
-                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">Verified Hedge Fund Quants &bull; 96.5% Audited Win Rate</span>
+                                <h4 class="font-medium text-sm text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">Managed Copy Strategies</h4>
+                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">Audited Quant Strategies &bull; 68.4% Avg Win Rate</span>
                             </div>
                         </div>
                         <span :class="selectedDesk === 'copy' ? 'text-[#D4A038] font-medium' : 'text-[#86868b] group-hover:text-[#1d1d1f] dark:group-hover:text-[#f5f5f7]'" class="text-xs">Select &rarr;</span>
@@ -1224,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div>
                                 <h4 class="font-medium text-sm text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">Thematic ETF Baskets</h4>
-                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">AI Titans &amp; Dividend Aristocrats &bull; +38.4% Return</span>
+                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">AI Titans &amp; Dividend Aristocrats &bull; Auto-Rebalanced</span>
                             </div>
                         </div>
                         <span :class="selectedDesk === 'baskets' ? 'text-gain font-medium' : 'text-[#86868b] group-hover:text-[#1d1d1f] dark:group-hover:text-[#f5f5f7]'" class="text-xs">Select &rarr;</span>
@@ -1242,8 +1257,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                             </div>
                             <div>
-                                <h4 class="font-medium text-sm text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">WebTrader Prime Terminal</h4>
-                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">TradingView Integration &bull; Sub-10ms Optical Connect</span>
+                                <h4 class="font-medium text-sm text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">WebTrader Terminal</h4>
+                                <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">TradingView Charts &bull; Multi-Asset Execution</span>
                             </div>
                         </div>
                         <span :class="selectedDesk === 'webtrade' ? 'text-indigo-500 font-medium' : 'text-[#86868b] group-hover:text-[#1d1d1f] dark:group-hover:text-[#f5f5f7]'" class="text-xs">Select &rarr;</span>
@@ -1378,10 +1393,10 @@ document.addEventListener('DOMContentLoaded', () => {
         var rawTraders = <%- safeJson((typeof masters !== 'undefined' && masters && masters.length > 0) ? masters : []) %>;
         if (!rawTraders || rawTraders.length === 0) {
             rawTraders = [
-                { id: 14, name: 'Marcus Aurelius Quant', strategy_name: 'Stoic Systematic Parity Alpha', category: 'Multi-Asset Parity', avatar: '/uploads/avatars/avatar_1787788240298_6780.png', total_roi: 510, win_rate: 97.2, copiers_count: 1450, aum_amount: 6200000, min_allocation: 750, risk_score: 1, description: 'Pure systematic algorithmic risk-parity fund balancing equity momentum and crypto alpha.' },
-                { id: 5, name: 'Sophia Vanguard', strategy_name: 'Quantum High-Frequency Alpha', category: 'Crypto & Derivatives', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', total_roi: 450, win_rate: 96.5, copiers_count: 620, aum_amount: 2500000, min_allocation: 500, risk_score: 2, description: 'Proprietary institutional HFT model capturing micro-inefficiencies across BTC, ETH, and Gold.' },
-                { id: 6, name: 'Alpha Quantum Elite', strategy_name: 'Algorithmic Liquidity Scalper v4', category: 'Multi-Asset HFT', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', total_roi: 420.5, win_rate: 95.8, copiers_count: 890, aum_amount: 3800000, min_allocation: 500, risk_score: 2, description: 'Ultra low-latency market-making algorithm capturing institutional order-flow imbalances.' },
-                { id: 7, name: 'Alexander Vance', strategy_name: 'Apex Alpha Momentum', category: 'Crypto Derivatives', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', total_roi: 340.5, win_rate: 94.2, copiers_count: 1240, aum_amount: 1000000, min_allocation: 250, risk_score: 2, description: 'Macro breakout trend following across BTC, ETH, Solana, and top liquidity tokens.' }
+                { id: 14, name: 'Marcus Aurelius Quant', strategy_name: 'Systematic Risk-Parity Core', category: 'Multi-Asset Parity', avatar: '/uploads/avatars/avatar_1787788240298_6780.png', total_roi: 34.8, win_rate: 71.4, copiers_count: 1450, aum_amount: 6200000, min_allocation: 750, risk_score: 1, description: 'Systematic risk-parity portfolio balancing US equity momentum, gold, and spot digital assets.' },
+                { id: 5, name: 'Sophia Vanguard', strategy_name: 'Spot & Macro Momentum', category: 'Digital Assets & Metals', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', total_roi: 38.6, win_rate: 67.8, copiers_count: 620, aum_amount: 2500000, min_allocation: 500, risk_score: 2, description: 'Rules-based momentum strategy across Bitcoin, Ethereum, Solana, and Spot Gold.' },
+                { id: 6, name: 'Alpha Quantum Elite', strategy_name: 'Large-Cap Equity & FX', category: 'Multi-Asset Swing', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', total_roi: 29.4, win_rate: 66.2, copiers_count: 890, aum_amount: 3800000, min_allocation: 500, risk_score: 2, description: 'Disciplined swing allocation targeting liquid US equities and major currency pairs.' },
+                { id: 7, name: 'Alexander Vance', strategy_name: 'Digital Asset Trend', category: 'Crypto Spot', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', total_roi: 24.8, win_rate: 64.2, copiers_count: 1240, aum_amount: 1000000, min_allocation: 250, risk_score: 2, description: 'Trend-following spot allocation across high-liquidity digital assets with strict drawdown caps.' }
             ];
         }
 
@@ -1394,21 +1409,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     { symbol: 'GLD', type: 'etf', name: 'SPDR Gold Trust', weight: 20 }
                 ],
                 trades: [
-                    { symbol: 'NVDA', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$128.40', profit: '+$1,840.00', pnlPct: '+14.3%', time: '14s ago' },
-                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: '5x', price: '$68,450', profit: '+$2,450.00', pnlPct: '+8.2%', time: '1m ago' },
-                    { symbol: 'AAPL', type: 'stocks', action: 'SELL', leverage: 'Spot', price: '$224.10', profit: '+$920.00', pnlPct: '+6.1%', time: '3m ago' },
-                    { symbol: 'GLD', type: 'etf', action: 'BUY', leverage: 'Spot', price: '$232.80', profit: '+$560.00', pnlPct: '+4.5%', time: '7m ago' }
+                    { symbol: 'NVDA', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$128.40', profit: '+$1,240.00', pnlPct: '+4.8%', time: '14m ago' },
+                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$68,450', profit: '+$1,650.00', pnlPct: '+3.2%', time: '1h ago' },
+                    { symbol: 'AAPL', type: 'stocks', action: 'SELL', leverage: 'Spot', price: '$224.10', profit: '+$620.00', pnlPct: '+2.4%', time: '3h ago' },
+                    { symbol: 'GLD', type: 'etf', action: 'BUY', leverage: 'Spot', price: '$232.80', profit: '+$410.00', pnlPct: '+1.9%', time: '6h ago' }
                 ],
-                sharpe: '3.92',
-                drawdown: '2.1%',
-                profitFactor: '4.85',
-                latency: '6.2ms',
+                sharpe: '2.38',
+                drawdown: '6.4%',
+                profitFactor: '2.45',
+                latency: '12ms',
                 timeframes: {
-                    '1M': { roi: 38.4, winRate: 98.1, path: 'M0,85 C60,80 120,68 180,72 C240,58 300,50 360,35 C420,25 480,12 480,12', area: 'M0,85 C60,80 120,68 180,72 C240,58 300,50 360,35 C420,25 480,12 480,12 L480,110 L0,110 Z' },
-                    '3M': { roi: 115.0, winRate: 97.8, path: 'M0,90 C50,85 100,75 160,78 C220,62 280,52 340,38 C400,28 440,18 480,10', area: 'M0,90 C50,85 100,75 160,78 C220,62 280,52 340,38 C400,28 440,18 480,10 L480,110 L0,110 Z' },
-                    '6M': { roi: 248.5, winRate: 97.4, path: 'M0,92 C50,88 110,80 170,70 C230,60 290,48 350,36 C410,24 450,15 480,8', area: 'M0,92 C50,88 110,80 170,70 C230,60 290,48 350,36 C410,24 450,15 480,8 L480,110 L0,110 Z' },
-                    '1Y': { roi: 510.0, winRate: 97.2, path: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,8', area: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,8 L480,110 L0,110 Z' },
-                    'ALL': { roi: 890.0, winRate: 96.8, path: 'M0,98 C40,94 90,82 140,78 C190,64 240,52 290,44 C340,32 390,20 440,12 C460,8 480,5 480,5', area: 'M0,98 C40,94 90,82 140,78 C190,64 240,52 290,44 C340,32 390,20 440,12 C460,8 480,5 480,5 L480,110 L0,110 Z' }
+                    '1M': { roi: 3.4, winRate: 72.1, path: 'M0,85 C60,80 120,68 180,72 C240,58 300,50 360,35 C420,25 480,18 480,18', area: 'M0,85 C60,80 120,68 180,72 C240,58 300,50 360,35 C420,25 480,18 480,18 L480,110 L0,110 Z' },
+                    '3M': { roi: 9.8, winRate: 71.8, path: 'M0,90 C50,85 100,75 160,78 C220,62 280,52 340,38 C400,28 440,22 480,15', area: 'M0,90 C50,85 100,75 160,78 C220,62 280,52 340,38 C400,28 440,22 480,15 L480,110 L0,110 Z' },
+                    '6M': { roi: 18.2, winRate: 71.5, path: 'M0,92 C50,88 110,80 170,70 C230,60 290,48 350,36 C410,24 450,18 480,12', area: 'M0,92 C50,88 110,80 170,70 C230,60 290,48 350,36 C410,24 450,18 480,12 L480,110 L0,110 Z' },
+                    '1Y': { roi: 34.8, winRate: 71.4, path: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,10', area: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,10 L480,110 L0,110 Z' },
+                    'ALL': { roi: 68.4, winRate: 70.6, path: 'M0,98 C40,94 90,82 140,78 C190,64 240,52 290,44 C340,32 390,20 440,12 C460,8 480,6 480,6', area: 'M0,98 C40,94 90,82 140,78 C190,64 240,52 290,44 C340,32 390,20 440,12 C460,8 480,6 480,6 L480,110 L0,110 Z' }
                 }
             },
             5: {
@@ -1419,21 +1434,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     { symbol: 'XAU', type: 'commodities', name: 'Gold Spot', weight: 10 }
                 ],
                 trades: [
-                    { symbol: 'SOL', type: 'crypto', action: 'BUY', leverage: '10x', price: '$142.80', profit: '+$1,680.00', pnlPct: '+22.4%', time: '8s ago' },
-                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: '20x', price: '$68,890', profit: '+$3,120.00', pnlPct: '+11.8%', time: '42s ago' },
-                    { symbol: 'ETH', type: 'crypto', action: 'BUY', leverage: '15x', price: '$3,480', profit: '+$1,240.00', pnlPct: '+9.4%', time: '2m ago' },
-                    { symbol: 'XAU', type: 'commodities', action: 'BUY', leverage: '5x', price: '$2,510', profit: '+$780.00', pnlPct: '+5.2%', time: '5m ago' }
+                    { symbol: 'SOL', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$142.80', profit: '+$980.00', pnlPct: '+5.4%', time: '18m ago' },
+                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: '2x', price: '$68,890', profit: '+$1,820.00', pnlPct: '+4.1%', time: '42m ago' },
+                    { symbol: 'ETH', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$3,480', profit: '+$740.00', pnlPct: '+3.1%', time: '2h ago' },
+                    { symbol: 'XAU', type: 'commodities', action: 'BUY', leverage: 'Spot', price: '$2,510', profit: '+$460.00', pnlPct: '+1.8%', time: '5h ago' }
                 ],
-                sharpe: '3.65',
-                drawdown: '3.4%',
-                profitFactor: '4.20',
-                latency: '5.8ms',
+                sharpe: '2.14',
+                drawdown: '8.9%',
+                profitFactor: '2.18',
+                latency: '14ms',
                 timeframes: {
-                    '1M': { roi: 34.2, winRate: 97.4, path: 'M0,86 C60,82 120,72 180,68 C240,55 300,48 360,32 C420,22 480,14 480,14', area: 'M0,86 C60,82 120,72 180,68 C240,55 300,48 360,32 C420,22 480,14 480,14 L480,110 L0,110 Z' },
-                    '3M': { roi: 104.5, winRate: 97.0, path: 'M0,90 C50,84 100,76 160,70 C220,58 280,50 340,36 C400,26 440,16 480,12', area: 'M0,90 C50,84 100,76 160,70 C220,58 280,50 340,36 C400,26 440,16 480,12 L480,110 L0,110 Z' },
-                    '6M': { roi: 220.0, winRate: 96.8, path: 'M0,92 C50,86 110,78 170,68 C230,56 290,46 350,34 C410,22 450,14 480,10', area: 'M0,92 C50,86 110,78 170,68 C230,56 290,46 350,34 C410,22 450,14 480,10 L480,110 L0,110 Z' },
-                    '1Y': { roi: 450.0, winRate: 96.5, path: 'M0,95 C40,88 80,82 120,74 C160,76 200,62 240,54 C280,56 320,40 360,34 C400,28 440,20 480,14', area: 'M0,95 C40,88 80,82 120,74 C160,76 200,62 240,54 C280,56 320,40 360,34 C400,28 440,20 480,14 L480,110 L0,110 Z' },
-                    'ALL': { roi: 760.0, winRate: 96.1, path: 'M0,98 C40,92 90,80 140,74 C190,62 240,48 290,40 C340,30 390,18 440,10 C460,7 480,4 480,4', area: 'M0,98 C40,92 90,80 140,74 C190,62 240,48 290,40 C340,30 390,18 440,10 C460,7 480,4 480,4 L480,110 L0,110 Z' }
+                    '1M': { roi: 3.9, winRate: 68.5, path: 'M0,86 C60,82 120,72 180,68 C240,55 300,48 360,32 C420,22 480,14 480,14', area: 'M0,86 C60,82 120,72 180,68 C240,55 300,48 360,32 C420,22 480,14 480,14 L480,110 L0,110 Z' },
+                    '3M': { roi: 11.4, winRate: 68.1, path: 'M0,90 C50,84 100,76 160,70 C220,58 280,50 340,36 C400,26 440,16 480,12', area: 'M0,90 C50,84 100,76 160,70 C220,58 280,50 340,36 C400,26 440,16 480,12 L480,110 L0,110 Z' },
+                    '6M': { roi: 21.5, winRate: 67.9, path: 'M0,92 C50,86 110,78 170,68 C230,56 290,46 350,34 C410,22 450,14 480,10', area: 'M0,92 C50,86 110,78 170,68 C230,56 290,46 350,34 C410,22 450,14 480,10 L480,110 L0,110 Z' },
+                    '1Y': { roi: 38.6, winRate: 67.8, path: 'M0,95 C40,88 80,82 120,74 C160,76 200,62 240,54 C280,56 320,40 360,34 C400,28 440,20 480,14', area: 'M0,95 C40,88 80,82 120,74 C160,76 200,62 240,54 C280,56 320,40 360,34 C400,28 440,20 480,14 L480,110 L0,110 Z' },
+                    'ALL': { roi: 74.2, winRate: 67.2, path: 'M0,98 C40,92 90,80 140,74 C190,62 240,48 290,40 C340,30 390,18 440,10 C460,7 480,4 480,4', area: 'M0,98 C40,92 90,80 140,74 C190,62 240,48 290,40 C340,30 390,18 440,10 C460,7 480,4 480,4 L480,110 L0,110 Z' }
                 }
             },
             6: {
@@ -1444,21 +1459,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     { symbol: 'EURUSD', type: 'forex', name: 'EUR / USD', weight: 15 }
                 ],
                 trades: [
-                    { symbol: 'TSLA', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$218.40', profit: '+$1,450.00', pnlPct: '+12.6%', time: '18s ago' },
-                    { symbol: 'EURUSD', type: 'forex', action: 'SELL', leverage: '30x', price: '1.0842', profit: '+$890.00', pnlPct: '+4.8%', time: '1m ago' },
-                    { symbol: 'MSFT', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$448.20', profit: '+$1,120.00', pnlPct: '+7.3%', time: '4m ago' },
-                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: '10x', price: '$68,320', profit: '+$1,980.00', pnlPct: '+8.9%', time: '9m ago' }
+                    { symbol: 'TSLA', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$218.40', profit: '+$950.00', pnlPct: '+4.2%', time: '25m ago' },
+                    { symbol: 'EURUSD', type: 'forex', action: 'SELL', leverage: '5x', price: '1.0842', profit: '+$540.00', pnlPct: '+1.6%', time: '1h ago' },
+                    { symbol: 'MSFT', type: 'stocks', action: 'BUY', leverage: 'Spot', price: '$448.20', profit: '+$820.00', pnlPct: '+2.9%', time: '4h ago' },
+                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$68,320', profit: '+$1,180.00', pnlPct: '+3.5%', time: '9h ago' }
                 ],
-                sharpe: '3.50',
-                drawdown: '2.8%',
-                profitFactor: '4.10',
-                latency: '4.9ms',
+                sharpe: '2.05',
+                drawdown: '7.8%',
+                profitFactor: '2.08',
+                latency: '15ms',
                 timeframes: {
-                    '1M': { roi: 31.5, winRate: 96.8, path: 'M0,88 C60,84 120,74 180,70 C240,58 300,50 360,36 C420,26 480,16 480,16', area: 'M0,88 C60,84 120,74 180,70 C240,58 300,50 360,36 C420,26 480,16 480,16 L480,110 L0,110 Z' },
-                    '3M': { roi: 96.0, winRate: 96.4, path: 'M0,91 C50,86 100,78 160,72 C220,60 280,52 340,38 C400,28 440,18 480,14', area: 'M0,91 C50,86 100,78 160,72 C220,60 280,52 340,38 C400,28 440,18 480,14 L480,110 L0,110 Z' },
-                    '6M': { roi: 205.0, winRate: 96.0, path: 'M0,93 C50,88 110,80 170,70 C230,58 290,48 350,36 C410,24 450,16 480,12', area: 'M0,93 C50,88 110,80 170,70 C230,58 290,48 350,36 C410,24 450,16 480,12 L480,110 L0,110 Z' },
-                    '1Y': { roi: 420.5, winRate: 95.8, path: 'M0,95 C40,92 80,85 120,78 C160,70 200,72 240,58 C280,50 320,44 360,38 C400,32 440,24 480,18', area: 'M0,95 C40,92 80,85 120,78 C160,70 200,72 240,58 C280,50 320,44 360,38 C400,32 440,24 480,18 L480,110 L0,110 Z' },
-                    'ALL': { roi: 690.0, winRate: 95.4, path: 'M0,98 C40,93 90,82 140,76 C190,64 240,50 290,42 C340,32 390,20 440,12 C460,8 480,6 480,6', area: 'M0,98 C40,93 90,82 140,76 C190,64 240,50 290,42 C340,32 390,20 440,12 C460,8 480,6 480,6 L480,110 L0,110 Z' }
+                    '1M': { roi: 2.8, winRate: 66.8, path: 'M0,88 C60,84 120,74 180,70 C240,58 300,50 360,36 C420,26 480,16 480,16', area: 'M0,88 C60,84 120,74 180,70 C240,58 300,50 360,36 C420,26 480,16 480,16 L480,110 L0,110 Z' },
+                    '3M': { roi: 8.4, winRate: 66.5, path: 'M0,91 C50,86 100,78 160,72 C220,60 280,52 340,38 C400,28 440,18 480,14', area: 'M0,91 C50,86 100,78 160,72 C220,60 280,52 340,38 C400,28 440,18 480,14 L480,110 L0,110 Z' },
+                    '6M': { roi: 15.9, winRate: 66.4, path: 'M0,93 C50,88 110,80 170,70 C230,58 290,48 350,36 C410,24 450,16 480,12', area: 'M0,93 C50,88 110,80 170,70 C230,58 290,48 350,36 C410,24 450,16 480,12 L480,110 L0,110 Z' },
+                    '1Y': { roi: 29.4, winRate: 66.2, path: 'M0,95 C40,92 80,85 120,78 C160,70 200,72 240,58 C280,50 320,44 360,38 C400,32 440,24 480,18', area: 'M0,95 C40,92 80,85 120,78 C160,70 200,72 240,58 C280,50 320,44 360,38 C400,32 440,24 480,18 L480,110 L0,110 Z' },
+                    'ALL': { roi: 56.8, winRate: 65.8, path: 'M0,98 C40,93 90,82 140,76 C190,64 240,50 290,42 C340,32 390,20 440,12 C460,8 480,6 480,6', area: 'M0,98 C40,93 90,82 140,76 C190,64 240,50 290,42 C340,32 390,20 440,12 C460,8 480,6 480,6 L480,110 L0,110 Z' }
                 }
             },
             7: {
@@ -1469,21 +1484,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     { symbol: 'AVAX', type: 'crypto', name: 'Avalanche', weight: 10 }
                 ],
                 trades: [
-                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: '10x', price: '$68,100', profit: '+$2,180.00', pnlPct: '+15.2%', time: '25s ago' },
-                    { symbol: 'AVAX', type: 'crypto', action: 'BUY', leverage: '5x', price: '$28.40', profit: '+$640.00', pnlPct: '+18.1%', time: '2m ago' },
-                    { symbol: 'SOL', type: 'crypto', action: 'SELL', leverage: '10x', price: '$144.20', profit: '+$1,050.00', pnlPct: '+9.7%', time: '6m ago' },
-                    { symbol: 'BNB', type: 'crypto', action: 'BUY', leverage: '10x', price: '$580.40', profit: '+$840.00', pnlPct: '+7.4%', time: '11m ago' }
+                    { symbol: 'BTC', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$68,100', profit: '+$1,280.00', pnlPct: '+3.9%', time: '32m ago' },
+                    { symbol: 'AVAX', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$28.40', profit: '+$440.00', pnlPct: '+4.8%', time: '2h ago' },
+                    { symbol: 'SOL', type: 'crypto', action: 'SELL', leverage: 'Spot', price: '$144.20', profit: '+$650.00', pnlPct: '+3.2%', time: '6h ago' },
+                    { symbol: 'BNB', type: 'crypto', action: 'BUY', leverage: 'Spot', price: '$580.40', profit: '+$520.00', pnlPct: '+2.6%', time: '11h ago' }
                 ],
-                sharpe: '3.25',
-                drawdown: '4.1%',
-                profitFactor: '3.90',
-                latency: '6.5ms',
+                sharpe: '1.95',
+                drawdown: '11.2%',
+                profitFactor: '1.92',
+                latency: '16ms',
                 timeframes: {
-                    '1M': { roi: 28.0, winRate: 95.2, path: 'M0,89 C60,85 120,76 180,72 C240,60 300,52 360,38 C420,28 480,18 480,18', area: 'M0,89 C60,85 120,76 180,72 C240,60 300,52 360,38 C420,28 480,18 480,18 L480,110 L0,110 Z' },
-                    '3M': { roi: 82.5, winRate: 94.8, path: 'M0,92 C50,87 100,80 160,74 C220,62 280,54 340,40 C400,30 440,20 480,16', area: 'M0,92 C50,87 100,80 160,74 C220,62 280,54 340,40 C400,30 440,20 480,16 L480,110 L0,110 Z' },
-                    '6M': { roi: 175.0, winRate: 94.5, path: 'M0,94 C50,89 110,82 170,72 C230,60 290,50 350,38 C410,26 450,18 480,14', area: 'M0,94 C50,89 110,82 170,72 C230,60 290,50 350,38 C410,26 450,18 480,14 L480,110 L0,110 Z' },
-                    '1Y': { roi: 340.5, winRate: 94.2, path: 'M0,95 C40,90 80,86 120,80 C160,75 200,66 240,62 C280,54 320,48 360,42 C400,36 440,28 480,22', area: 'M0,95 C40,90 80,86 120,80 C160,75 200,66 240,62 C280,54 320,48 360,42 C400,36 440,28 480,22 L480,110 L0,110 Z' },
-                    'ALL': { roi: 540.0, winRate: 93.8, path: 'M0,98 C40,94 90,84 140,78 C190,66 240,52 290,44 C340,34 390,22 440,14 C460,9 480,7 480,7', area: 'M0,98 C40,94 90,84 140,78 C190,66 240,52 290,44 C340,34 390,22 440,14 C460,9 480,7 480,7 L480,110 L0,110 Z' }
+                    '1M': { roi: 2.2, winRate: 64.8, path: 'M0,89 C60,85 120,76 180,72 C240,60 300,52 360,38 C420,28 480,18 480,18', area: 'M0,89 C60,85 120,76 180,72 C240,60 300,52 360,38 C420,28 480,18 480,18 L480,110 L0,110 Z' },
+                    '3M': { roi: 6.9, winRate: 64.5, path: 'M0,92 C50,87 100,80 160,74 C220,62 280,54 340,40 C400,30 440,20 480,16', area: 'M0,92 C50,87 100,80 160,74 C220,62 280,54 340,40 C400,30 440,20 480,16 L480,110 L0,110 Z' },
+                    '6M': { roi: 13.4, winRate: 64.4, path: 'M0,94 C50,89 110,82 170,72 C230,60 290,50 350,38 C410,26 450,18 480,14', area: 'M0,94 C50,89 110,82 170,72 C230,60 290,50 350,38 C410,26 450,18 480,14 L480,110 L0,110 Z' },
+                    '1Y': { roi: 24.8, winRate: 64.2, path: 'M0,95 C40,90 80,86 120,80 C160,75 200,66 240,62 C280,54 320,48 360,42 C400,36 440,28 480,22', area: 'M0,95 C40,90 80,86 120,80 C160,75 200,66 240,62 C280,54 320,48 360,42 C400,36 440,28 480,22 L480,110 L0,110 Z' },
+                    'ALL': { roi: 48.5, winRate: 63.8, path: 'M0,98 C40,94 90,84 140,78 C190,66 240,52 290,44 C340,34 390,22 440,14 C460,9 480,7 480,7', area: 'M0,98 C40,94 90,84 140,78 C190,66 240,52 290,44 C340,34 390,22 440,14 C460,9 480,7 480,7 L480,110 L0,110 Z' }
                 }
             }
         };
@@ -1499,8 +1514,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 category: m.category || 'Multi-Asset',
                 avatar: m.avatar || '',
                 initials: inits || 'TR',
-                roi: Number(m.total_roi || 510),
-                winRate: Number(m.win_rate || 97.2),
+                roi: Number(m.total_roi || 34.8),
+                winRate: Number(m.win_rate || 68.4),
                 copiers: Number(m.copiers_count || 1200),
                 aum: Number(m.aum_amount || 5000000),
                 minAlloc: Number(m.min_allocation || 500),
@@ -1533,8 +1548,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 var tfObj = (this.currentTrader && this.currentTrader.timeframes) ? this.currentTrader.timeframes[this.activeTimeframe] : null;
                 if (!tfObj) {
                     return {
-                        roi: this.currentTrader.roi || 510,
-                        winRate: this.currentTrader.winRate || 97.2,
+                        roi: this.currentTrader.roi || 34.8,
+                        winRate: this.currentTrader.winRate || 68.4,
                         path: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,8',
                         area: 'M0,95 C40,90 80,75 120,80 C160,68 200,55 240,60 C280,45 320,32 360,38 C400,22 440,16 480,8 L480,110 L0,110 Z'
                     };
@@ -1542,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return tfObj;
             },
             get projectedProfit() {
-                var r = (this.currentTimeframeData && this.currentTimeframeData.roi) ? this.currentTimeframeData.roi : 510;
+                var r = (this.currentTimeframeData && this.currentTimeframeData.roi) ? this.currentTimeframeData.roi : 34.8;
                 return Math.round(this.allocAmount * (r / 100));
             },
             get projectedTotal() {
@@ -1586,28 +1601,24 @@ document.addEventListener('DOMContentLoaded', () => {
          x-data="copyTradingApp()" 
          class="py-14 md:py-24 bg-[#fafafc] dark:bg-[#121214] border-t border-black/[0.06] dark:border-white/[0.08] relative overflow-hidden transition-colors duration-200">
     
-    <!-- Subtle Ambient Quant Glow Blobs -->
-    <div class="absolute -top-32 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-primary/15 via-indigo-500/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute -bottom-40 right-10 w-[450px] h-[450px] bg-gradient-to-tl from-emerald-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl pointer-events-none"></div>
-
     <div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         
         <!-- SECTION HEADER -->
-        <div class="max-w-3xl mb-12 text-center lg:text-left">
+        <div class="max-w-3xl mb-10 md:mb-12 text-center lg:text-left">
             <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-primary/10 dark:bg-primary/15 border border-primary/20 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider mb-3.5">
-                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
-                <span>Proprietary Institutional Copy Trading</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                <span>Automated Copy Strategies</span>
             </div>
 
             <h2 class="text-3xl sm:text-5xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-[-0.03em] leading-[1.12]">
-                Effortless Passive Alpha. <br class="hidden sm:inline"/>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-indigo-500 to-[#D4A038]">
-                    Mirror Elite Wall Street Quants.
+                Follow Audited Strategies. <br class="hidden sm:inline"/>
+                <span class="text-primary dark:text-primary-light">
+                    Stay in Full Control.
                 </span>
             </h2>
 
             <p class="text-base sm:text-lg text-[#86868b] dark:text-[#a1a1a6] leading-relaxed font-normal mt-3.5">
-                You don't need years of technical analysis or Python algorithmic models. Select an audited quant master, explore their live execution tape, and let institutional Equinix NY4 fiber mirror trades automatically into your segregated custody account.
+                Review historical drawdowns, risk metrics, and recent executions before allocating capital. Set custom stop-loss guardrails and pause replication anytime.
             </p>
         </div>
 
@@ -1660,8 +1671,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     @click="activeTerminalTab = 'tape'" 
                                     :class="activeTerminalTab === 'tape' ? 'bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-xs' : 'text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]'"
                                     class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 flex items-center space-x-1.5 cursor-pointer">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                                <span>Live Tape</span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                <span>Recent Trades</span>
                             </button>
 
                             <button type="button" 
@@ -1689,7 +1700,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="flex items-baseline space-x-2 mt-0.5">
                                     <span class="text-3xl sm:text-4xl font-extrabold text-gain font-numeral tracking-tight"
                                           x-text="'+' + Number(currentTimeframeData.roi).toFixed(1) + '%'">
-                                        +510.0%
+                                        +34.8%
                                     </span>
                                     <span class="text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6]">
                                         (<span class="text-primary font-numeral" x-text="Number(currentTimeframeData.winRate).toFixed(1) + '%'"></span> Win Rate)
@@ -1758,26 +1769,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                       class="transition-all duration-500 ease-out"/>
                             </svg>
 
-                            <!-- Live Peak Marker -->
-                            <div class="absolute top-3 right-4 z-20 flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-gain/10 border border-gain/20 text-gain text-[10px] font-bold font-numeral tracking-tight">
-                                <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
-                                <span>Peak Trajectory High</span>
+                            <!-- Equity Curve Label -->
+                            <div class="absolute top-3 right-4 z-20 flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-[10px] font-medium font-numeral tracking-tight">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                <span>Equity Curve</span>
                             </div>
 
                         </div>
 
-                        <!-- Institutional Risk & Performance Telemetry Quad -->
+                        <!-- Risk & Performance Telemetry Quad -->
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-left">
                             <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]">
                                 <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] block tracking-wider">Sharpe Ratio</span>
                                 <span class="text-base font-extrabold text-[#1d1d1f] dark:text-[#f5f5f7] font-numeral tracking-tight" x-text="currentTrader.sharpe"></span>
-                                <span class="text-[10px] text-gain font-medium block">Decile 1 (Top 0.1%)</span>
+                                <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block">Risk-Adjusted</span>
                             </div>
 
                             <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]">
                                 <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] block tracking-wider">Max Drawdown</span>
-                                <span class="text-base font-extrabold text-gain font-numeral tracking-tight" x-text="'-' + currentTrader.drawdown"></span>
-                                <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block">Parity Guardrail</span>
+                                <span class="text-base font-extrabold text-amber-500 font-numeral tracking-tight" x-text="'-' + currentTrader.drawdown"></span>
+                                <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block">Peak-to-Trough</span>
                             </div>
 
                             <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]">
@@ -1787,9 +1798,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             <div class="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]">
-                                <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] block tracking-wider">Execution Route</span>
-                                <span class="text-base font-extrabold text-[#D4A038] font-numeral tracking-tight" x-text="currentTrader.latency"></span>
-                                <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block truncate">Equinix NY4 Fiber</span>
+                                <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] block tracking-wider">Avg Routing</span>
+                                <span class="text-base font-extrabold text-[#1d1d1f] dark:text-[#f5f5f7] font-numeral tracking-tight" x-text="currentTrader.latency"></span>
+                                <span class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] font-medium block truncate">Direct STP</span>
                             </div>
                         </div>
 
@@ -1802,10 +1813,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-semibold uppercase text-[#86868b] dark:text-[#a1a1a6] tracking-wider flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
-                                <span>Live Algorithmic Order Flow</span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                <span>Recent Executed Orders</span>
                             </span>
-                            <span class="text-[11px] text-[#D4A038] font-medium">Equinix NY4 Direct STP</span>
+                            <span class="text-[11px] text-[#86868b] dark:text-[#a1a1a6] font-medium">Audited Trade Log</span>
                         </div>
 
                         <!-- Live Executed Trades List -->
@@ -1874,21 +1885,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     </div>
 
-                    <!-- BOTTOM TERMINAL ACTION & CONNECTIVITY FOOTER -->
-                    <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                        <div class="flex items-center space-x-2 text-[#86868b] dark:text-[#a1a1a6] text-[11px]">
-                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
-                            <span>Direct STP Route: <strong class="text-[#1d1d1f] dark:text-[#f5f5f7]">Equinix NY4</strong></span>
-                            <span>&bull;</span>
-                            <span class="text-gain font-medium font-numeral">&lt; 8.4ms</span>
-                        </div>
+                    <!-- BOTTOM TERMINAL ACTION & RISK DISCLOSURE -->
+                    <div class="pt-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2.5 text-xs">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div class="flex items-center space-x-2 text-[#86868b] dark:text-[#a1a1a6] text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
+                                <span>Segregated Allocation &bull; Stop-Loss Guardrails</span>
+                            </div>
 
-                        <button type="button" 
-                                @click="openMirrorModal(currentTrader)" 
-                                class="w-full sm:w-auto px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white font-semibold text-xs shadow-[0_2px_8px_rgba(0,113,227,0.3)] transition active:scale-95 flex items-center justify-center space-x-1.5">
-                            <span>Mirror <span x-text="currentTrader.name"></span></span>
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                        </button>
+                            <button type="button" 
+                                    @click="openMirrorModal(currentTrader)" 
+                                    class="w-full sm:w-auto px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white font-semibold text-xs shadow-[0_2px_8px_rgba(0,113,227,0.3)] transition active:scale-95 flex items-center justify-center space-x-1.5">
+                                <span>Follow <span x-text="currentTrader.name"></span></span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+                            Past performance is not indicative of future results. Investing involves risk, including possible loss of principal.
+                        </p>
                     </div>
 
                 </div>
@@ -1903,9 +1917,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- MASTER TRADERS LIST HEADER -->
                 <div class="flex items-center justify-between text-[#86868b] dark:text-[#a1a1a6] text-xs">
                     <span class="uppercase tracking-wider font-semibold text-[11px]">Choose Quant Master Strategy</span>
-                    <span class="hidden lg:flex text-gain font-medium items-center space-x-1 text-[11px]">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
-                        <span>Click to Preview Telemetry</span>
+                    <span class="hidden lg:flex text-[#86868b] dark:text-[#a1a1a6] font-medium items-center space-x-1 text-[11px]">
+                        <span>Select to inspect metrics</span>
                     </span>
                     <span class="lg:hidden inline-flex items-center space-x-1 text-primary dark:text-primary-light font-medium text-[11px]">
                         <span>Swipe masters</span>
@@ -2143,8 +2156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <!-- Section Header / Copywriting -->
         <div class="text-center space-y-3 mb-8 md:mb-16 max-w-3xl mx-auto">
             <span class="px-3.5 py-1 rounded-full bg-gain/10 text-gain text-xs font-semibold uppercase tracking-wider inline-flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
-                <span>Tax-Advantaged Wealth Preservation</span>
+                <span>Tax-Advantaged Retirement</span>
             </span>
             <h2 class="text-3xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">
                 Retire on Your Terms with <span class="text-gain">Tax-Free Trading IRAs</span>
@@ -2201,7 +2213,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             <!-- Apple Style Tax-Free Pill Badge -->
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold tracking-wider uppercase shadow-2xs">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 <span>Tax-Free</span>
                             </span>
                         </div>
@@ -2303,40 +2315,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
             </div>
 
-            <!-- Right 6 Cols: Lifestyle Photo with Apple Frosted Overlays -->
-            <div class="min-w-[88vw] sm:min-w-[460px] lg:min-w-0 shrink-0 snap-center lg:col-span-6 order-2 relative flex items-center">
-                <div class="relative w-full rounded-[28px] overflow-hidden border border-black/[0.08] dark:border-white/[0.1] shadow-2xl group">
+            <!-- Right 6 Cols: Interactive Tax-Free vs Taxable Compounding Projection Card -->
+            <div class="min-w-[88vw] sm:min-w-[460px] lg:min-w-0 shrink-0 snap-center lg:col-span-6 order-2 flex items-center justify-center lg:justify-end"
+                 x-data="{
+                     years: 25,
+                     annualContrib: 7000,
+                     rate: 0.08,
+                     get totalContributed() { return this.annualContrib * this.years; },
+                     get rothValue() {
+                         return Math.round(this.annualContrib * ((Math.pow(1 + this.rate, this.years) - 1) / this.rate));
+                     },
+                     get taxableValue() {
+                         var gross = this.rothValue;
+                         var gains = Math.max(0, gross - this.totalContributed);
+                         return Math.round(gross - (gains * 0.15));
+                     },
+                     get taxSaved() { return Math.max(0, this.rothValue - this.taxableValue); },
+                     get taxablePct() { return this.rothValue > 0 ? Math.round((this.taxableValue / this.rothValue) * 100) : 85; },
+                     get contribPct() { return this.rothValue > 0 ? Math.round((this.totalContributed / this.rothValue) * 100) : 30; }
+                 }">
+                <div class="w-full max-w-[520px] rounded-[32px] p-6 sm:p-8 space-y-6 border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl shadow-[0_24px_64px_-16px_rgba(0,0,0,0.08)] dark:shadow-[0_28px_70px_-16px_rgba(0,0,0,0.7)] text-[#1d1d1f] dark:text-[#f5f5f7]">
                     
-                    <img src="/images/happy_aged_retiree.jpg" 
-                         alt="Happy Aged Retiree Enjoying Life with Mainstreet Capital Exchange Tax-Free Retirement IRA" 
-                         class="w-full h-[380px] sm:h-[460px] lg:h-[520px] object-cover object-top rounded-[28px] transform group-hover:scale-102 transition duration-700 ease-out" />
-                    
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-70 group-hover:opacity-55 transition duration-500"></div>
-
-                    <!-- Floating Badge 1: Top Right (Apple Glass) -->
-                    <div class="absolute top-6 right-6 apple-glass px-4 py-3 rounded-2xl border border-white/20 shadow-2xl flex items-center space-x-3 backdrop-blur-xl bg-black/40">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        </div>
+                    <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-4">
                         <div>
-                            <span class="text-[10px] text-white/70 uppercase font-semibold tracking-wider block font-sans">Retirement Freedom</span>
-                            <span class="text-xs font-semibold text-emerald-400 font-sans tracking-tight">100% Tax-Free Compound Growth</span>
+                            <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#86868b] dark:text-[#a1a1a6] block">Tax Advantage Simulator</span>
+                            <h3 class="text-lg font-semibold tracking-tight mt-0.5">Roth IRA vs. Taxable Account</h3>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold font-numeral">
+                            8.0% Avg. Annual
+                        </span>
+                    </div>
+
+                    <!-- Interactive Horizon & Contribution Controls -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.07] space-y-2">
+                            <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] tracking-wider block">Investment Horizon</span>
+                            <div class="grid grid-cols-3 gap-1 bg-black/[0.04] dark:bg-white/[0.06] p-1 rounded-xl">
+                                <template x-for="y in [15, 25, 35]" :key="y">
+                                    <button type="button" @click="years = y"
+                                            :class="years === y ? 'bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white font-semibold shadow-xs' : 'text-[#86868b]'"
+                                            class="py-1 rounded-lg text-[11px] font-numeral transition cursor-pointer"
+                                            x-text="y + 'y'"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.07] space-y-2">
+                            <span class="text-[10px] uppercase font-semibold text-[#86868b] dark:text-[#a1a1a6] tracking-wider block">Annual Contribution</span>
+                            <div class="grid grid-cols-3 gap-1 bg-black/[0.04] dark:bg-white/[0.06] p-1 rounded-xl">
+                                <template x-for="c in [3500, 5000, 7000]" :key="c">
+                                    <button type="button" @click="annualContrib = c"
+                                            :class="annualContrib === c ? 'bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white font-semibold shadow-xs' : 'text-[#86868b]'"
+                                            class="py-1 rounded-lg text-[11px] font-numeral transition cursor-pointer"
+                                            x-text="'$' + (c / 1000) + 'k'"></button>
+                                </template>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Floating Badge 2: Bottom Overlay (Apple Glass) -->
-                    <div class="absolute bottom-6 left-6 right-6 apple-glass p-4 rounded-2xl border border-white/20 shadow-2xl flex items-center justify-between backdrop-blur-xl bg-black/50">
-                        <div class="flex items-center space-x-3.5">
-                            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <!-- Highlighted Tax Savings Banner -->
+                    <div class="p-4 rounded-2xl bg-emerald-500/[0.07] dark:bg-emerald-500/[0.1] border border-emerald-500/20 flex items-center justify-between gap-3">
+                        <div>
+                            <span class="text-[10px] uppercase font-semibold tracking-wider text-emerald-700 dark:text-emerald-400 block">Estimated Tax Savings</span>
+                            <span class="text-2xl sm:text-3xl font-bold font-numeral tracking-tight text-emerald-600 dark:text-emerald-400"
+                                  x-text="'+$' + taxSaved.toLocaleString()"></span>
+                        </div>
+                        <div class="text-right text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
+                            <span class="block">0% Qualified</span>
+                            <span class="block">Withdrawal Tax</span>
+                        </div>
+                    </div>
+
+                    <!-- Visual Bar Comparison -->
+                    <div class="space-y-4 text-xs">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Tax-Free Roth IRA</span>
+                                <span class="font-bold font-numeral text-emerald-600 dark:text-emerald-400 text-sm" x-text="'$' + rothValue.toLocaleString()"></span>
                             </div>
-                            <div>
-                                <span class="text-[10px] text-white/70 uppercase font-semibold tracking-wider block font-sans">Insured Custody</span>
-                                <h4 class="text-xs font-semibold text-white tracking-tight">SIPC Protected &bull; Direct Custodial Vault</h4>
+                            <div class="w-full h-3 rounded-full bg-black/[0.05] dark:bg-white/[0.08] overflow-hidden">
+                                <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" style="width: 100%"></div>
                             </div>
                         </div>
-                        <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold tracking-wider uppercase">0.0% Tax</span>
+
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium text-[#86868b] dark:text-[#a1a1a6]">Standard Taxable Account (15% LTCG)</span>
+                                <span class="font-semibold font-numeral text-[#1d1d1f] dark:text-[#f5f5f7] text-sm" x-text="'$' + taxableValue.toLocaleString()"></span>
+                            </div>
+                            <div class="w-full h-3 rounded-full bg-black/[0.05] dark:bg-white/[0.08] overflow-hidden">
+                                <div class="h-full rounded-full bg-black/25 dark:bg-white/30 transition-all duration-500" :style="'width: ' + taxablePct + '%'"></div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium text-[#86868b] dark:text-[#a1a1a6]">Total Principal Contributed</span>
+                                <span class="font-medium font-numeral text-[#86868b] dark:text-[#a1a1a6]" x-text="'$' + totalContributed.toLocaleString()"></span>
+                            </div>
+                            <div class="w-full h-2 rounded-full bg-black/[0.04] dark:bg-white/[0.06] overflow-hidden">
+                                <div class="h-full rounded-full bg-primary/50 transition-all duration-500" :style="'width: ' + contribPct + '%'"></div>
+                            </div>
+                        </div>
                     </div>
+
+                    <p class="text-[10px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed border-t border-black/[0.05] dark:border-white/[0.08] pt-3">
+                        Hypothetical illustration assuming an 8% compounded annual return and 15% long-term capital gains rate. Actual market returns vary and are not guaranteed.
+                    </p>
 
                 </div>
             </div>
@@ -2382,8 +2467,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                 </div>
-                <h3 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Sub-10ms Execution</h3>
-                <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">Direct optical cross-connects to Equinix NY4 and LD4 financial hubs ensure 0 slippage on high-speed market entries.</p>
+                <h3 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Fast, Transparent Routing</h3>
+                <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">Low-latency order routing across aggregated liquidity venues designed for consistent execution and clear fill reporting.</p>
             </div>
 
             <!-- Pillar 2: Custody -->
@@ -2400,8 +2485,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                 </div>
-                <h3 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">1-Click Pro Copy Trading</h3>
-                <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">Seamlessly mirror verified Wall Street algorithms with proportional lot scaling, custom stop losses, and instant profit settlement.</p>
+                <h3 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Controlled Copy Investing</h3>
+                <p class="text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">Allocate proportionally to audited portfolio strategies with configurable drawdown limits and full control to pause anytime.</p>
             </div>
 
             <!-- Pillar 4: Pricing -->
