@@ -707,7 +707,7 @@
 
       async connectWeb3() {
         if (!window.ethereum) {
-          alert('No Web3 wallet extension found. Please install MetaMask, Coinbase Wallet, or Rabby, or use manual deposit transfer.');
+          window.appToast('No Web3 wallet extension found. Please install MetaMask, Coinbase Wallet, or Rabby, or use manual deposit transfer.');
           return;
         }
         try {
@@ -731,13 +731,13 @@
 
         const amtUsd = parseFloat(this.amount) || 0;
         if (amtUsd <= 0) {
-          alert('Please specify a deposit amount in USD.');
+          window.appToast('Please specify a deposit amount in USD.');
           return;
         }
 
         const targetAddress = this.selectedGateway.address;
         if (!targetAddress || !targetAddress.startsWith('0x')) {
-          alert('This asset requires transfer via its native network address: ' + targetAddress);
+          window.appToast('This asset requires transfer via its native network address: ' + targetAddress);
           return;
         }
 
@@ -787,7 +787,7 @@
               data: callData
             };
           } else {
-            alert(`Direct Web3 sending for ${curr} is not configured for EVM. Please copy the deposit address to transfer.`);
+            window.appToast(`Direct Web3 sending for ${curr} is not configured for EVM. Please copy the deposit address to transfer.`);
             this.web3Sending = false;
             return;
           }
@@ -1058,7 +1058,7 @@
                     <div class="p-4 rounded-2xl bg-surface-base dark:bg-slate-900/80 border border-surface-border space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                                 <span class="text-xs font-bold text-content-primary">Client-Side Web3 Transaction Signing</span>
                             </div>
                             <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-md font-semibold border border-emerald-500/20">Option A Direct On-Chain</span>
@@ -1126,7 +1126,7 @@
                         </template>
                         <template x-if="web3Connected">
                             <div class="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl text-xs font-mono">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                                 <span class="text-emerald-400 font-bold" x-text="web3Account.slice(0, 6) + '...' + web3Account.slice(-4)"></span>
                                 <span class="text-content-tertiary">|</span>
                                 <span class="text-content-secondary text-[11px]" x-text="web3Network"></span>
@@ -1247,7 +1247,7 @@
 
                 <!-- Step 2: Ingested -->
                 <div class="p-3 rounded-2xl border"
-                     :class="monitorState !== 'idle' && monitorState !== 'detecting' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : (monitorState === 'detecting' ? 'bg-primary/10 border-primary/30 text-primary animate-pulse' : 'bg-surface-base border-surface-border text-content-tertiary')">
+                     :class="monitorState !== 'idle' && monitorState !== 'detecting' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : (monitorState === 'detecting' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-base border-surface-border text-content-tertiary')">
                     <div class="flex items-center justify-between mb-1">
                         <span class="font-bold text-[10px]">2. INGESTION</span>
                         <span x-text="monitorState !== 'idle' && monitorState !== 'detecting' ? '✓' : '...'"></span>
@@ -1257,7 +1257,7 @@
 
                 <!-- Step 3: Block Confirmations -->
                 <div class="p-3 rounded-2xl border"
-                     :class="monitorState === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : (monitorState === 'confirming' ? 'bg-primary/10 border-primary/30 text-primary animate-pulse' : 'bg-surface-base border-surface-border text-content-tertiary')">
+                     :class="monitorState === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : (monitorState === 'confirming' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-base border-surface-border text-content-tertiary')">
                     <div class="flex items-center justify-between mb-1">
                         <span class="font-bold text-[10px]">3. BLOCKS</span>
                         <span x-text="confirmations + '/' + requiredConfirmations"></span>
@@ -1345,7 +1345,7 @@
                         <div class="flex items-center justify-between">
                             <span class="text-content-tertiary uppercase font-bold text-[10px]" x-text="isCrypto ? 'Official Custody Wallet Address (' + selectedGateway.currency + ')' : 'Bank Wire Beneficiary & Routing'"></span>
                             <span class="text-[10px] text-emerald-500 font-bold flex items-center space-x-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 <span x-text="selectedGateway.network || 'Mainnet Active'"></span>
                             </span>
                         </div>
@@ -1569,7 +1569,7 @@
                              alt="WalletConnect QR" class="w-36 h-36 sm:w-44 sm:h-44 object-contain">
                     </div>
                     <div class="flex items-center space-x-2 text-xs text-content-secondary text-center font-mono">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span>Scan QR from another device or tap a wallet app above</span>
                     </div>
                 </div>

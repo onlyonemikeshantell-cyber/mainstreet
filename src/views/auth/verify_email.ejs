@@ -250,7 +250,7 @@
             const code = getCombinedCode();
             if (code.length !== 6) {
                 e.preventDefault();
-                alert('Please enter all 6 digits of the confirmation code.');
+                window.appToast('Please enter all 6 digits of the confirmation code.');
                 const firstEmpty = inputs.find(i => !i.value.trim());
                 if (firstEmpty) firstEmpty.focus();
                 return false;

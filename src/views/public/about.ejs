@@ -1,30 +1,75 @@
 <%- include('../partials/header') %>
 
-<section class="py-20 bg-gradient-to-b from-white via-slate-50 to-surface-base border-b border-surface-border">
-    <div class="max-w-4xl mx-auto px-4 text-center space-y-4">
-        <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold font-mono">OUR MISSION</span>
-        <h1 class="text-4xl sm:text-5xl font-extrabold text-content-primary font-serif">Democratizing Tier-1 Institutional Alpha</h1>
-        <p class="text-base text-content-secondary leading-relaxed">Founded by veteran Wall Street quantitative traders and systems engineers to provide retail and institutional investors with direct market access, 0.0 pip spreads, and algorithmic copy-trading.</p>
+<section class="py-16 md:py-24 bg-[#f5f5f7] dark:bg-[#000000] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
+        <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider inline-block">
+            About Mainstreet Capital Exchange
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7] leading-tight">
+            Built for clarity, custody discipline, and long-term capital.
+        </h1>
+        <p class="text-base sm:text-lg text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed max-w-3xl">
+            Mainstreet Capital Exchange brings fractional US equities, spot digital assets, curated thematic baskets, and tax-advantaged retirement accounts into one unified workspace—without hidden markups or fragmented accounts.
+        </p>
     </div>
 </section>
 
-<section class="py-16 bg-surface-base">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="glass-card rounded-3xl p-8 space-y-4 text-center border border-surface-border shadow-lg">
-            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold mx-auto">🏛️</div>
-            <h3 class="text-lg font-bold text-content-primary font-serif">Global Regulation</h3>
-            <p class="text-xs text-content-secondary leading-relaxed">Compliant with international financial standards, strict client asset segregation, and audited proof-of-reserves.</p>
+<section class="py-16 md:py-20 bg-white dark:bg-[#161617] transition-colors duration-200">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-14">
+
+        <!-- Core Operating Principles -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-6 rounded-3xl bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
+                <span class="text-xs font-semibold uppercase tracking-wider text-primary dark:text-primary-light">01 &bull; Custody First</span>
+                <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Segregated Client Assets</h2>
+                <p class="text-xs text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                    Client cash balances and digital asset holdings are strictly ring-fenced from company operating accounts, backed by multi-signature cold storage and regular reconciliation.
+                </p>
+            </div>
+
+            <div class="p-6 rounded-3xl bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
+                <span class="text-xs font-semibold uppercase tracking-wider text-primary dark:text-primary-light">02 &bull; Transparent Pricing</span>
+                <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Clear Execution &amp; Fees</h2>
+                <p class="text-xs text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                    Every order displays estimated price, spread, and fee structure before confirmation. Statements and trade histories remain downloadable at any time for audit and tax reporting.
+                </p>
+            </div>
+
+            <div class="p-6 rounded-3xl bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
+                <span class="text-xs font-semibold uppercase tracking-wider text-primary dark:text-primary-light">03 &bull; Investor Control</span>
+                <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Risk Guardrails Built In</h2>
+                <p class="text-xs text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                    Whether investing manually or following an audited copy strategy, clients retain full ownership with stop-loss guardrails, instant pause controls, and on-demand withdrawals.
+                </p>
+            </div>
         </div>
-        <div class="glass-card rounded-3xl p-8 space-y-4 text-center border border-surface-border shadow-lg">
-            <div class="w-14 h-14 rounded-2xl bg-gain/10 text-gain flex items-center justify-center text-2xl font-bold mx-auto">⚡</div>
-            <h3 class="text-lg font-bold text-content-primary font-serif">Equinix Optical Bridge</h3>
-            <p class="text-xs text-content-secondary leading-relaxed">Ultra-low latency data centers connected directly to Tier-1 banks, non-bank market makers, and liquidity hubs.</p>
+
+        <!-- Architecture & Governance -->
+        <div class="space-y-4">
+            <h2 class="text-2xl font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">Platform Architecture &amp; Compliance</h2>
+            <p class="text-sm text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                Our infrastructure is engineered around deterministic ledger accounting, two-factor authentication (TOTP), encrypted session management, and tiered identity verification (KYC/AML) to protect account holders against unauthorized access and financial crime.
+            </p>
+            <p class="text-sm text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                For full legal terms, data handling practices, and market risk notices, review our
+                <a href="/terms" class="text-primary hover:underline font-medium">Terms of Service</a>,
+                <a href="/privacy" class="text-primary hover:underline font-medium">Privacy Policy</a>, and
+                <a href="/risk" class="text-primary hover:underline font-medium">Risk Disclosure Statement</a>.
+            </p>
         </div>
-        <div class="glass-card rounded-3xl p-8 space-y-4 text-center border border-surface-border shadow-lg">
-            <div class="w-14 h-14 rounded-2xl bg-[#D4A038]/10 text-[#D4A038] flex items-center justify-center text-2xl font-bold mx-auto">🛡️</div>
-            <h3 class="text-lg font-bold text-content-primary font-serif">Multi-Sig Cold Custody</h3>
-            <p class="text-xs text-content-secondary leading-relaxed">Cryptocurrency balances are stored across geographically distributed hardware security modules with 24/7 monitoring.</p>
+
+        <!-- CTA -->
+        <div class="p-8 rounded-3xl bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Questions about custody or account setup?</h3>
+                <p class="text-xs text-[#6e6e73] dark:text-[#a1a1a6] mt-1">Our client support team is available to assist with onboarding, transfers, and security.</p>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                <a href="/contact" class="px-5 py-2.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-semibold transition">Contact Support</a>
+                <a href="/register" class="px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition">Open Account</a>
+            </div>
         </div>
+
     </div>
 </section>
 

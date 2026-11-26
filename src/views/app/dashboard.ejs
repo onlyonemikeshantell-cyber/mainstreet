@@ -689,7 +689,7 @@ function dashboardPortfolioApp() {
 
         openLiquidateAllModal() {
             if (this.ownedAssetsCount === 0) {
-                alert('You currently have no active asset holdings to liquidate.');
+                window.appToast('You currently have no active asset holdings to liquidate.');
                 return;
             }
             this.hazardCountdown = 6;
@@ -870,10 +870,10 @@ function dashboardPortfolioApp() {
                     this.liquidateAllModal = false;
                     window.location.reload();
                 } else {
-                    alert((data && data.error) ? data.error : 'Liquidation failed.');
+                    window.appToast((data && data.error) ? data.error : 'Liquidation failed.');
                 }
             } catch(e) {
-                alert('Network error executing liquidation.');
+                window.appToast('Network error executing liquidation.');
             } finally {
                 this.liquidatingAll = false;
             }
@@ -899,7 +899,7 @@ function dashboardPortfolioApp() {
             if (this.spotSubmitting) return;
             const amount = this.investMode === 'usd' ? parseFloat(this.investUsdAmount) : parseFloat(this.stockBuyShares);
             if (isNaN(amount) || amount <= 0) {
-                alert('Please enter a valid investment amount greater than zero.');
+                window.appToast('Please enter a valid investment amount greater than zero.');
                 return;
             }
 
@@ -923,10 +923,10 @@ function dashboardPortfolioApp() {
                     this.buyStockModal = false;
                     window.location.reload();
                 } else {
-                    alert((data && data.error) ? data.error : 'Spot order failed.');
+                    window.appToast((data && data.error) ? data.error : 'Spot order failed.');
                 }
             } catch (e) {
-                alert('Network error executing spot order.');
+                window.appToast('Network error executing spot order.');
             } finally {
                 this.spotSubmitting = false;
             }
@@ -936,11 +936,11 @@ function dashboardPortfolioApp() {
             if (this.basketSubmitting) return;
             const amt = parseFloat(this.basketInvestAmount);
             if (isNaN(amt) || amt <= 0) {
-                alert('Please enter a valid investment amount.');
+                window.appToast('Please enter a valid investment amount.');
                 return;
             }
             if (amt > this.cashBalance) {
-                alert(`Insufficient cash balance ($${this.cashBalance.toFixed(2)}). Please deposit or reduce allocation.`);
+                window.appToast(`Insufficient cash balance ($${this.cashBalance.toFixed(2)}). Please deposit or reduce allocation.`);
                 return;
             }
 
@@ -962,10 +962,10 @@ function dashboardPortfolioApp() {
                     this.basketModal = false;
                     window.location.reload();
                 } else {
-                    alert((data && data.error) ? data.error : 'Basket investment failed.');
+                    window.appToast((data && data.error) ? data.error : 'Basket investment failed.');
                 }
             } catch (e) {
-                alert('Network error executing basket investment.');
+                window.appToast('Network error executing basket investment.');
             } finally {
                 this.basketSubmitting = false;
             }
@@ -986,10 +986,10 @@ function dashboardPortfolioApp() {
                 if (data && data.success) {
                     window.location.reload();
                 } else {
-                    alert((data && data.error) ? data.error : 'No accrued dividends ready to distribute.');
+                    window.appToast((data && data.error) ? data.error : 'No accrued dividends ready to distribute.');
                 }
             } catch (e) {
-                alert('Network error claiming dividends.');
+                window.appToast('Network error claiming dividends.');
             } finally {
                 this.dividendClaiming = false;
             }
@@ -998,11 +998,11 @@ function dashboardPortfolioApp() {
             if (this.swapSubmitting) return;
             const amt = parseFloat(this.swapAmount);
             if (isNaN(amt) || amt <= 0) {
-                alert('Please enter a valid swap amount greater than zero.');
+                window.appToast('Please enter a valid swap amount greater than zero.');
                 return;
             }
             if (amt > this.fromAvailableBalance) {
-                alert(`Insufficient ${this.fromSymbol} balance. Available: ${this.fromAvailableBalance} ${this.fromSymbol}`);
+                window.appToast(`Insufficient ${this.fromSymbol} balance. Available: ${this.fromAvailableBalance} ${this.fromSymbol}`);
                 return;
             }
 
@@ -1029,16 +1029,16 @@ function dashboardPortfolioApp() {
                     this.swapModal = false;
                     window.location.reload();
                 } else {
-                    alert((data && data.error) ? data.error : 'Swap execution failed.');
+                    window.appToast((data && data.error) ? data.error : 'Swap execution failed.');
                 }
             } catch (err) {
-                alert('Network connection error while executing swap.');
+                window.appToast('Network connection error while executing swap.');
             } finally {
                 this.swapSubmitting = false;
             }
         },
-        closeCfdTrade(tradeId) {
-            if (!confirm('Close this CFD position immediately at market price?')) return;
+        async closeCfdTrade(tradeId) {
+            if (!(await window.appConfirm('Close this CFD position immediately at market price?'))) return;
             const metaTag = document.querySelector('meta[name="csrf-token"]');
             const token = metaTag ? metaTag.getAttribute('content') : '';
             fetch('/api/trade/close', {
@@ -1049,7 +1049,7 @@ function dashboardPortfolioApp() {
                 if (d && d.success) {
                     window.location.reload();
                 } else {
-                    alert(d.error || 'Failed to close position.');
+                    window.appToast(d.error || 'Failed to close position.');
                 }
             });
         }
@@ -1134,7 +1134,7 @@ function dashboardPortfolioApp() {
                         <span class="text-[11px] font-mono font-medium text-content-tertiary uppercase tracking-wider">Total Portfolio Value</span>
                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold"
                               :class="portfolioChangeAmount >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'">
-                            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="portfolioChangeAmount >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                            <span class="w-1.5 h-1.5 rounded-full" :class="portfolioChangeAmount >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
                             <span x-text="'LIVE ' + changeTimeframe.toUpperCase()">LIVE 24H</span>
                         </span>
                     </div>
@@ -1737,7 +1737,7 @@ function dashboardPortfolioApp() {
                                             <span class="text-[10px] text-content-tertiary">Trader: <%= sub.master_name %> &bull; Win Rate: <%= sub.win_rate %>%</span>
                                         </div>
                                     </div>
-                                    <span class="w-2.5 h-2.5 rounded-full bg-gain animate-pulse"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-gain"></span>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-2 p-2.5 bg-white rounded-xl border border-surface-border text-center">
@@ -1756,7 +1756,7 @@ function dashboardPortfolioApp() {
                                 <form action="/api/copy-trading/stop" method="POST">
                                     <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                     <input type="hidden" name="subscription_id" value="<%= sub.id %>" />
-                                    <button type="submit" onclick="return confirm('Stop copying this master and settle capital + profit back to cash balance?');" 
+                                    <button type="submit" data-confirm="Stop copying this master and settle capital + profit back to cash balance?" 
                                             class="w-full py-2 rounded-xl bg-loss/10 hover:bg-loss text-loss hover:text-white font-bold text-xs transition text-center font-sans">
                                         Stop Strategy & Settle Funds
                                     </button>
@@ -1889,7 +1889,7 @@ function dashboardPortfolioApp() {
                             <h4 class="text-sm font-bold font-serif text-content-primary">Retirement Holdings (<%= (typeof retirementHoldings !== 'undefined' && retirementHoldings) ? retirementHoldings.length : 0 %>)</h4>
                         </div>
                         <span class="text-xs font-mono text-gain font-bold flex items-center space-x-1">
-                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                            <span class="w-2 h-2 rounded-full bg-gain"></span>
                             <span>Insured Custody</span>
                         </span>
                     </div>
@@ -2084,7 +2084,7 @@ function dashboardPortfolioApp() {
                     </div>
                     <div>
                         <h3 class="text-lg font-bold font-serif text-content-primary">Instant Multi-Asset Swap</h3>
-                        <p class="text-[11px] text-content-secondary font-mono">Convert Equities, Cryptos & Cash with 0 Slippage</p>
+                        <p class="text-[11px] text-content-secondary font-mono">Convert equities, digital assets, and cash at live market quotes</p>
                     </div>
                 </div>
                 <button type="button" @click="swapModal = false" class="text-content-tertiary hover:text-content-primary text-2xl font-bold p-1">&times;</button>
@@ -2190,7 +2190,7 @@ function dashboardPortfolioApp() {
                             <span>You Receive (Estimated)</span>
                         </span>
                         <span class="font-mono text-gain font-bold flex items-center space-x-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-ping"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
                             <span>Direct Fill</span>
                         </span>
                     </div>
@@ -2543,7 +2543,7 @@ function dashboardPortfolioApp() {
             <!-- Header -->
             <div class="flex items-start justify-between border-b border-surface-border pb-4 pt-1">
                 <div class="flex items-center space-x-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-loss/20 text-loss flex items-center justify-center text-2xl font-bold border border-loss/30 animate-pulse shadow-lg shadow-loss/20">
+                    <div class="w-12 h-12 rounded-2xl bg-loss/20 text-loss flex items-center justify-center text-2xl font-bold border border-loss/30 shadow-lg shadow-loss/20">
                         ⚠️
                     </div>
                     <div>
@@ -2603,7 +2603,7 @@ function dashboardPortfolioApp() {
                 <button type="button" 
                         @click="liquidateAllAssets()" 
                         :disabled="hazardCountdown > 0 || liquidatingAll"
-                        :class="hazardCountdown > 0 || liquidatingAll ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border border-surface-border' : 'bg-loss hover:bg-loss/90 text-white shadow-lg shadow-loss/25 animate-pulse'"
+                        :class="hazardCountdown > 0 || liquidatingAll ? 'opacity-40 cursor-not-allowed bg-surface-overlay text-content-tertiary border border-surface-border' : 'bg-loss hover:bg-loss/90 text-white shadow-lg shadow-loss/25'"
                         class="w-full py-3.5 rounded-2xl font-bold text-xs transition flex items-center justify-center space-x-2">
                     <span x-show="hazardCountdown > 0" x-text="'⚠️ Safety Lock Active (' + hazardCountdown + 's)'"></span>
                     <span x-show="hazardCountdown === 0 && !liquidatingAll">🚨 CONFIRM LIQUIDATION (SETTLE ALL TO CASH) &rarr;</span>

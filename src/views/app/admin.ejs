@@ -840,7 +840,7 @@
         <% if (totalStats.pendingWithdrawals > 0 || totalStats.pendingKyc > 0) { %>
             <div class="luxury-glass-panel rounded-2xl px-4 py-2.5 border border-amber-500/20 bg-amber-500/5 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs font-sans">
                 <div class="flex items-center space-x-2 text-amber-200">
-                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]"></span>
+                    <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#F59E0B]"></span>
                     <span class="font-bold">Compliance Attention:</span>
                     <span class="text-amber-300/80">Pending executive compliance or payout approvals awaiting action.</span>
                 </div>
@@ -1040,7 +1040,7 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-5">
                     <div>
                         <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] uppercase font-bold mb-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
                             <span>Frontend Leaderboard Synchronization</span>
                         </div>
                         <h2 class="text-xl md:text-2xl font-bold font-serif text-content-primary">Master Trader Leaderboard (Visual Card Manager)</h2>
@@ -1067,7 +1067,7 @@
                                 <span class="text-[10px] font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">#MST-<%= m.id %></span>
                                 <% if (m.is_active) { %>
                                     <span class="pill-emerald">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                                         <span>LIVE ON DESK</span>
                                     </span>
                                 <% } else { %>
@@ -1144,7 +1144,7 @@
                                     <button type="button" @click="selectedMaster = <%= JSON.stringify(m) %>; copyModal = true" class="text-sky-400 hover:text-sky-300 text-[11px] font-bold font-mono transition flex items-center space-x-1 cursor-pointer">
                                         <svg class="w-3.5 h-3.5 inline mr-1 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Test Copy Flow</span>
                                     </button>
-                                    <form action="/babyoku/copy-trading/master/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this master trader card?');">
+                                    <form action="/babyoku/copy-trading/master/delete" method="POST" class="inline-block" data-confirm="Delete this master trader card?">
                                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                         <input type="hidden" name="master_id" value="<%= m.id %>" />
                                         <button type="submit" class="text-rose-400 hover:text-rose-300 text-[11px] font-bold font-mono transition cursor-pointer"><svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>
@@ -1222,7 +1222,7 @@
                                             <button type="button" @click="selectedMasterTrade = <%= JSON.stringify(tr) %>; editMasterTradeModal = true" class="btn-cyber btn-cyber-primary">
                                                 <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit P&L
                                             </button>
-                                            <form action="/babyoku/copy-trading/trade/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this master trade?');">
+                                            <form action="/babyoku/copy-trading/trade/delete" method="POST" class="inline-block" data-confirm="Delete this master trade?">
                                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                 <input type="hidden" name="trade_id" value="<%= tr.id %>" />
                                                 <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Trade"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -1296,13 +1296,13 @@
                                         </td>
                                         <td class="text-right space-x-1 font-sans">
                                             <% if (sub.status === 'active') { %>
-                                                <form action="/babyoku/copy-trading/subscription/settle" method="POST" class="inline-block" onsubmit="return confirm('Force settle this copy subscription? Funds will return to user cash balance.');">
+                                                <form action="/babyoku/copy-trading/subscription/settle" method="POST" class="inline-block" data-confirm="Force settle this copy subscription? Funds will return to user cash balance.">
                                                     <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                     <input type="hidden" name="subscription_id" value="<%= sub.id %>" />
                                                     <button type="submit" class="btn-cyber btn-cyber-emerald text-[10px] py-1 px-2.5">Settle</button>
                                                 </form>
                                             <% } %>
-                                            <form action="/babyoku/copy-trading/subscription/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete subscription record?');">
+                                            <form action="/babyoku/copy-trading/subscription/delete" method="POST" class="inline-block" data-confirm="Delete subscription record?">
                                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                 <input type="hidden" name="subscription_id" value="<%= sub.id %>" />
                                                 <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Record"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -1338,7 +1338,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
                     <div>
                         <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[10px] uppercase font-bold font-mono mb-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                             <span>STP Direct Bridge Execution Engine</span>
                         </div>
                         <h2 class="text-xl font-extrabold font-serif text-white">Active STP Order Book & Live P&L Override Desk</h2>
@@ -1438,7 +1438,7 @@
                                             <button type="button" @click="editingTrade = <%= JSON.stringify(t) %>; tradeModal = true" class="btn-cyber btn-cyber-primary">
                                                 <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Manipulate P&L
                                             </button>
-                                            <form action="/babyoku/trade/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this trade permanently?');">
+                                            <form action="/babyoku/trade/delete" method="POST" class="inline-block" data-confirm="Delete this trade permanently?">
                                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                 <input type="hidden" name="trade_id" value="<%= t.id %>" />
                                                 <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Force Delete Order"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -1479,7 +1479,7 @@
                                             class="flex-1 btn-cyber btn-cyber-primary text-xs py-2 justify-center">
                                         ✏️ Manipulate P&L
                                     </button>
-                                    <form action="/babyoku/trade/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this trade permanently?');">
+                                    <form action="/babyoku/trade/delete" method="POST" class="inline-block" data-confirm="Delete this trade permanently?">
                                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                         <input type="hidden" name="trade_id" value="<%= t.id %>" />
                                         <button type="submit" class="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Force Delete Order">
@@ -1542,7 +1542,7 @@
                                             <button type="button" @click="editingTrade = <%= JSON.stringify(t) %>; tradeModal = true" class="btn-cyber btn-cyber-ghost text-[10px] py-1 px-2.5">
                                                 Edit
                                             </button>
-                                            <form action="/babyoku/trade/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this trade?');">
+                                            <form action="/babyoku/trade/delete" method="POST" class="inline-block" data-confirm="Delete this trade?">
                                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                 <input type="hidden" name="trade_id" value="<%= t.id %>" />
                                                 <button type="submit" class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -1568,7 +1568,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
                 <div>
                     <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[10px] uppercase font-bold font-mono mb-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
                         <span>Institutional Client & Custody Directory</span>
                     </div>
                     <h2 class="text-xl md:text-2xl font-extrabold font-serif text-white">Trader Accounts & Execution Override Desk</h2>
@@ -1714,7 +1714,7 @@
                                             Pass
                                         </button>
                                         <% if (u.role !== 'admin' && u.id !== (typeof user !== 'undefined' && user ? user.id : 0)) { %>
-                                            <form action="/babyoku/user/delete" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to permanently delete user #<%= u.id %> (<%= u.name %> - <%= u.email %>)?');">
+                                            <form action="/babyoku/user/delete" method="POST" class="inline-block" data-confirm="Are you sure you want to permanently delete user #<%= u.id %> (<%= u.name %> - <%= u.email %>)?">
                                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                                 <input type="hidden" name="user_id" value="<%= u.id %>" />
                                                 <button type="submit" 
@@ -1815,7 +1815,7 @@
                                 Pass
                             </button>
                             <% if (u.role !== 'admin' && u.id !== (typeof user !== 'undefined' && user ? user.id : 0)) { %>
-                                <form action="/babyoku/user/delete" method="POST" class="inline-block" onsubmit="return confirm('Permanently delete user #<%= u.id %> (<%= u.name %>)?');">
+                                <form action="/babyoku/user/delete" method="POST" class="inline-block" data-confirm="Permanently delete user #<%= u.id %> (<%= u.name %>)?">
                                     <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                     <input type="hidden" name="user_id" value="<%= u.id %>" />
                                     <button type="submit" class="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer" title="Delete User">
@@ -1843,7 +1843,7 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
                     <div>
                         <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] uppercase font-bold font-mono mb-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                             <span>Institutional Treasury & Settlement Engine</span>
                         </div>
                         <h2 class="text-xl md:text-2xl font-extrabold font-serif text-white">Financial Transactions & Liquidity Ledger</h2>
@@ -1852,7 +1852,7 @@
                     <div class="flex items-center space-x-2 font-mono text-xs">
                         <% if (totalStats.pendingWithdrawals > 0) { %>
                             <span class="pill-amber">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                                 <span><%= totalStats.pendingWithdrawals %> Pending Payouts</span>
                             </span>
                         <% } %>
@@ -1959,7 +1959,7 @@
                                             <span class="pill-emerald">SETTLED</span>
                                         <% } else if (t.status === 'pending') { %>
                                             <span class="pill-amber">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                                                 <span>PENDING REVIEW</span>
                                             </span>
                                         <% } else { %>
@@ -1980,7 +1980,7 @@
                                                 </button>
                                             </form>
                                         <% } %>
-                                        <form action="/babyoku/transaction/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this transaction?');">
+                                        <form action="/babyoku/transaction/delete" method="POST" class="inline-block" data-confirm="Delete this transaction?">
                                             <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                             <input type="hidden" name="transaction_id" value="<%= t.id %>" />
                                             <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Ledger Entry"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -2002,7 +2002,7 @@
                                     <% if (t.status === 'completed') { %>
                                         <span class="pill-emerald text-[9px] py-0.5 px-2">SETTLED</span>
                                     <% } else if (t.status === 'pending') { %>
-                                        <span class="pill-amber text-[9px] py-0.5 px-2 animate-pulse">PENDING REVIEW</span>
+                                        <span class="pill-amber text-[9px] py-0.5 px-2">PENDING REVIEW</span>
                                     <% } else { %>
                                         <span class="pill-rose text-[9px] py-0.5 px-2">REJECTED</span>
                                     <% } %>
@@ -2048,7 +2048,7 @@
                                     </form>
                                 <% } else { %>
                                     <span class="text-[10px] text-slate-500 font-mono truncate"><%= t.created_at ? t.created_at.slice(0, 16) : 'Settled' %></span>
-                                    <form action="/babyoku/transaction/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this transaction?');">
+                                    <form action="/babyoku/transaction/delete" method="POST" class="inline-block" data-confirm="Delete this transaction?">
                                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                         <input type="hidden" name="transaction_id" value="<%= t.id %>" />
                                         <button type="submit" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete">
@@ -2107,7 +2107,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
                 <div>
                     <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] uppercase font-bold font-mono mb-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                         <span>Institutional Compliance & Verification Queue</span>
                     </div>
                     <h2 class="text-xl md:text-2xl font-extrabold font-serif text-white">Client KYC Moderation & AML Screening</h2>
@@ -2116,7 +2116,7 @@
                 <div class="flex items-center space-x-2 font-mono text-xs">
                     <% if (totalStats.pendingKyc > 0) { %>
                         <span class="pill-rose">
-                            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
                             <span><%= totalStats.pendingKyc %> Verifications Awaiting Decision</span>
                         </span>
                     <% } else { %>
@@ -2270,7 +2270,7 @@
                                     <% if (k.status === 'approved') { %>
                                         <span class="pill-emerald text-[9px] py-0.5 px-2">APPROVED</span>
                                     <% } else if (k.status === 'pending') { %>
-                                        <span class="pill-amber text-[9px] py-0.5 px-2 animate-pulse">⏳ PENDING</span>
+                                        <span class="pill-amber text-[9px] py-0.5 px-2">⏳ PENDING</span>
                                     <% } else { %>
                                         <span class="pill-rose text-[9px] py-0.5 px-2">REJECTED</span>
                                     <% } %>
@@ -2510,7 +2510,7 @@
 
                     <div class="flex items-center justify-between pt-2">
                         <div class="flex items-center gap-2 text-xs text-content-secondary">
-                            <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
+                            <span class="w-2 h-2 rounded-full bg-gain"></span>
                             <span>Immediate delivery with acoustic chime &amp; auto-dismiss toast</span>
                         </div>
                         <button type="submit" class="bg-gradient-to-r from-primary to-blue-600 hover:from-primary-dark hover:to-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-xl shadow-primary/25 transition text-sm flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg><span>Dispatch Pop-up Notification</span>
@@ -2649,7 +2649,7 @@
                         <svg class="w-4 h-4 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>Input DRIP Dividends</span>
                     </button>
-                    <form action="<%= adminBasePath %>/retirement/trigger-drip" method="POST" class="shrink-0" onsubmit="return confirm('Execute default statutory quarterly dividend formula cycle across all active retirement accounts?');">
+                    <form action="<%= adminBasePath %>/retirement/trigger-drip" method="POST" class="shrink-0" data-confirm="Execute default statutory quarterly dividend formula cycle across all active retirement accounts?">
                         <button type="submit" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold font-sans border border-slate-700/60 flex items-center space-x-2 transition">
                             <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             <span>Run Statutory Cycle</span>
@@ -3099,7 +3099,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-4">
                 <div>
                     <div class="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] uppercase font-bold mb-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
                         <span>Institutional Engine Configuration</span>
                     </div>
                     <h2 class="text-xl md:text-2xl font-bold font-serif text-content-primary">Platform System Settings & Broker Policies</h2>
@@ -3419,7 +3419,7 @@
                                         <button @click="selectedGateway = <%= JSON.stringify(gw) %>; editGatewayModal = true" class="text-primary hover:underline font-bold text-xs">
                                             Edit
                                         </button>
-                                        <form action="/babyoku/gateways/delete" method="POST" class="inline" onsubmit="return confirm('Delete gateway <%= gw.name %>?')">
+                                        <form action="/babyoku/gateways/delete" method="POST" class="inline" data-confirm="Delete gateway <%= gw.name %>?">
                                             <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                             <input type="hidden" name="id" value="<%= gw.id %>" />
                                             <button type="submit" class="text-loss hover:underline text-xs">Delete</button>
@@ -3922,7 +3922,7 @@
             <div class="flex items-center justify-between border-b border-surface-border pb-4">
                 <div class="space-y-1">
                     <div class="inline-flex items-center space-x-2 px-3 py-0.5 bg-primary/10 border border-primary/30 rounded-full text-[10px] font-bold text-primary uppercase">
-                        <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
+                        <span class="w-2 h-2 rounded-full bg-gain"></span>
                         <span>Institutional Outcome Engine</span>
                     </div>
                     <h3 class="text-xl font-bold font-serif text-content-primary">Algorithmic P&L & Trade Result Generator</h3>
@@ -4431,7 +4431,7 @@
                 <div class="p-5 bg-surface-base rounded-2xl border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
                     <div class="space-y-1">
                         <div class="flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-gain animate-ping"></span>
+                            <span class="w-2 h-2 rounded-full bg-gain"></span>
                             <span class="text-[11px] uppercase tracking-wider font-extrabold text-content-secondary">
                                 Dynamic Portfolio Valuation:
                             </span>
@@ -4710,7 +4710,7 @@
                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
                         <input type="hidden" name="kyc_id" :value="selectedKyc.id" />
                         <input type="hidden" name="action" value="reject" />
-                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-loss hover:bg-loss/90 text-white font-bold text-xs shadow-md transition" onclick="return confirm('Reject this KYC verification document?')">
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-loss hover:bg-loss/90 text-white font-bold text-xs shadow-md transition" data-confirm="Reject this KYC verification document?">
                             Reject Document
                         </button>
                     </form>
@@ -5025,6 +5025,7 @@
         </div>
     </footer>
 
+<%- include('../partials/ui-dialogs') %>
 </body>
 </html>
 

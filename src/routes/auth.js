@@ -597,10 +597,11 @@ router.post('/register/verify-otp', (req, res) => {
 router.post('/register', async (req, res) => {
   const { 
     name, email, phone, country, password, confirm_password,
-    otp_code,
+    otp_code, defer_kyc,
     doc_type, doc_number, front_image, back_image,
     video_data
   } = req.body;
+  const isDeferredKyc = String(defer_kyc || '') === '1';
 
   if (!name || !email || !password) {
     req.session.flash = { error: 'Please enter your name, email address, and password.' };
@@ -617,17 +618,17 @@ router.post('/register', async (req, res) => {
     return req.session.save(() => res.redirect('/register'));
   }
 
-  // Step 3: ID Verification Enforcement
+  // Step 3 & 4: ID & Biometric Verification Enforcement (only when completing full onboarding now)
   const effectiveBackImage = back_image || (doc_type === 'International Passport' ? front_image : null);
-  if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
-    req.session.flash = { error: 'Please provide complete government ID document details and photos.' };
-    return req.session.save(() => res.redirect('/register'));
-  }
-
-  // Step 4: Live Biometric Verification Enforcement
-  if (!video_data) {
-    req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
-    return req.session.save(() => res.redirect('/register'));
+  if (!isDeferredKyc) {
+    if (!doc_type || !doc_number || !front_image || !effectiveBackImage) {
+      req.session.flash = { error: 'Please provide complete government ID document details and photos.' };
+      return req.session.save(() => res.redirect('/register'));
+    }
+    if (!video_data) {
+      req.session.flash = { error: 'Please complete the live biometric verification step to proceed with onboarding.' };
+      return req.session.save(() => res.redirect('/register'));
+    }
   }
 
   const cleanEmail = (email || '').trim().toLowerCase();
@@ -658,7 +659,7 @@ router.post('/register', async (req, res) => {
   // Respect Admin Institutional KYC Policy (default: manual approval -> 'pending')
   const sysPolicy = db.prepare('SELECT auto_approve_kyc FROM system_settings WHERE id = 1').get() || {};
   const isAutoApprove = Number(sysPolicy.auto_approve_kyc) === 1;
-  const initialKycStatus = isAutoApprove ? 'verified' : 'pending';
+  const initialKycStatus = isDeferredKyc ? 'unverified' : (isAutoApprove ? 'verified' : 'pending');
   const docStatus = isAutoApprove ? 'approved' : 'pending';
 
   const hash = bcrypt.hashSync(password, 10);
@@ -686,29 +687,31 @@ router.post('/register', async (req, res) => {
     // Immediately persist new user account to Cloud Vault
     syncToCloudVault(db).catch(() => {});
 
-    // Process and store ID documents & live biometric verification
-    const resolveDocPath = (img, prefix, fallback) => {
-      if (img && typeof img === 'string' && img.startsWith('/')) return img;
-      return saveBase64Media(img, prefix, newUserId) || fallback;
-    };
+    // Process and store ID documents & live biometric verification when submitted
+    if (!isDeferredKyc) {
+      const resolveDocPath = (img, prefix, fallback) => {
+        if (img && typeof img === 'string' && img.startsWith('/')) return img;
+        return saveBase64Media(img, prefix, newUserId) || fallback;
+      };
 
-    const frontPath = resolveDocPath(front_image, 'id_front', '/storage/kyc/default_front.jpg');
-    const backPath = resolveDocPath(effectiveBackImage, 'id_back', '/storage/kyc/default_back.jpg');
-    const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', '/storage/kyc/default_video.webm') : null;
+      const frontPath = resolveDocPath(front_image, 'id_front', '/storage/kyc/default_front.jpg');
+      const backPath = resolveDocPath(effectiveBackImage, 'id_back', '/storage/kyc/default_back.jpg');
+      const videoPath = video_data ? resolveDocPath(video_data, 'kyc_video', '/storage/kyc/default_video.webm') : null;
 
-    db.prepare(`
-      INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'native', ?)
-    `).run(
-      newUserId,
-      doc_type || 'National ID Card',
-      doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
-      frontPath,
-      backPath,
-      videoPath,
-      docStatus,
-      null
-    );
+      db.prepare(`
+        INSERT INTO kyc_documents (user_id, doc_type, doc_number, front_image, back_image, video_path, status, provider, reviewed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'native', ?)
+      `).run(
+        newUserId,
+        doc_type || 'National ID Card',
+        doc_number || ('DOC-' + Math.floor(100000 + Math.random() * 900000)),
+        frontPath,
+        backPath,
+        videoPath,
+        docStatus,
+        null
+      );
+    }
 
     // Initialize empty asset ledger rows (0.00 balance)
     try {

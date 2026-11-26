@@ -1,14 +1,76 @@
 <%- include('../partials/header') %>
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-16 text-content-secondary space-y-6">
-    <h1 class="text-3xl font-bold font-serif text-content-primary">Terms and Conditions</h1>
-    <p class="text-sm">Last updated: January 2026</p>
-    <div class="space-y-4 text-sm leading-relaxed border-t border-surface-border pt-6">
-        <h2 class="text-lg font-bold text-content-primary">1. Agreement to Terms</h2>
-        <p>By registering or using the Mainstreet Capital Exchange platform, services, and applications, you agree to comply with and be bound by these Terms and Conditions. If you do not agree, please do not use the platform.</p>
-        <h2 class="text-lg font-bold text-content-primary">2. Trading Services & Execution</h2>
-        <p>Mainstreet Capital Exchange provides access to multi-asset trading technology. All orders are executed according to the platform order execution policy with straight-through processing (STP).</p>
-        <h2 class="text-lg font-bold text-content-primary">3. User Obligations</h2>
-        <p>Users must provide accurate identity verification details in compliance with international AML regulations.</p>
+
+<section class="py-14 md:py-20 bg-[#f5f5f7] dark:bg-[#000000] border-b border-black/[0.06] dark:border-white/[0.08] transition-colors duration-200">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-4">
+        <span class="px-3.5 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold uppercase tracking-wider inline-block">
+            Legal &amp; Client Agreement
+        </span>
+        <h1 class="text-3xl sm:text-5xl font-semibold tracking-[-0.03em] text-[#1d1d1f] dark:text-[#f5f5f7]">
+            Terms and Conditions
+        </h1>
+        <p class="text-sm text-[#6e6e73] dark:text-[#a1a1a6]">
+            Effective Date: January 1, 2026 &bull; Applies to all Mainstreet Capital Exchange web and API services.
+        </p>
     </div>
-</div>
+</section>
+
+<section class="py-14 md:py-16 bg-white dark:bg-[#161617] transition-colors duration-200">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-10 text-sm text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">1. Acceptance of Terms</h2>
+            <p>
+                By registering an account, accessing the WebTrader terminal, or using any custody, brokerage, copy-trading, or retirement service provided by Mainstreet Capital Exchange ("the Platform"), you agree to be bound by these Terms and Conditions, our <a href="/privacy" class="text-primary hover:underline">Privacy Policy</a>, and our <a href="/risk" class="text-primary hover:underline">Risk Disclosure Statement</a>.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">2. Eligibility &amp; Identity Verification (KYC/AML)</h2>
+            <p>
+                You must be at least 18 years old and legally permitted to use financial brokerage services in your jurisdiction. To comply with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations, we may require government-issued identification, proof of residency, and source-of-funds verification prior to enabling live deposits, withdrawals, or higher account tiers.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">3. Account Security &amp; Custody</h2>
+            <p>
+                You are responsible for safeguarding your login credentials and enabling Two-Factor Authentication (2FA). Client assets held on the Platform are maintained in segregated ledgers separate from corporate operating funds. You must notify support immediately if you suspect unauthorized access to your account.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">4. Order Execution, Pricing &amp; Fees</h2>
+            <p>
+                Orders placed for equities, digital assets, commodities, or thematic baskets are executed at prevailing market prices or your specified limit parameters. During periods of high market volatility or illiquidity, execution prices may differ from indicative quotes. Applicable spreads, withdrawal network fees, or copy-strategy performance fees are disclosed prior to order confirmation.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">5. Copy Trading &amp; Automated Strategies</h2>
+            <p>
+                Allocating funds to a copy-trading strategy authorizes the Platform to proportionally replicate positions opened and closed by that strategy manager within your account. Past performance does not guarantee future results. You may adjust allocation limits, configure stop-loss guardrails, or stop replication at any time from your dashboard.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">6. Deposits, Withdrawals &amp; Settlement</h2>
+            <p>
+                Deposits are credited upon network or banking confirmation. Withdrawal requests undergo automated and manual security checks to protect against unauthorized transfers. You are solely responsible for verifying destination wallet addresses and banking details before submitting a withdrawal.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <h2 class="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">7. Prohibited Conduct &amp; Termination</h2>
+            <p>
+                Market manipulation, wash trading, abusive API scraping, money laundering, or providing falsified identity documents are strictly prohibited and may result in immediate account suspension and regulatory reporting. You may close your account at any time after settling open positions and withdrawing remaining balances.
+            </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] text-xs">
+            Questions regarding these Terms may be directed to our compliance team via the <a href="/contact" class="text-primary hover:underline font-medium">Contact Support</a> page.
+        </div>
+
+    </div>
+</section>
+
 <%- include('../partials/footer') %>

@@ -231,7 +231,7 @@ function copyTradingStationApp() {
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-surface-border pb-6">
             <div>
                 <div class="inline-flex items-center space-x-2 px-3 py-0.5 bg-primary/10 border border-primary/30 rounded-full text-xs font-bold text-primary uppercase mb-1">
-                    <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
+                    <span class="w-2 h-2 rounded-full bg-gain"></span>
                     <span>Live Institutional Copy Hub &bull; 0ms STP Sync</span>
                 </div>
                 <h1 class="text-2xl md:text-3xl font-bold font-serif text-content-primary">Automated Strategy Mirroring</h1>
@@ -290,7 +290,7 @@ function copyTradingStationApp() {
                                 </div>
                             </div>
 
-                            <form action="/api/copy-trading/stop" method="POST" onsubmit="return confirm('Are you sure you want to stop copying this strategy? Your remaining capital will return to your cash balance.');">
+                            <form action="/api/copy-trading/stop" method="POST" data-confirm="Are you sure you want to stop copying this strategy? Your remaining capital will return to your cash balance.">
                                 <input type="hidden" name="_token" value="<%= csrfToken %>" />
                                 <input type="hidden" name="subscription_id" value="<%= sub.id %>" />
                                 <button type="submit" class="w-full py-2 bg-loss/10 hover:bg-loss/20 border border-loss/30 text-loss text-xs font-bold rounded-lg transition cursor-pointer">

@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.06] text-xs font-mono">
                         <a href="/dashboard#retirement" @click="handleItemClick('/dashboard#retirement')" class="text-[10px] text-amber-500 font-semibold hover:underline flex items-center space-x-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                             <span>Retirement IRA</span>
                         </a>
                         <span class="font-bold text-amber-500 text-xs">$<%= (typeof retirementAccount !== 'undefined' && retirementAccount) ? Number(retirementAccount.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></span>
@@ -843,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- Latency -->
                     <div class="flex items-center space-x-1 font-mono text-[10px] text-gain">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gain animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-gain"></span>
                         <span>8.4ms</span>
                     </div>
                 </div>

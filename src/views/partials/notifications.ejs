@@ -263,7 +263,7 @@ document.addEventListener('alpine:init', () => {
         
         <!-- Pulsing Red/Rose Unread Pill Badge -->
         <span x-show="unreadCount > 0" 
-              class="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-[#161617] animate-pulse"
+              class="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-[#161617]"
               x-text="unreadCount > 9 ? '9+' : unreadCount"
               style="display: none;">
         </span>

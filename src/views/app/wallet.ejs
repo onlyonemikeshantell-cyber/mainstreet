@@ -806,7 +806,7 @@ function generateSvgPath(sparkline) {
                                  alt="WalletConnect QR" class="w-36 h-36 sm:w-44 sm:h-44 object-contain">
                         </div>
                         <div class="flex items-center space-x-2 text-xs text-slate-500 text-center font-mono">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                             <span>Scan QR from another device or tap a wallet app above</span>
                         </div>
                     </div>
@@ -873,7 +873,7 @@ function generateSvgPath(sparkline) {
                     <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2.5">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                                 <span class="text-xs font-bold text-slate-900 dark:text-white">Client-Side Web3 Signing</span>
                             </div>
                             <span class="text-[10px] font-mono text-emerald-500 bg-emerald-500/10 px-2.5 py-0.5 rounded-md font-semibold border border-emerald-500/20">Option A Direct On-Chain</span>
@@ -1524,11 +1524,11 @@ function cryptoVaultHub() {
             const dest = this.sendDestinationType === 'saved' ? this.selectedSavedWallet : this.customSendAddress;
             if (!dest) {
                 if (window.showToast) return window.showToast('Please enter a destination address.', 'error');
-                return alert('Please enter a destination address.');
+                return window.appToast('Please enter a destination address.');
             }
             if (!this.sendAmount || parseFloat(this.sendAmount) <= 0) {
                 if (window.showToast) return window.showToast('Please enter an amount greater than 0.', 'error');
-                return alert('Please enter an amount greater than 0.');
+                return window.appToast('Please enter an amount greater than 0.');
             }
 
             try {
@@ -1557,7 +1557,7 @@ function cryptoVaultHub() {
         async submitSaveWallet() {
             if (!this.newWalletAddress || !this.newWalletLabel) {
                 if (window.showToast) return window.showToast('Please fill in all whitelisting fields.', 'error');
-                return alert('Please fill in all fields.');
+                return window.appToast('Please fill in all fields.');
             }
 
             try {
@@ -1881,7 +1881,7 @@ function cryptoVaultHub() {
         },
 
         async disconnectWallet(cw) {
-            if (!confirm('Are you sure you want to unlink external wallet ' + cw.wallet_address.slice(0, 8) + '...?')) return;
+            if (!(await window.appConfirm('Are you sure you want to unlink external wallet ' + cw.wallet_address.slice(0, 8) + '...?'))) return;
             try {
                 const res = await fetch('/api/wallet/disconnect', {
                     method: 'POST',

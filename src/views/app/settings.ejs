@@ -356,7 +356,7 @@
                     <form action="/settings/2fa" method="POST" class="pt-2">
                         <input type="hidden" name="_token" value="<%= csrfToken %>" />
                         <input type="hidden" name="action" value="disable" />
-                        <button type="submit" class="w-full text-xs font-bold py-3 rounded-xl transition shadow-md bg-loss/15 hover:bg-loss text-loss hover:text-white border border-loss/30 cursor-pointer" onclick="return confirm('Disable Two-Factor Authentication?');">
+                        <button type="submit" class="w-full text-xs font-bold py-3 rounded-xl transition shadow-md bg-loss/15 hover:bg-loss text-loss hover:text-white border border-loss/30 cursor-pointer" data-confirm="Disable Two-Factor Authentication?">
                             Disable Two-Factor Auth
                         </button>
                     </form>

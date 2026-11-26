@@ -704,7 +704,7 @@ function webTraderApp() {
         },
 
         async closeAllPositions(filterType) {
-            if (!confirm(`Are you sure you want to close ${filterType ? filterType.toUpperCase() : 'ALL'} open positions immediately at market?`)) return;
+            if (!(await window.appConfirm(`Are you sure you want to close ${filterType ? filterType.toUpperCase() : 'ALL'} open positions immediately at market?`))) return;
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '<%= csrfToken %>';
             try {
                 const res = await fetch('/api/trade/close-all', {
@@ -796,10 +796,10 @@ function webTraderApp() {
         <!-- Left: Global Clocks & Session Overlap -->
         <div class="flex flex-wrap items-center gap-3 sm:gap-6">
             
-            <!-- Equinix Bridge & Ping -->
+            <!-- Execution Routing Status -->
             <div class="flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-gain animate-pulse"></span>
-                <span class="font-bold text-content-primary">STP-NY4</span>
+                <span class="w-2 h-2 rounded-full bg-gain"></span>
+                <span class="font-bold text-content-primary">Direct STP</span>
                 <span class="text-[10px] px-1.5 py-0.5 rounded bg-gain/10 text-gain font-bold" x-text="serverPing + 'ms'"></span>
             </div>
 
@@ -809,25 +809,25 @@ function webTraderApp() {
             <div class="flex items-center space-x-3 text-[11px]">
                 <!-- Sydney -->
                 <div class="flex items-center space-x-1.5" :title="'Sydney (22:00 - 07:00 GMT)'">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('sydney') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('sydney') ? 'bg-gain' : 'bg-content-tertiary'"></span>
                     <span :class="isSessionOpen('sydney') ? 'font-bold text-content-primary' : 'text-content-tertiary'">SYD</span>
                 </div>
 
                 <!-- Tokyo -->
                 <div class="flex items-center space-x-1.5" :title="'Tokyo (00:00 - 09:00 GMT)'">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('tokyo') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('tokyo') ? 'bg-gain' : 'bg-content-tertiary'"></span>
                     <span :class="isSessionOpen('tokyo') ? 'font-bold text-content-primary' : 'text-content-tertiary'">TYO</span>
                 </div>
 
                 <!-- London -->
                 <div class="flex items-center space-x-1.5" :title="'London (08:00 - 17:00 GMT)'">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('london') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('london') ? 'bg-gain' : 'bg-content-tertiary'"></span>
                     <span :class="isSessionOpen('london') ? 'font-bold text-content-primary' : 'text-content-tertiary'">LON</span>
                 </div>
 
                 <!-- New York -->
                 <div class="flex items-center space-x-1.5" :title="'New York (13:00 - 22:00 GMT)'">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('newyork') ? 'bg-gain animate-ping' : 'bg-content-tertiary'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="isSessionOpen('newyork') ? 'bg-gain' : 'bg-content-tertiary'"></span>
                     <span :class="isSessionOpen('newyork') ? 'font-bold text-content-primary' : 'text-content-tertiary'">NYC</span>
                 </div>
             </div>
@@ -875,7 +875,7 @@ function webTraderApp() {
                 </div>
                 <div class="flex items-center space-x-1.5">
                     <span class="text-content-secondary">Margin Level:</span>
-                    <span class="px-2 py-0.5 rounded-full font-bold text-[10px]" :class="marginLevelPercent > 200 ? 'bg-gain/15 text-gain' : (marginLevelPercent >= 100 ? 'bg-warning/15 text-warning' : 'bg-loss/15 text-loss animate-pulse')" x-text="marginLevelPercent > 5000 ? '>999%' : marginLevelPercent.toFixed(1) + '%'"></span>
+                    <span class="px-2 py-0.5 rounded-full font-bold text-[10px]" :class="marginLevelPercent > 200 ? 'bg-gain/15 text-gain' : (marginLevelPercent >= 100 ? 'bg-warning/15 text-warning' : 'bg-loss/15 text-loss')" x-text="marginLevelPercent > 5000 ? '>999%' : marginLevelPercent.toFixed(1) + '%'"></span>
                 </div>
             </div>
         </div>
@@ -1210,7 +1210,7 @@ function webTraderApp() {
                     </template>
                     <div class="flex justify-between pt-0.5">
                         <span>Settlement Engine:</span>
-                        <span class="text-primary font-bold">STP-NY4 Crypto Bridge</span>
+                        <span class="text-primary font-bold">Direct Spot Routing</span>
                     </div>
                 </div>
 
@@ -1484,7 +1484,7 @@ function webTraderApp() {
                 <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
                     <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
                 </div>
-                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Indicative market positioning aggregated from connected liquidity venues.</p>
             </div>
 
             <!-- Signal Cards Grid -->
@@ -1601,7 +1601,7 @@ function webTraderApp() {
                 <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
                     <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
                 </div>
-                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Indicative market positioning aggregated from connected liquidity venues.</p>
             </div>
 
             <!-- Signal Cards Grid -->
@@ -1718,7 +1718,7 @@ function webTraderApp() {
                 <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
                     <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
                 </div>
-                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Indicative market positioning aggregated from connected liquidity venues.</p>
             </div>
 
             <!-- Signal Cards Grid -->
@@ -1851,7 +1851,7 @@ function webTraderApp() {
                 <div class="w-full h-2.5 bg-loss/30 rounded-full overflow-hidden flex">
                     <div class="bg-gain h-full transition-all duration-500" :style="'width: ' + bullSentiment + '%;'"></div>
                 </div>
-                <p class="text-[10px] text-content-tertiary text-center font-sans">Market positioning calculated across NY4 Equinix liquidity pool.</p>
+                <p class="text-[10px] text-content-tertiary text-center font-sans">Indicative market positioning aggregated from connected liquidity venues.</p>
             </div>
 
             <!-- Signal Cards Grid -->

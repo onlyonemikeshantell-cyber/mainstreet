@@ -10,6 +10,7 @@ function registerComponent() {
              step3Error: '',
              step4Error: '',
              isSubmitting: false,
+             deferKyc: false,
 
              // ================= STEP 1: DETAILS =================
              name: '',
@@ -132,8 +133,37 @@ function registerComponent() {
                  }, 1000);
              },
 
+             // Progressive Disclosure: Create account immediately and defer KYC until deposit
+             quickCreateAccount() {
+                 this.step1Error = '';
+                 if (!this.name.trim()) {
+                     this.step1Error = 'Please enter your full legal name.';
+                     return;
+                 }
+                 const cleanEmail = this.email.trim().toLowerCase();
+                 if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+                     this.step1Error = 'Please enter a valid email address.';
+                     return;
+                 }
+                 if (!this.password || this.password.length < 6) {
+                     this.step1Error = 'Password must be at least 6 characters.';
+                     return;
+                 }
+                 if (this.password !== this.confirmPassword) {
+                     this.step1Error = 'Passwords do not match.';
+                     return;
+                 }
+                 this.deferKyc = true;
+                 this.isSubmitting = true;
+                 this.$nextTick(() => {
+                     const form = document.getElementById('regMasterForm');
+                     if (form) form.submit();
+                 });
+             },
+
              // Step 1 -> Step 2 (Email OTP)
              async goToStep2() {
+                 this.deferKyc = false;
                  this.step1Error = '';
                  this.step2Error = '';
                  this.step2Success = '';
@@ -631,6 +661,7 @@ if (window.Alpine) {
             <input type="hidden" name="password" :value="password" />
             <input type="hidden" name="confirm_password" :value="confirmPassword" />
             <input type="hidden" name="otp_code" :value="combinedOtp" />
+            <input type="hidden" name="defer_kyc" :value="deferKyc ? '1' : '0'" />
             <input type="hidden" name="doc_type" :value="docType" />
             <input type="hidden" name="doc_number" :value="docNumber" />
             <input type="hidden" name="front_image" :value="frontData" />
@@ -737,13 +768,24 @@ if (window.Alpine) {
 
                 <!-- Next CTA -->
                 <button type="button" @click="goToStep2()" :disabled="otpSending"
-                        class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer mt-2 disabled:opacity-50">
-                    <span x-show="!otpSending">Continue to Step 2: Email OTP &rarr;</span>
+                        class="w-full py-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-surface-border text-content-primary font-medium text-xs transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50">
+                    <span x-show="!otpSending">Or verify email &amp; identity now (Full 4-Step KYC) &rarr;</span>
                     <span x-show="otpSending" class="flex items-center space-x-2">
-                        <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <svg class="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                         <span>Sending 6-Digit Verification Code...</span>
                     </span>
                 </button>
+
+                <button type="button"
+                        @click="quickCreateAccount()"
+                        :disabled="isSubmitting || otpSending"
+                        class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs tracking-wide shadow-lg shadow-primary/25 transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50">
+                    <span x-show="!isSubmitting">Create Account &amp; Explore Dashboard &rarr;</span>
+                    <span x-show="isSubmitting">Creating Account...</span>
+                </button>
+                <p class="text-[11px] text-center text-content-tertiary">
+                    You can complete identity verification anytime before your first live deposit.
+                </p>
             </div>
 
             <!-- ========================================================================= -->
@@ -1024,7 +1066,7 @@ if (window.Alpine) {
                         </template>
 
                         <!-- Biometric Oval Face Guide -->
-                        <div x-show="liveCameraActive" class="absolute w-40 h-52 border-2 border-dashed border-cyan-400 rounded-full pointer-events-none flex items-center justify-center animate-pulse">
+                        <div x-show="liveCameraActive" class="absolute w-40 h-52 border-2 border-dashed border-cyan-400 rounded-full pointer-events-none flex items-center justify-center">
                             <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
                         </div>
 
