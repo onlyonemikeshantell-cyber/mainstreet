@@ -2557,17 +2557,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     Yes. All client capital is held in segregated Tier-1 custodial accounts and offline multi-signature cold vaults. Client assets are never commingled with company operating expenses.
                 </div>
             </div>
-
-            <!-- FAQ 4 -->
-            <div class="p-5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] cursor-pointer transition active:scale-[0.99]" @click="activeFaq = activeFaq === 4 ? null : 4">
-                <div class="flex items-center justify-between font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-                    <span>Can I stop or adjust a copy trading strategy at any time?</span>
-                    <svg class="w-4 h-4 text-[#86868b] dark:text-[#a1a1a6] transition-transform duration-200" :class="activeFaq === 4 ? 'rotate-180 text-primary dark:text-primary-light' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </div>
-                <div x-show="activeFaq === 4" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" class="pt-3 text-xs text-[#86868b] dark:text-[#a1a1a6] leading-relaxed" x-cloak>
-                    Absolutely. You maintain 100% custody of your capital. You can adjust risk allocation, modify stop-losses, or tap 'Stop Strategy & Settle Funds' at any time to immediately liquidate positions back to cash.
-                </div>
-            </div>
         </div>
     </div>
 </section>
