@@ -509,7 +509,7 @@ function creditUserDeposit({ userId, creditAmount, onChainResult, gwName, ref, t
     try {
       db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'deposit')")
         .run(user.id, 'Deposit Credited Instantly', notifMsg);
-    } catch(ne) {}
+    } catch (ne) { console.warn('[user] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
     if (req) {
       logActivity(user.id, 'DEPOSIT_AUTO_CREDITED', `Auto-credited deposit ref ${generatedRef} for $${creditAmount} via ${finalGwName} (Verification: ${onChainResult ? onChainResult.mode : 'standard'})`, req);
@@ -836,7 +836,7 @@ router.post('/deposit', async (req, res) => {
     try {
       db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'deposit')")
         .run(user.id, 'Deposit Submitted', `Deposit #${ref} ($${numAmount.toLocaleString()} USD) submitted and pending compliance verification.`);
-    } catch(ne) {}
+    } catch (ne) { console.warn('[user] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
     logActivity(user.id, 'DEPOSIT_INIT', `Initiated deposit ref ${ref} for $${numAmount}`, req);
     req.session.flash = { success: `Deposit reference #${ref} registered! Custody department is verifying payment confirmation.` };
@@ -1557,7 +1557,7 @@ router.post('/onboarding/kyc', async (req, res) => {
 
   try {
     db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'KYC Verification Submitted', 'Your identification documents have been received and are currently under compliance review.', 'kyc')").run(user.id);
-  } catch (e) {}
+  } catch (e) { console.warn('[user] Suppressed error:', e && e.message ? e.message : e); }
 
   logActivity(user.id, 'ONBOARDING_KYC_SUBMITTED', `Submitted KYC documents during onboarding (${provider}: ${docStatus})`, req);
 
@@ -1585,7 +1585,7 @@ router.post('/onboarding/kyc', async (req, res) => {
           html: `<p>Hello ${user.name}, your verification code is <strong>${emailCode}</strong>. <a href="${verifyUrl}">Verify Email Immediately</a>.</p>`,
           recipientType: 'user'
         });
-      } catch (err) {}
+      } catch (err) { console.warn('[user] Suppressed error:', err && err.message ? err.message : err); }
     }
 
     req.session.flash = { 
@@ -1658,7 +1658,7 @@ router.post('/settings/kyc', (req, res) => {
   try {
     db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
       .run(user.id, 'KYC Documents Received', `Your ${doc_type} (#${doc_number}) package has been received and queued for compliance verification.`);
-  } catch(ne) {}
+  } catch (ne) { console.warn('[user] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
   logActivity(user.id, 'KYC_SUBMIT', `Submitted KYC document: ${doc_type} (${doc_number}) with identity proofs`, req);
   req.session.flash = { success: 'Document verification package submitted! Custody compliance desk will audit your credentials within 24 hours.' };
@@ -1771,7 +1771,7 @@ router.post('/api/trade/close', (req, res) => {
     const sign = pnl >= 0 ? '+$' : '-$';
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
       .run(user.id, 'Position Closed', `Closed #${trade.id} (${trade.symbol} ${trade.type}) @ $${effectiveClosePrice}. Realized P&L: ${sign}${Math.abs(pnl).toFixed(2)} USD.`, 'trade');
-  } catch(ne) {}
+  } catch (ne) { console.warn('[user] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
   logActivity(user.id, 'TRADE_CLOSE', `Closed #${trade.id} with realized P&L of $${pnl}`, req);
   res.json({ success: true, realizedPnL: pnl, newBalance });
@@ -1830,7 +1830,7 @@ router.post('/api/trade/close-all', (req, res) => {
     const sign = totalRealized >= 0 ? '+$' : '-$';
     db.prepare('INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)')
       .run(user.id, 'Positions Closed in Bulk', `Liquidated ${closedCount} open position(s). Net Realized P&L: ${sign}${Math.abs(totalRealized).toFixed(2)} USD.`, 'trade');
-  } catch(ne) {}
+  } catch (ne) { console.warn('[user] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
   logActivity(user.id, 'BULK_CLOSE', `Bulk closed ${closedCount} positions (${filter || 'all'}) with net P&L $${totalRealized.toFixed(2)}`, req);
   res.json({ success: true, count: closedCount, totalRealizedPnL: totalRealized, newBalance });

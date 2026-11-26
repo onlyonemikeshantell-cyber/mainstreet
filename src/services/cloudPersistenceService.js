@@ -64,7 +64,7 @@ function ensureMetaTable(db) {
         updated_at INTEGER
       );
     `);
-  } catch (e) {}
+  } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
 }
 
 function recordLocalMutation(db) {
@@ -76,7 +76,7 @@ function recordLocalMutation(db) {
       VALUES ('last_local_mutation', ?, ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
     `).run(String(now), now);
-  } catch (e) {}
+  } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
 }
 
 function getLocalMutationTime(db) {
@@ -104,14 +104,14 @@ function runImapSession(handler, timeoutMs = 12000) {
     const timeout = setTimeout(() => {
       if (!settled) {
         settled = true;
-        try { socket.destroy(); } catch (e) {}
+        try { socket.destroy(); } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
         reject(new Error('IMAP session timeout'));
       }
     }, timeoutMs);
 
     const cleanup = () => {
       clearTimeout(timeout);
-      try { socket.end(); } catch (e) {}
+      try { socket.end(); } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
     };
 
     const checkBuffer = () => {
@@ -215,7 +215,7 @@ function runImapSession(handler, timeoutMs = 12000) {
 function exportDatabaseSnapshot(db) {
   try {
     db.pragma('wal_checkpoint(PASSIVE)');
-  } catch (e) {}
+  } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
 
   ensureMetaTable(db);
   const tables = {};
@@ -249,7 +249,7 @@ function exportDatabaseSnapshot(db) {
               if (stat.size <= 4 * 1024 * 1024) {
                 kycFiles[path.basename(fname)] = fs.readFileSync(fpath).toString('base64');
               }
-            } catch (e) {}
+            } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
           }
         }
       }
@@ -271,7 +271,7 @@ function exportDatabaseSnapshot(db) {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
   }
 
   const now = Date.now();
@@ -312,7 +312,7 @@ function importDatabaseSnapshot(db, snapshot) {
         if (!fs.existsSync(dest)) {
           fs.writeFileSync(dest, Buffer.from(b64, 'base64'));
         }
-      } catch (e) {}
+      } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
     }
   }
 
@@ -329,7 +329,7 @@ function importDatabaseSnapshot(db, snapshot) {
         if (!fs.existsSync(dest)) {
           fs.writeFileSync(dest, Buffer.from(b64, 'base64'));
         }
-      } catch (e) {}
+      } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
     }
   }
 
@@ -351,7 +351,7 @@ function importDatabaseSnapshot(db, snapshot) {
         if (CONFIG_TABLES.includes(table)) {
           try {
             db.prepare(`DELETE FROM ${table}`).run();
-          } catch (e) {}
+          } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
         }
 
         const insertStmt = db.prepare(`INSERT OR REPLACE INTO ${table} (${colNames}) VALUES (${placeholders})`);
@@ -485,7 +485,7 @@ async function restoreFromCloudVault(db) {
     let localUsers = [];
     try {
       localUsers = db.prepare('SELECT id, email FROM users').all();
-    } catch (e) {}
+    } catch (e) { console.warn('[cloudVault] Suppressed error:', e && e.message ? e.message : e); }
     const remoteUsers = Array.isArray(snapshot.tables && snapshot.tables.users) ? snapshot.tables.users : [];
     const remoteEmails = new Set(remoteUsers.map(u => String(u.email || '').toLowerCase()));
     const localOnlyUsers = localUsers.filter(u => !remoteEmails.has(String(u.email || '').toLowerCase()));

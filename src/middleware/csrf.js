@@ -2,9 +2,7 @@ const crypto = require('crypto');
 
 const EXEMPT_PREFIXES = [
   '/api/webhooks',
-  '/api/wallet',
   '/api/market/sync-live-price',
-  '/api/notifications',
   '/register/send-otp',
   '/register/verify-otp',
   '/verify-email/resend',

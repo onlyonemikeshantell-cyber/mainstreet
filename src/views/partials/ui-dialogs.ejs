@@ -34,6 +34,32 @@
     if (window.__APP_DIALOGS_INIT__) return;
     window.__APP_DIALOGS_INIT__ = true;
 
+    // Automatically attach X-CSRF-Token header to same-origin mutating fetch() calls
+    if (typeof window.fetch === 'function' && !window.__CSRF_FETCH_WRAPPED__) {
+        window.__CSRF_FETCH_WRAPPED__ = true;
+        var origFetch = window.fetch.bind(window);
+        window.fetch = function(input, init) {
+            try {
+                var urlStr = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+                var isSameOrigin = urlStr.startsWith('/') || urlStr.startsWith(window.location.origin);
+                if (isSameOrigin && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                    var meta = document.querySelector('meta[name="csrf-token"]');
+                    var token = meta ? meta.getAttribute('content') : '';
+                    if (token) {
+                        init = Object.assign({}, init || {});
+                        var hdrs = new Headers(init.headers || (input && input.headers) || {});
+                        if (!hdrs.has('X-CSRF-Token') && !hdrs.has('csrf-token')) {
+                            hdrs.set('X-CSRF-Token', token);
+                        }
+                        init.headers = hdrs;
+                    }
+                }
+            } catch (e) {}
+            return origFetch(input, init);
+        };
+    }
+
     window.appToast = function(message, type) {
         var stack = document.getElementById('app-toast-stack');
         if (!stack) return;

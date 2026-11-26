@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../db');
 const { detectGeoFromRequest } = require('../services/geoService');
 
@@ -90,7 +91,10 @@ const injectUser = (req, res, next) => {
   res.locals.adminId = req.session.adminId || null;
   res.locals.flash = req.session.flash || {};
   req.session.flash = null;
-  res.locals.csrfToken = req.session.csrfToken || 'txe_default_token';
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(24).toString('hex');
+  }
+  res.locals.csrfToken = req.session.csrfToken;
   res.locals.currentPath = req.path;
   res.locals.visitorGeo = detectGeoFromRequest(req);
   res.locals.safeJson = (obj) => {

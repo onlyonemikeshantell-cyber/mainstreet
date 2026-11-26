@@ -57,10 +57,75 @@ app.set('view engine', 'ejs');
 // Static assets (allow dotfiles for /.well-known domain verification)
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
-// Body parsing
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.json({ limit: '50mb' }));
-app.use(cors());
+// Body parsing: 50mb scoped strictly to KYC/media upload routes; 2mb default everywhere else
+const largeBodyUrlencoded = express.urlencoded({ extended: true, limit: '50mb' });
+const largeBodyJson = express.json({ limit: '50mb' });
+const defaultBodyUrlencoded = express.urlencoded({ extended: true, limit: '2mb' });
+const defaultBodyJson = express.json({ limit: '2mb' });
+const LARGE_UPLOAD_PREFIXES = [
+  '/register',
+  '/onboarding/kyc',
+  '/settings',
+  '/babyoku/copy-trading/master',
+  '/admin/copy-trading/master',
+  '/babyoku/gateways',
+  '/admin/gateways'
+];
+app.use((req, res, next) => {
+  const isLarge = LARGE_UPLOAD_PREFIXES.some(p => req.path.startsWith(p));
+  return (isLarge ? largeBodyUrlencoded : defaultBodyUrlencoded)(req, res, (err) => {
+    if (err) return next(err);
+    return (isLarge ? largeBodyJson : defaultBodyJson)(req, res, next);
+  });
+});
+
+// Strict CORS allowlist (same-origin requests have no Origin header and always pass)
+const extraAllowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    const allowed =
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin) ||
+      /^https:\/\/([a-z0-9-]+\.)?mainstreetcapitalx\.com$/i.test(origin) ||
+      /^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin) ||
+      extraAllowedOrigins.includes(origin);
+    return cb(null, allowed);
+  },
+  credentials: true
+}));
+
+// Lightweight IP rate limiter for sensitive auth endpoints
+const authRateBuckets = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of authRateBuckets) {
+    if (v.resetAt < now) authRateBuckets.delete(k);
+  }
+}, 10 * 60 * 1000).unref();
+
+const createRateLimiter = (prefix, maxHits, windowMs) => (req, res, next) => {
+  if (req.method !== 'POST') return next();
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const key = prefix + ':' + ip;
+  const now = Date.now();
+  let bucket = authRateBuckets.get(key);
+  if (!bucket || bucket.resetAt < now) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    authRateBuckets.set(key, bucket);
+  }
+  bucket.count++;
+  if (bucket.count > maxHits) {
+    if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+      return res.status(429).json({ success: false, error: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
+    if (req.session) req.session.flash = { error: 'Too many attempts from your network. Please wait 15 minutes and try again.' };
+    return res.status(429).redirect(req.headers.referer || '/');
+  }
+  next();
+};
+app.use(['/babyoku/login', '/admin/login'], createRateLimiter('admin_login', 8, 15 * 60 * 1000));
+app.use('/register', createRateLimiter('register', 12, 15 * 60 * 1000));
+app.use('/forgot-password', createRateLimiter('forgot', 8, 15 * 60 * 1000));
 
 // Persistent SQLite Session Store (survives server restarts)
 db.exec(`
@@ -145,7 +210,8 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    secure: 'auto'
   }
 }));
 

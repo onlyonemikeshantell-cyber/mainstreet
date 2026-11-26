@@ -278,7 +278,7 @@ router.post(['/babyoku/copy-trading/master/save', '/admin/copy-trading/master/sa
     );
     req.session.flash = { success: `New Master Trader '${name}' added to leaderboard!` };
   }
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
   res.redirect('/babyoku');
@@ -289,7 +289,7 @@ router.post(['/babyoku/copy-trading/master/delete', '/admin/copy-trading/master/
   db.prepare('DELETE FROM master_trades WHERE master_id = ?').run(master_id);
   db.prepare('DELETE FROM master_traders WHERE id = ?').run(master_id);
   db.prepare('DELETE FROM copy_trading_comments WHERE master_id = ?').run(master_id);
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
   req.session.flash = { success: `Master Trader #${master_id} and associated strategy trades removed.` };
@@ -300,7 +300,7 @@ router.post(['/babyoku/copy-trading/comment/delete', '/admin/copy-trading/commen
   const { id } = req.body;
   if (id) {
     db.prepare('DELETE FROM copy_trading_comments WHERE id = ?').run(id);
-    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     recordLocalMutation(db);
     scheduleCloudSync(db, 100);
     req.session.flash = { success: 'Copy trading comment deleted.' };
@@ -314,7 +314,7 @@ router.post(['/babyoku/copy-trading/comment/pin', '/admin/copy-trading/comment/p
     const comm = db.prepare('SELECT is_pinned FROM copy_trading_comments WHERE id = ?').get(id);
     const newPin = comm && comm.is_pinned ? 0 : 1;
     db.prepare('UPDATE copy_trading_comments SET is_pinned = ? WHERE id = ?').run(newPin, id);
-    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     recordLocalMutation(db);
     scheduleCloudSync(db, 100);
     req.session.flash = { success: `Comment #${id} ${newPin ? 'pinned' : 'unpinned'}.` };
@@ -459,17 +459,32 @@ router.post(['/babyoku/copy-trading/subscription/settle', '/admin/copy-trading/s
     return res.redirect('/babyoku');
   }
 
+  if (sub.status === 'stopped') {
+    req.session.flash = { error: `Subscription #${sub.id} is already settled.` };
+    return res.redirect('/babyoku');
+  }
+
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(sub.user_id);
-  const returnTotal = sub.allocated_amount + sub.current_profit;
-  const newBal = user.balance + returnTotal;
+  if (!user) {
+    req.session.flash = { error: 'Associated user account not found.' };
+    return res.redirect('/babyoku');
+  }
+  const returnTotal = Number(sub.allocated_amount || 0) + Number(sub.current_profit || 0);
 
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newBal, user.id);
-  db.prepare("UPDATE copy_subscriptions SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP WHERE id = ?").run(sub.id);
-
-  db.prepare(`
-    INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
-    VALUES (?, 'copy_settle', ?, 'USD', 'completed', 'Admin Settle', ?, ?)
-  `).run(user.id, returnTotal, 'CPY-SET-ADM-' + Date.now(), `Admin force-settled copy strategy: Capital ($${sub.allocated_amount}) + PnL ($${sub.current_profit})`);
+  db.transaction(() => {
+    const freshSub = db.prepare('SELECT status FROM copy_subscriptions WHERE id = ?').get(sub.id);
+    if (!freshSub || freshSub.status === 'stopped') throw new Error('ALREADY_SETTLED');
+    const freshUser = db.prepare('SELECT balance, equity FROM users WHERE id = ?').get(user.id);
+    const newBal = Number(freshUser.balance || 0) + returnTotal;
+    const newEq = Number(freshUser.equity || freshUser.balance || 0) + returnTotal;
+    db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+    db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(returnTotal, user.id);
+    db.prepare("UPDATE copy_subscriptions SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP WHERE id = ?").run(sub.id);
+    db.prepare(`
+      INSERT INTO transactions (user_id, type, amount, currency, status, method, reference, description)
+      VALUES (?, 'copy_settle', ?, 'USD', 'completed', 'Admin Settle', ?, ?)
+    `).run(user.id, returnTotal, 'CPY-SET-ADM-' + Date.now(), `Admin force-settled copy strategy: Capital ($${sub.allocated_amount}) + PnL ($${sub.current_profit})`);
+  })();
 
   req.session.flash = { success: `Settled Subscription #${sub.id}. Returned $${returnTotal.toFixed(2)} directly to ${user.name}'s balance.` };
   res.redirect('/babyoku');
@@ -589,37 +604,38 @@ router.post(['/babyoku/user/set-balance', '/admin/user/set-balance'], (req, res)
   const newBal = parseFloat(exact_balance) || 0.00;
   const newEq = exact_equity !== undefined && exact_equity !== '' ? parseFloat(exact_equity) : newBal;
 
-  // 1. Update cash balance & equity in users table
-  db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
-  db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(newBal, user.id);
+  // Atomic multi-asset balance override
+  db.transaction(() => {
+    db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+    db.prepare("UPDATE user_crypto_balances SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(newBal, user.id);
 
-  // 2. Helper to upsert crypto assets in user_crypto_balances
-  const upsertAsset = (symbol, name, balanceVal, icon, rate) => {
-    const bal = parseFloat(balanceVal) || 0;
-    db.prepare(`
-      INSERT INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(user_id, asset_symbol) DO UPDATE SET 
-        balance = excluded.balance,
-        icon = excluded.icon,
-        rate_usd = excluded.rate_usd,
-        updated_at = CURRENT_TIMESTAMP
-    `).run(user.id, symbol, name, bal, icon, rate);
-  };
+    const upsertAsset = (symbol, name, balanceVal, icon, rate) => {
+      const bal = parseFloat(balanceVal) || 0;
+      db.prepare(`
+        INSERT INTO user_crypto_balances (user_id, asset_symbol, asset_name, balance, icon, rate_usd, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, asset_symbol) DO UPDATE SET 
+          balance = excluded.balance,
+          icon = excluded.icon,
+          rate_usd = excluded.rate_usd,
+          updated_at = CURRENT_TIMESTAMP
+      `).run(user.id, symbol, name, bal, icon, rate);
+    };
 
-  upsertAsset('BTC', 'Bitcoin', btc_balance, '₿', 64800.00);
-  upsertAsset('ETH', 'Ethereum', eth_balance, 'Ξ', 3540.00);
-  upsertAsset('USDT', 'Tether USD', usdt_balance, '₮', 1.00);
-  upsertAsset('SOL', 'Solana', sol_balance, '☀️', 148.50);
-  upsertAsset('BNB', 'BNB Chain', bnb_balance, '🟡', 582.00);
-  upsertAsset('XRP', 'Ripple', xrp_balance, '✕', 0.58);
-  upsertAsset('ADA', 'Cardano', ada_balance, '₳', 0.38);
-  upsertAsset('DOGE', 'Dogecoin', doge_balance, '🐕', 0.10);
-  upsertAsset('AVAX', 'Avalanche', avax_balance, '🔺', 24.50);
-  upsertAsset('LINK', 'Chainlink', link_balance, '🔗', 11.80);
-  upsertAsset('SUI', 'Sui', sui_balance, '🌊', 0.88);
-  upsertAsset('TON', 'Toncoin', ton_balance, '💎', 5.60);
-  upsertAsset('PEPE', 'Pepe', pepe_balance, '🐸', 0.0000085);
+    upsertAsset('BTC', 'Bitcoin', btc_balance, '₿', 64800.00);
+    upsertAsset('ETH', 'Ethereum', eth_balance, 'Ξ', 3540.00);
+    upsertAsset('USDT', 'Tether USD', usdt_balance, '₮', 1.00);
+    upsertAsset('SOL', 'Solana', sol_balance, '☀️', 148.50);
+    upsertAsset('BNB', 'BNB Chain', bnb_balance, '🟡', 582.00);
+    upsertAsset('XRP', 'Ripple', xrp_balance, '✕', 0.58);
+    upsertAsset('ADA', 'Cardano', ada_balance, '₳', 0.38);
+    upsertAsset('DOGE', 'Dogecoin', doge_balance, '🐕', 0.10);
+    upsertAsset('AVAX', 'Avalanche', avax_balance, '🔺', 24.50);
+    upsertAsset('LINK', 'Chainlink', link_balance, '🔗', 11.80);
+    upsertAsset('SUI', 'Sui', sui_balance, '🌊', 0.88);
+    upsertAsset('TON', 'Toncoin', ton_balance, '💎', 5.60);
+    upsertAsset('PEPE', 'Pepe', pepe_balance, '🐸', 0.0000085);
+  })();
 
   // 3. Record transaction & activity log
   db.prepare(`
@@ -670,7 +686,7 @@ router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], async (req, 
     try {
       db.prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'kyc')")
         .run(targetUser.id, 'Compliance Verification Confirmed', 'Administrator has approved your account for Tier-1 Verified status.');
-    } catch (e) {}
+    } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     if (targetUser.email) {
       sendEmail({
         to: targetUser.email,
@@ -689,7 +705,7 @@ router.post(['/babyoku/user/kyc-status', '/admin/user/kyc-status'], async (req, 
 
   const effectiveAdminId = req.session.adminId || req.session.userId;
   logActivity(effectiveAdminId, 'ADMIN_KYC_STATUS_UPDATE', `Updated KYC status for User #${targetUser.id} (${targetUser.email}) to ${validStatus.toUpperCase()}`, req);
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
 
@@ -734,9 +750,9 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
       }
       db.prepare('DELETE FROM retirement_accounts WHERE user_id = ?').run(user_id);
       db.prepare('DELETE FROM retirement_contributions WHERE user_id = ?').run(user_id);
-    } catch (e) {}
-    try { db.prepare('DELETE FROM user_saved_wallets WHERE user_id = ?').run(user_id); } catch (e) {}
-    try { db.prepare('DELETE FROM user_connected_wallets WHERE user_id = ?').run(user_id); } catch (e) {}
+    } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
+    try { db.prepare('DELETE FROM user_saved_wallets WHERE user_id = ?').run(user_id); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
+    try { db.prepare('DELETE FROM user_connected_wallets WHERE user_id = ?').run(user_id); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     db.prepare('DELETE FROM trades WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM transactions WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM kyc_documents WHERE user_id = ?').run(user_id);
@@ -746,7 +762,7 @@ router.post(['/babyoku/user/delete', '/admin/user/delete'], requireAdmin, (req, 
     db.prepare('DELETE FROM user_crypto_balances WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM user_investments WHERE user_id = ?').run(user_id);
     db.prepare('DELETE FROM notifications WHERE user_id = ?').run(user_id);
-    try { db.prepare('DELETE FROM referrals WHERE referee_id = ? OR referrer_id = ?').run(user_id, user_id); } catch (e) {}
+    try { db.prepare('DELETE FROM referrals WHERE referee_id = ? OR referrer_id = ?').run(user_id, user_id); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     db.prepare('DELETE FROM users WHERE id = ?').run(user_id);
   });
 
@@ -802,7 +818,7 @@ router.post(['/babyoku/gateways/delete', '/admin/gateways/delete'], (req, res) =
   const { id } = req.body;
   if (id) {
     db.prepare('DELETE FROM payment_gateways WHERE id = ?').run(id);
-    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+    try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
     recordLocalMutation(db);
     scheduleCloudSync(db, 100);
     req.session.flash = { success: 'Payment gateway deleted successfully.' };
@@ -826,7 +842,7 @@ router.post(['/babyoku/gateways/save', '/admin/gateways/save'], (req, res) => {
     `).run(name, currency, network, address, instructions, parseFloat(min_deposit) || 50.0, is_active === '1' ? 1 : 0);
     req.session.flash = { success: `New payment gateway '${name}' added.` };
   }
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
   res.redirect('/babyoku');
@@ -887,11 +903,11 @@ const processKycDocumentDecision = (req, res, { kycId, rawDecision, rejectionRea
         async: true
       }).catch(() => {});
     }
-  } catch (ne) {}
+  } catch (ne) { console.warn('[admin] Suppressed error:', ne && ne.message ? ne.message : ne); }
 
   const effectiveAdminId = req.session.adminId || req.session.userId;
   logActivity(effectiveAdminId, isAppOrRejAction(status), `KYC Document #${doc.id} for User #${doc.user_id} marked ${status.toUpperCase()} (user kyc_status=${userKycStatus})`, req);
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
 
@@ -1048,32 +1064,36 @@ router.post(['/babyoku/transaction/status', '/admin/transaction/status'], (req, 
     return res.redirect('/babyoku');
   }
 
-  const prevStatus = tx.status;
-  db.prepare('UPDATE transactions SET status = ? WHERE id = ?').run(status, transaction_id);
+  db.transaction(() => {
+    const freshTx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(transaction_id);
+    if (!freshTx) return;
+    const prevStatus = freshTx.status;
+    db.prepare('UPDATE transactions SET status = ? WHERE id = ?').run(status, transaction_id);
 
-  // If approving deposit, credit user balance
-  if (status === 'completed' && tx.type === 'deposit' && prevStatus !== 'completed') {
-    const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(tx.user_id);
-    if (user) {
-      const newBal = Number(user.balance) + Number(tx.amount);
-      const newEq = Number(user.equity || user.balance) + Number(tx.amount);
-      db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
-      db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(tx.amount), user.id);
-    }
-  } else if (status === 'rejected' && tx.type === 'withdrawal' && prevStatus !== 'rejected') {
-    // Refund deducted funds when a pending withdrawal is rejected
-    const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(tx.user_id);
-    if (user) {
-      if (!tx.currency || tx.currency === 'USD') {
-        const newBal = Number(user.balance) + Number(tx.amount);
-        const newEq = Number(user.equity || user.balance) + Number(tx.amount);
+    // If approving deposit, credit user balance atomically
+    if (status === 'completed' && freshTx.type === 'deposit' && prevStatus !== 'completed') {
+      const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(freshTx.user_id);
+      if (user) {
+        const newBal = Number(user.balance) + Number(freshTx.amount);
+        const newEq = Number(user.equity || user.balance) + Number(freshTx.amount);
         db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
-        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(tx.amount), user.id);
-      } else {
-        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = ?").run(Number(tx.amount), user.id, tx.currency);
+        db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(freshTx.amount), user.id);
+      }
+    } else if (status === 'rejected' && freshTx.type === 'withdrawal' && prevStatus !== 'rejected') {
+      // Refund deducted funds atomically when a pending withdrawal is rejected
+      const user = db.prepare('SELECT id, balance, equity FROM users WHERE id = ?').get(freshTx.user_id);
+      if (user) {
+        if (!freshTx.currency || freshTx.currency === 'USD') {
+          const newBal = Number(user.balance) + Number(freshTx.amount);
+          const newEq = Number(user.equity || user.balance) + Number(freshTx.amount);
+          db.prepare('UPDATE users SET balance = ?, equity = ? WHERE id = ?').run(newBal, newEq, user.id);
+          db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = 'USD'").run(Number(freshTx.amount), user.id);
+        } else {
+          db.prepare("UPDATE user_crypto_balances SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND asset_symbol = ?").run(Number(freshTx.amount), user.id, freshTx.currency);
+        }
       }
     }
-  }
+  })();
 
   // Notify user of transaction status change
   try {
@@ -1483,7 +1503,7 @@ router.post(['/babyoku/settings/kyc-policy', '/babyoku/settings/didit', '/admin/
     WHERE id = 1
   `).run(autoApprove, autoApprove);
 
-  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
+  try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { console.warn('[admin] Suppressed error:', e && e.message ? e.message : e); }
   recordLocalMutation(db);
   scheduleCloudSync(db, 100);
 
