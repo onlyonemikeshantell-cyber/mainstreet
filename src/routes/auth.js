@@ -663,8 +663,9 @@ router.post('/register', async (req, res) => {
   const docStatus = isAutoApprove ? 'approved' : 'pending';
 
   const hash = bcrypt.hashSync(password, 10);
-  const emailCode = isStep2EmailVerified ? null : Math.floor(100000 + Math.random() * 900000).toString();
-  const codeExpires = isStep2EmailVerified ? null : new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const skipEmailGate = isStep2EmailVerified || isDeferredKyc;
+  const emailCode = skipEmailGate ? null : Math.floor(100000 + Math.random() * 900000).toString();
+  const codeExpires = skipEmailGate ? null : new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
     const result = db.prepare(`
@@ -677,7 +678,7 @@ router.post('/register', async (req, res) => {
       country ? country.trim() : 'United States',
       hash,
       initialKycStatus,
-      isStep2EmailVerified ? 1 : 0,
+      skipEmailGate ? 1 : 0,
       emailCode,
       codeExpires
     );
@@ -746,9 +747,11 @@ router.post('/register', async (req, res) => {
       `).run(
         newUserId,
         'Welcome to Mainstreet Capital Exchange',
-        isStep2EmailVerified
-          ? 'Your registration is complete and your KYC documents are currently under compliance review. Full trading access will unlock upon KYC approval.'
-          : 'Your institutional trading account has been created. Complete Step 2 (Email OTP) and await KYC approval to unlock live trading.'
+        isDeferredKyc
+          ? 'Welcome! Explore your dashboard and live markets. Complete identity verification anytime before making your first live deposit.'
+          : (isStep2EmailVerified
+            ? 'Your registration is complete and your KYC documents are currently under compliance review.'
+            : 'Your account has been created. Verify your email address to complete setup.')
       );
     } catch(e) {}
 
@@ -775,6 +778,19 @@ router.post('/register', async (req, res) => {
     // Immediately checkpoint SQLite and persist new user to Cloud Vault before redirecting
     try { db.pragma('wal_checkpoint(PASSIVE)'); } catch (e) {}
     try { await syncToCloudVault(db); } catch (e) {}
+
+    if (isDeferredKyc) {
+      sendWelcomeEmail({
+        userId: newUserId,
+        name: fullUser.name,
+        email: fullUser.email,
+        country: fullUser.country,
+        req
+      }).catch(() => {});
+      logActivity(newUserId, 'REGISTER_QUICK_START', 'User created account via progressive disclosure (KYC deferred until deposit)', req);
+      req.session.flash = { success: 'Account created! Explore the platform freely and complete identity verification anytime before your first live deposit.' };
+      return req.session.save(() => res.redirect('/dashboard'));
+    }
 
     if (isStep2EmailVerified) {
       await sendWelcomeEmail({

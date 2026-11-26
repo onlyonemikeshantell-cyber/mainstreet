@@ -25,11 +25,16 @@ const requireAuth = (req, res, next) => {
       req.session.flash = { error: 'Step 2 of 4: Please verify your email address to proceed.' };
       return req.session.save(() => res.redirect('/verify-email'));
     }
-    if (user.kyc_status !== 'verified') {
+    const fundingPaths = ['/deposit', '/withdraw', '/api/deposit', '/api/withdraw'];
+    const requiresKycNow = fundingPaths.some(p => req.path === p || req.path.startsWith(p + '/'));
+    if (user.kyc_status !== 'verified' && requiresKycNow) {
+      const msg = user.kyc_status === 'pending'
+        ? 'Your identity verification is currently under compliance review. Funding and withdrawals unlock upon approval.'
+        : 'Please complete identity verification before making a live deposit or withdrawal.';
       if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
-        return res.status(403).json({ success: false, error: 'Your KYC verification must be approved before accessing your account.' });
+        return res.status(403).json({ success: false, error: msg });
       }
-      req.session.flash = { error: 'Please wait until your KYC verification is approved before accessing your account.' };
+      req.session.flash = { error: msg };
       return req.session.save(() => res.redirect('/onboarding/kyc'));
     }
   }
