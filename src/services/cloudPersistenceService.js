@@ -40,7 +40,6 @@ const TABLES_TO_SYNC = [
 ];
 
 const CONFIG_TABLES = [
-  'payment_gateways',
   'master_traders',
   'master_trades',
   'copy_trading_comments',
@@ -398,8 +397,13 @@ function importDatabaseSnapshot(db, snapshot) {
 /**
  * Push current database state to the Cloud Vault
  */
-async function syncToCloudVault(db) {
+async function syncToCloudVault(db, opts) {
   if (process.env.DISABLE_CLOUD_VAULT === '1') return false;
+  if (!isRestored && !(opts && opts.force)) {
+    // Prevent a pre-restore boot write from overwriting newer Cloud Vault snapshots with stale git DB
+    pendingSync = true;
+    return false;
+  }
   if (isSyncing) {
     pendingSync = true;
     return false;

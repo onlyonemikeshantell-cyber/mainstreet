@@ -10,6 +10,7 @@ process.on('unhandledRejection', (reason) => {
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const zlib = require('zlib');
 const cors = require('cors');
 
 // Import DB & Middleware
@@ -54,8 +55,38 @@ app.set('trust proxy', 1);
 app.set('views', path.join(__dirname, 'src', 'views'));
 app.set('view engine', 'ejs');
 
-// Static assets (allow dotfiles for /.well-known domain verification)
-app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
+// Zero-dependency Gzip compression for HTML, JSON, JS, CSS, SVG (~75-85% smaller payloads)
+app.use((req, res, next) => {
+  const acceptEnc = String(req.headers['accept-encoding'] || '');
+  if (!acceptEnc.includes('gzip') || req.method === 'HEAD') return next();
+  const origSend = res.send.bind(res);
+  res.send = function(body) {
+    try {
+      if (res.headersSent || res.getHeader('Content-Encoding')) return origSend(body);
+      const ct = String(res.getHeader('Content-Type') || '');
+      const isCompressible = !ct || /html|json|javascript|css|svg|text|xml/i.test(ct);
+      if (!isCompressible || body == null) return origSend(body);
+      const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf8');
+      if (buf.length < 1024) return origSend(body);
+      const gz = zlib.gzipSync(buf, { level: 6 });
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('Content-Length', gz.length);
+      return res.end(gz);
+    } catch (e) {
+      return origSend(body);
+    }
+  };
+  next();
+});
+
+// Static assets with 7-day browser caching (allow dotfiles for /.well-known domain verification)
+app.use(express.static(path.join(__dirname, 'public'), {
+  dotfiles: 'allow',
+  maxAge: '7d',
+  etag: true,
+  lastModified: true
+}));
 
 // Body parsing: 50mb scoped strictly to KYC/media upload routes; 2mb default everywhere else
 const largeBodyUrlencoded = express.urlencoded({ extended: true, limit: '50mb' });
