@@ -137,6 +137,7 @@ router.get(['/babyoku', '/admin'], (req, res) => {
     FROM master_trades mt 
     JOIN master_traders m ON mt.master_id = m.id 
     ORDER BY mt.id DESC
+    LIMIT 50
   `).all();
   const copySubscriptions = db.prepare(`
     SELECT cs.*, u.name as user_name, u.email as user_email, mt.name as master_name, mt.strategy_name 

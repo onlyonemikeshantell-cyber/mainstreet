@@ -10,6 +10,10 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'mainstreet.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+db.pragma('cache_size = -16000');
+db.pragma('temp_store = MEMORY');
+db.pragma('mmap_size = 67108864');
 
 // Migration to ensure users table has kyc_status, phone, country
 try {

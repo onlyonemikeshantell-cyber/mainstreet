@@ -39,31 +39,42 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true, uptime: Math.round(process.uptime()) });
 });
 
-// HTTP Security Headers
+// HTTP Security Headers (HSTS, CSP frame/object/base guard, COOP, nosniff)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'");
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  if (isHttps) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   next();
 });
 
 app.set('trust proxy', 1);
 
-// View engine setup
+// View engine setup + in-memory EJS template caching (avoids disk re-read & recompile on every request)
 app.set('views', path.join(__dirname, 'src', 'views'));
 app.set('view engine', 'ejs');
+if (process.env.NODE_ENV !== 'development') {
+  app.set('view cache', true);
+}
 
-// Zero-dependency Gzip compression for HTML, JSON, JS, CSS, SVG (~75-85% smaller payloads)
+// Zero-dependency Brotli + Gzip compression for HTML, JSON, JS, CSS, SVG (~80-88% smaller payloads)
 app.use((req, res, next) => {
   const acceptEnc = String(req.headers['accept-encoding'] || '');
-  if (!acceptEnc.includes('gzip') || req.method === 'HEAD') return next();
+  const useBr = acceptEnc.includes('br') && typeof zlib.brotliCompressSync === 'function';
+  const useGzip = !useBr && acceptEnc.includes('gzip');
+  if ((!useBr && !useGzip) || req.method === 'HEAD') return next();
   const origSend = res.send.bind(res);
   res.send = function(body) {
     try {
       if (res.headersSent || res.getHeader('Content-Encoding') || body == null) return origSend(body);
-      // Ensure Content-Type is set BEFORE bypassing Express's origSend (res.render calls res.send without Content-Type set yet!)
       let ct = String(res.getHeader('Content-Type') || '');
       if (!ct) {
         if (typeof body === 'string') {
@@ -80,11 +91,13 @@ app.use((req, res, next) => {
       if (!isCompressible) return origSend(body);
       const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf8');
       if (buf.length < 1024) return origSend(body);
-      const gz = zlib.gzipSync(buf, { level: 6 });
-      res.setHeader('Content-Encoding', 'gzip');
+      const compressed = useBr
+        ? zlib.brotliCompressSync(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } })
+        : zlib.gzipSync(buf, { level: 6 });
+      res.setHeader('Content-Encoding', useBr ? 'br' : 'gzip');
       res.setHeader('Vary', 'Accept-Encoding');
-      res.setHeader('Content-Length', gz.length);
-      return res.end(gz);
+      res.setHeader('Content-Length', compressed.length);
+      return res.end(compressed);
     } catch (e) {
       return origSend(body);
     }
@@ -167,8 +180,11 @@ const createRateLimiter = (prefix, maxHits, windowMs) => (req, res, next) => {
   next();
 };
 app.use(['/babyoku/login', '/admin/login'], createRateLimiter('admin_login', 8, 15 * 60 * 1000));
+app.use('/login', createRateLimiter('user_login', 15, 15 * 60 * 1000));
 app.use('/register', createRateLimiter('register', 12, 15 * 60 * 1000));
 app.use('/forgot-password', createRateLimiter('forgot', 8, 15 * 60 * 1000));
+app.use('/api/trade', createRateLimiter('api_trade', 60, 60 * 1000));
+app.use('/api/wallet', createRateLimiter('api_wallet', 40, 60 * 1000));
 
 // Persistent SQLite Session Store (survives server restarts)
 db.exec(`
@@ -317,10 +333,13 @@ app.use((req, res) => {
   });
 });
 
-// Error Handler
+// Error Handler (never expose stack traces or SQL details to clients)
 app.use((err, req, res, next) => {
-  console.error('Server Unhandled Error:', err);
-  res.status(500).send('Internal Server Error');
+  console.error('Server Unhandled Error:', err && err.message ? err.message : err);
+  if (req.xhr || req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+  res.status(500).type('text/plain').send('Internal Server Error');
 });
 
 // Start HTTP listener immediately so Render marks the service Live in ~1s
