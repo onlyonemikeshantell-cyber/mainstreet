@@ -62,10 +62,22 @@ app.use((req, res, next) => {
   const origSend = res.send.bind(res);
   res.send = function(body) {
     try {
-      if (res.headersSent || res.getHeader('Content-Encoding')) return origSend(body);
-      const ct = String(res.getHeader('Content-Type') || '');
-      const isCompressible = !ct || /html|json|javascript|css|svg|text|xml/i.test(ct);
-      if (!isCompressible || body == null) return origSend(body);
+      if (res.headersSent || res.getHeader('Content-Encoding') || body == null) return origSend(body);
+      // Ensure Content-Type is set BEFORE bypassing Express's origSend (res.render calls res.send without Content-Type set yet!)
+      let ct = String(res.getHeader('Content-Type') || '');
+      if (!ct) {
+        if (typeof body === 'string') {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          ct = 'text/html; charset=utf-8';
+        } else if (typeof body === 'object' && !Buffer.isBuffer(body)) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          ct = 'application/json; charset=utf-8';
+        } else {
+          return origSend(body);
+        }
+      }
+      const isCompressible = /html|json|javascript|css|svg|text|xml/i.test(ct);
+      if (!isCompressible) return origSend(body);
       const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf8');
       if (buf.length < 1024) return origSend(body);
       const gz = zlib.gzipSync(buf, { level: 6 });
